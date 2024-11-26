@@ -6,6 +6,20 @@ import torchvision.transforms as transforms
 import torchvision.io as io
 from concurrent.futures import ThreadPoolExecutor
 import torch.nn as nn
+import numpy as np
+import torch
+from tqdm.notebook import tqdm
+
+use_nutritions = ["niacin","fiber","sugars","sodium","carbohydrates","vitaminB6",
+                  "calories","thiamin","fat","folate","caloriesFromFat","calcium",
+                  "magnesium","iron","cholesterol","protein","vitaminA","potassium",
+                  "saturatedFat","vitaminC"]
+
+def parse_nutrient_json(json_dict):
+  res = {}
+  for un in use_nutritions:
+    res.update({un: eval(json_dict).get(un).get("amount")})
+  return res
 
 def core_file_loader(directory_path: str) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame):
     return (
@@ -58,6 +72,7 @@ def load_recipe_ingredients(directory_path: str, originarl_df: pd.DataFrame):
 
     __recipes = originarl_df.copy()
     recipe_ingredients = pd.DataFrame([], columns=["recipe_id", "ingredient_id"])
+    ingredients = load_ingredients(directory_path, originarl_df)
     all_ings = ingredients.values.reshape(-1)
     for recipe_id, recipe_row in tqdm(__recipes.iterrows(), total = __recipes.shape[0]):
         for recip_ing in recipe_row["ingredients"].split("^"):
