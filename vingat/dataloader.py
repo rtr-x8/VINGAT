@@ -16,6 +16,7 @@ class RecipeFeatureType(Enum):
 def create_hetrodata(ratings: pd.DataFrame,
                      ingredients: pd.DataFrame,
                      recipe_ingredients: pd.DataFrame,
+                     recipe_nutrients: pd.DataFrame,
                      user_label_encoder: LabelEncoder,
                      recipe_label_encoder: LabelEncoder,
                      ingredient_label_encoder: LabelEncoder,
@@ -72,7 +73,7 @@ def create_dataloader(
     core_val_rating: pd.DataFrame,
     recipe_ingredients: pd.DataFrame,
     ingredients: pd.DataFrame,
-    create_hetrodata: callable,
+    recipe_nutrients: pd.DataFrame,
     device: torch.device
 ):
     all_user_id = pd.concat([core_train_rating["user_id"], core_test_rating["user_id"], core_val_rating["user_id"]]).unique()
@@ -86,8 +87,8 @@ def create_dataloader(
     test_recipe_ingedient = recipe_ingredients[recipe_ingredients["recipe_id"].isin(core_test_rating["recipe_id"])]
     val_recipe_ingedient = recipe_ingredients[recipe_ingredients["recipe_id"].isin(core_val_rating["recipe_id"])]
 
-    train = create_hetrodata(core_train_rating, ingredients.copy(), train_recipe_ingedient.copy(), user_label_encoder, recipe_label_encoder, ingredient_label_encoder, device)
-    #test = create_hetrodata(core_test_rating, ingredients.copy(), test_recipe_ingedient.copy(), user_label_encoder, recipe_label_encoder, ingredient_label_encoder, device)
-    val = create_hetrodata(core_val_rating, ingredients.copy(), val_recipe_ingedient.copy(), user_label_encoder, recipe_label_encoder, ingredient_label_encoder, device)
+    train = create_hetrodata(core_train_rating, ingredients.copy(), train_recipe_ingedient.copy(), recipe_nutrients, user_label_encoder, recipe_label_encoder, ingredient_label_encoder, device)
+    #test = create_hetrodata(core_test_rating, ingredients.copy(), test_recipe_ingedient.copy(), recipe_nutrients, user_label_encoder, recipe_label_encoder, ingredient_label_encoder, device)
+    val = create_hetrodata(core_val_rating, ingredients.copy(), val_recipe_ingedient.copy(), recipe_nutrients, user_label_encoder, recipe_label_encoder, ingredient_label_encoder, device)
 
 train
