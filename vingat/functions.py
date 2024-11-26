@@ -83,10 +83,12 @@ def evaluate_model(
                 auc = roc_auc_score(labels, scores)
                 all_aucs.append(auc)
 
-
             # このユーザーのスコアを集計してトップkのレコメンデーションを取得
             user_scores = torch.cat([pos_scores, neg_scores], dim=0).cpu().numpy()
-            recipe_indices = np.concatenate([user_pos_indices.cpu().numpy(), user_neg_indices.cpu().numpy()])
+            recipe_indices = np.concatenate([
+                user_pos_indices.cpu().numpy(),
+                user_neg_indices.cpu().numpy()
+            ])
 
             k = min(k, len(user_scores))
             sorted_indices = np.argsort(-user_scores)    # 降順にソート
@@ -111,7 +113,6 @@ def evaluate_model(
                 all_accuracies.append(accuracy)
                 all_f1_scores.append(f1)
 
-
     avg_recall = np.mean(all_recalls)
     avg_precision = np.mean(all_precisions)
     avg_ndcg = np.mean(all_ndcgs)
@@ -123,11 +124,25 @@ def evaluate_model(
 
 
 def save_model(model: nn.Module,  save_directory: str, filename: str):
-   os.makedirs(save_directory, exist_ok=True)
-   torch.save(model.state_dict(), f"{save_directory}/{filename}.pth")
+    os.makedirs(save_directory, exist_ok=True)
+    torch.save(model.state_dict(), f"{save_directory}/{filename}.pth")
 
 
-def train_func(train_loader, val, model, optimizer, criterion, epochs, device, patience=5):
+def train_func(
+    train_loader,
+    val,
+    model,
+    optimizer,
+    criterion,
+    epochs,
+    device,
+    patience=5,
+    train_epoch_logger: callable,
+    valid_epoch_logger: callable,
+    directory_path: str,
+    project_name: str,
+    experiment_name: str
+):
     model.to(device)
     model.train()
     best_val_metric = 0    # 現時点での最良のバリデーションメトリクスを初期化
@@ -188,7 +203,7 @@ def train_func(train_loader, val, model, optimizer, criterion, epochs, device, p
 
         print(f"Loss: {avg_loss:.4f}, Accuracy: {epoch_accuracy:.4f}, Recall: {epoch_recall:.4f}, F1: {epoch_f1:.4f}")
 
-        wandb.log({
+        train_epoch_logger({
             "train/total_loss": total_loss,
             "train/aveg_loss": aveg_loss,
             "train/accuracy": epoch_accuracy,
@@ -199,13 +214,17 @@ def train_func(train_loader, val, model, optimizer, criterion, epochs, device, p
         # Valid
         k = 10
         val_copied = copy.deepcopy(val)
-        val_precision, val_recall, val_ndcg, val_accuracy, val_f1, val_auc = evaluate_model(model, val_copied, device, k=k, desc=f"[Valid] Epoch {epoch+1}/{epochs}")
+        val_precision, val_recall,
+        val_ndcg, val_accuracy,
+        val_f1, val_auc = evaluate_model(model, val_copied, device, k=k, desc=f"[Valid] Epoch {epoch+1}/{epochs}")
 
         # 結果を表示
-        print(f'Accuracy@{k}: {val_accuracy:.4f}, Recall@{k}: {val_recall:.4f}, F1@{k}: {val_f1:.4f}, Precision@{k}: {val_precision:.4f}, NDCG@{k}: {val_ndcg:.4f}, AUC: {val_auc:.4f}')
+        txt = f'Accuracy@{k}: {val_accuracy:.4f}, Recall@{k}: {val_recall:.4f}, F1@{k}: {val_f1:.4f},'
+        txt = f"{txt} Precision@{k}: {val_precision:.4f}, NDCG@{k}: {val_ndcg:.4f}, AUC: {val_auc:.4f}"
+        print(txt)
         print("===")
 
-        wandb.log({
+        valid_epoch_logger({
             f"val/Precision@{k}": val_precision,
             f"val/Recall@{k}": val_recall,
             f"val/NDCG@{k}": val_ndcg,
@@ -214,7 +233,7 @@ def train_func(train_loader, val, model, optimizer, criterion, epochs, device, p
             f"val/AUC": val_auc,
         })
 
-        save_model(model, f"{PATH}/models/{PROJECT_NAME}/{run_name}", f"model_{epoch+1}")
+        save_model(model, f"{PATH}/models/{project_name}/{experiment_name}", f"model_{epoch+1}")
 
         # Early Stoppingの判定（バリデーションの精度または他のメトリクスで判定）
         if val_accuracy > best_val_metric:
@@ -227,21 +246,21 @@ def train_func(train_loader, val, model, optimizer, criterion, epochs, device, p
         # patienceを超えた場合にEarly Stoppingを実行
         if patience_counter >= patience:
             print(f"バリデーションメトリクスの改善がないため、エポック{epoch+1}でEarly Stoppingを実行します。")
-            wandb.alert(
-                title="Early Stopped",
-                text=f"学習が終了しました。\nプロジェクト名：{PROJECT_NAME}\n管理番号：{run_name}",
-                level=wandb.AlertLevel.ERROR,
-            )
+            # wandb.alert(
+            #    title="Early Stopped",
+            #    text=f"学習が終了しました。\nプロジェクト名：{project_name}\n管理番号：{experiment_name}",
+            #    level=wandb.AlertLevel.ERROR,
+            # )
             break
 
-    wandb.alert(
-        title="訓練終了",
-        text=f"学習が終了しました。\nプロジェクト名：{PROJECT_NAME}\n管理番号：{run_name}",
-        level=wandb.AlertLevel.ERROR,
-    )
+    # wandb.alert(
+    #    title="訓練終了",
+    #    text=f"学習が終了しました。\nプロジェクト名：{project_name}\n管理番号：{experiment_name}",
+    #    level=wandb.AlertLevel.ERROR,
+    # )
 
     if best_model_state is not None:
         model.load_state_dict(best_model_state)
-        save_model(model, f"{PATH}/models/{PROJECT_NAME}/{run_name}", "best_model")
+        save_model(model, f"{PATH}/models/{project_name}/{experiment_name}", "best_model")
 
     return model
