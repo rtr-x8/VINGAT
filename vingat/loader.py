@@ -75,10 +75,10 @@ def load_recipe_ingredients(directory_path: str, originarl_df: pd.DataFrame):
         all_ings = ingredients.values.reshape(-1)
         for recipe_id, recipe_row in tqdm(__recipes.iterrows(), total = __recipes.shape[0]):
             for recip_ing in recipe_row["ingredients"].split("^"):
-            if recip_ing in all_ings:
-                recipe_ingredients = pd.concat([recipe_ingredients,
-                                                pd.DataFrame([[recipe_id, np.where(all_ings == recip_ing)[0][0]]],
-                                                            columns=["recipe_id", "ingredient_id"])])
+                if recip_ing in all_ings:
+                    recipe_ingredients = pd.concat([recipe_ingredients,
+                                                    pd.DataFrame([[recipe_id, np.where(all_ings == recip_ing)[0][0]]],
+                                                                columns=["recipe_id", "ingredient_id"])])
         recipe_ingredients.to_csv(f"{directory_path}/recipe_ingredients.csv")
 
     recipe_ingredients = pd.read_csv(f"{directory_path}/recipe_ingredients.csv", index_col=0)
@@ -89,19 +89,19 @@ def load_recipe_ingredients(directory_path: str, originarl_df: pd.DataFrame):
 def load_recipe_cooking_directions(directory_path: str, originarl_df: pd.DataFrame):
     if not os.path.isfile(f"{directory_path}/recipe_cooking_directions.csv"):
 
-    __recipes = originarl_df.copy()
-    __recipes["cooking_directions"] = __recipes["cooking_directions"].to_dict()
+        __recipes = originarl_df.copy()
+        __recipes["cooking_directions"] = __recipes["cooking_directions"].to_dict()
 
-    recipe_cooking_directions = pd.DataFrame([], index=__recipes.index, columns=["direction"])
-    for i in tqdm(__recipes.index.to_list(), total = __recipes.shape[0]):
-        txt = __recipes.at[i, "cooking_directions"]
-        txt = eval(txt).get('directions')
-        txts = txt.split("\n")
-        txts = [t for t in txts if len(t) > 10]
-        txt = "\n".join(txts)
-        recipe_cooking_directions.at[i, "direction"] = txt
-    recipe_cooking_directions.to_csv(f"{directory_path}/recipe_cooking_directions.csv")
-
+        recipe_cooking_directions = pd.DataFrame([], index=__recipes.index, columns=["direction"])
+        for i in tqdm(__recipes.index.to_list(), total = __recipes.shape[0]):
+            txt = __recipes.at[i, "cooking_directions"]
+            txt = eval(txt).get('directions')
+            txts = txt.split("\n")
+            txts = [t for t in txts if len(t) > 10]
+            txt = "\n".join(txts)
+            recipe_cooking_directions.at[i, "direction"] = txt
+        recipe_cooking_directions.to_csv(f"{directory_path}/recipe_cooking_directions.csv")
+        
     recipe_cooking_directions = pd.read_csv(f"{directory_path}/recipe_cooking_directions.csv", index_col=0)
     print("recipe_cooking_directions is loaded")
 
@@ -148,17 +148,17 @@ def load_recipe_image_embeddings(directory_path: str, originarl_df: pd.DataFrame
         def process_image(recipe_id):
             """個別の画像の読み込みと特徴量抽出を行う"""
             try:
-            image_path = f"{directory_path}/core-data-images/core-data-images/{recipe_id}.jpg"
-            image = io.read_image(image_path).to(device)
-            image = image_transform(image).unsqueeze(0).to(device)  # 前処理とデバイス移動
+                image_path = f"{directory_path}/core-data-images/core-data-images/{recipe_id}.jpg"
+                image = io.read_image(image_path).to(device)
+                image = image_transform(image).unsqueeze(0).to(device)  # 前処理とデバイス移動
 
-            with torch.no_grad():
-                output = cnn(image)
+                with torch.no_grad():
+                    output = cnn(image)
 
-            # 特徴量をCPUに移動してフラット化
+                # 特徴量をCPUに移動してフラット化
             except Exception as e:
-            errors.append(recipe_id)
-            return recipe_id, np.zeros(1024)
+                errors.append(recipe_id)
+                return recipe_id, np.zeros(1024)
 
             return recipe_id, output.view(-1).cpu().numpy()
 
