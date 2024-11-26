@@ -25,8 +25,8 @@ def parse_nutrient_json(json_dict):
 
 
 def core_file_loader(
-        directory_path: str
-    ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    directory_path: str
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     return (
         pd.read_csv(f"{directory_path}/core-data_recipe.csv", index_col=0),
         pd.read_csv(f"{directory_path}/core-data-train_rating.csv"),
@@ -115,9 +115,9 @@ def load_recipe_ingredients(directory_path: str, originarl_df: pd.DataFrame):
 
 
 def load_recipe_cooking_directions(
-        directory_path: str,
-        originarl_df: pd.DataFrame
-    ) -> pd.DataFrame:
+    directory_path: str,
+    originarl_df: pd.DataFrame
+) -> pd.DataFrame:
     """
     レシピ名、調理工程、レシピ画像の一時保存データ
     """
@@ -148,15 +148,15 @@ def load_recipe_cooking_directions(
 
 
 def load_ingredients_with_embeddings(
-        directory_path: str,
-        originarl_df: pd.DataFrame
-    ):
+    directory_path: str,
+    originarl_df: pd.DataFrame
+):
     """
     食材の埋込データ
     """
     file_path = f"{directory_path}/ingredients_with_embeddings.csv"
     if not os.path.isfile(file_path):
-         # next cell, next next cell, next next next cell
+        # next cell, next next cell, next next next cell
         raise Exception("embedding file not found")
     ingredients_with_embeddings = pd.read_csv(file_path, index_col=0)
     print("ingredients_with_embeddings is loaded")
@@ -164,9 +164,9 @@ def load_ingredients_with_embeddings(
 
 
 def load_recipe_image_embeddings(
-        directory_path: str,
-        originarl_df: pd.DataFrame, device
-    ) -> pd.DataFrame:
+    directory_path: str,
+    originarl_df: pd.DataFrame, device
+) -> pd.DataFrame:
     """
     レシピ画像の特徴データ
     """
