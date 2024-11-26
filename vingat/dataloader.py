@@ -4,6 +4,8 @@ from torch_geometric.utils import negative_sampling
 import torch
 import torch.nn as nn
 from enum import Enum
+import numpy as np
+from .loader import use_nutritions, load_recipe_nutrients
 
 class RecipeFeatureType(Enum):
     VISUAL = 0
@@ -17,7 +19,8 @@ def create_hetrodata(ratings: pd.DataFrame,
                      user_label_encoder: LabelEncoder,
                      recipe_label_encoder: LabelEncoder,
                      ingredient_label_encoder: LabelEncoder,
-                     device) -> HeteroData:
+                     device,
+                     recipe_nutrients) -> HeteroData:
 
     hetro = HeteroData()
 
