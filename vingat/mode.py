@@ -3,8 +3,6 @@ from torch_geometric.nn import GATConv
 from torch_geometric.nn import BatchNorm
 import torch.nn as nn
 import pandas as pd
-import numpy as np
-
 
 
 class StaticEmbeddingLoader():
@@ -125,7 +123,10 @@ class RecommendationModel(nn.Module):
             device)
 
         # レシピ画像の埋め込み取得
-        self.image_feature_loader = StaticEmbeddingLoader(recipe_image_embeddings, hidden_dim, device)
+        self.image_feature_loader = StaticEmbeddingLoader(
+            recipe_image_embeddings,
+            hidden_dim,
+            device)
 
         # 食材の特徴量を変換する線形そう
         self.ingredient_linear = nn.Linear(1024, hidden_dim)
