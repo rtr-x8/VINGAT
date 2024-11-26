@@ -101,7 +101,7 @@ def load_ingredients_with_embeddings(directory_path: str, originarl_df: pd.DataF
 
 
 """ レシピ画像の特徴データ """
-def load_recipe_image_embeddings(directory_path: str, originarl_df: pd.DataFrame):
+def load_recipe_image_embeddings(directory_path: str, originarl_df: pd.DataFrame, device):
     if not os.path.isfile(f"{directory_path}/recipe_image_embeddings.csv"):
         cnn_model = models.resnet50(pretrained=True)
         cnn = nn.Sequential(
