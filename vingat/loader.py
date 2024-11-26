@@ -67,6 +67,7 @@ def load_ingredients(directory_path: str, originarl_df: pd.DataFrame):
     print("ingredients is loaded")
     return ingredients
 
+
 """ アイテム - 食材の一時保存データ """
 def load_recipe_ingredients(directory_path: str, originarl_df: pd.DataFrame):
     if not os.path.isfile(f"{directory_path}/recipe_ingredients.csv"):
