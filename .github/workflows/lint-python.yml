@@ -33,8 +33,15 @@ jobs:
     - name: Get changed Python files
       id: changed-files
       run: |
-        git diff --name-only HEAD~ > changed_files.txt
+        if git rev-parse HEAD~ >/dev/null 2>&1; then
+          echo "Previous commit found, checking changes"
+          git diff --name-only HEAD~ > changed_files.txt
+        else
+          echo "No previous commit found, checking all Python files"
+          find . -name '*.py' > changed_files.txt
+        fi
         grep '\.py$' changed_files.txt > python_files.txt || true
+
 
 
     # flake8で文法チェック
