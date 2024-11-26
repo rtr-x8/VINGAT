@@ -5,7 +5,10 @@ from tqdm.notebook import tqdm
 import copy
 from sklearn.metrics import accuracy_score, recall_score, f1_score
 import os
-import shutil
+import numpy as np
+from torch_geometric.utils import negative_sampling
+from sklearn.metrics import roc_auc_score
+from .metrics import ndcg_at_k
 
 
 def evaluate_model(
@@ -239,7 +242,6 @@ def train_func(train_loader, val, model, optimizer, criterion, epochs, device, p
 
     if best_model_state is not None:
         model.load_state_dict(best_model_state)
-        save_model(model, f"{PATH}/models/{PROJECT_NAME}/{run_name}", f"best_model")
+        save_model(model, f"{PATH}/models/{PROJECT_NAME}/{run_name}", "best_model")
 
     return model
-
