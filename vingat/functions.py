@@ -141,13 +141,16 @@ def train_func(
     directory_path: str,
     project_name: str,
     experiment_name: str,
-    patience=5
+    patience=5,
 ):
     model.to(device)
     model.train()
     best_val_metric = 0    # 現時点での最良のバリデーションメトリクスを初期化
     patience_counter = 0    # Early Stoppingのカウンターを初期化
     best_model_state = None
+
+    save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
+
     for epoch in range(epochs):
         total_loss = 0
         all_preds = []
@@ -161,7 +164,7 @@ def train_func(
             out = model(batch_data)
 
             # エッジのラベルとエッジインデックスを取得
-            edge_label = batch_data['user', 'buys', 'recipe'].edge_label
+            # edge_label = batch_data['user', 'buys', 'recipe'].edge_label
             edge_label_index = batch_data['user', 'buys', 'recipe'].edge_label_index
 
             # ユーザーとレシピの埋め込みを取得
@@ -201,7 +204,8 @@ def train_func(
         epoch_f1 = f1_score(all_labels, all_preds)
         avg_loss = total_loss / len(train_loader)
 
-        print(f"Loss: {avg_loss:.4f}, Accuracy: {epoch_accuracy:.4f}, Recall: {epoch_recall:.4f}, F1: {epoch_f1:.4f}")
+        txt = f"Loss: {avg_loss:.4f}, Accuracy: {epoch_accuracy:.4f},"
+        print(f"{txt} Recall: {epoch_recall:.4f}, F1: {epoch_f1:.4f}")
 
         train_epoch_logger({
             "train/total_loss": total_loss,
@@ -214,13 +218,12 @@ def train_func(
         # Valid
         k = 10
         val_copied = copy.deepcopy(val)
-        val_precision, val_recall,
-        val_ndcg, val_accuracy,
-        val_f1, val_auc = evaluate_model(model, val_copied, device, k=k, desc=f"[Valid] Epoch {epoch+1}/{epochs}")
+        val_precision, val_recall, val_ndcg, val_accuracy, val_f1, val_auc = evaluate_model(
+            model, val_copied, device, k=k, desc=f"[Valid] Epoch {epoch+1}/{epochs}")
 
         # 結果を表示
         txt = f'Accuracy@{k}: {val_accuracy:.4f}, Recall@{k}: {val_recall:.4f}, F1@{k}: {val_f1:.4f},'
-        txt = f"{txt} Precision@{k}: {val_precision:.4f}, NDCG@{k}: {val_ndcg:.4f}, AUC: {val_auc:.4f}"
+        txt = f"{txt} Pre@{k}: {val_precision:.4f}, NDCG@{k}: {val_ndcg:.4f}, AUC: {val_auc:.4f}"
         print(txt)
         print("===")
 
@@ -233,7 +236,7 @@ def train_func(
             f"val/AUC": val_auc,
         })
 
-        save_model(model, f"{PATH}/models/{project_name}/{experiment_name}", f"model_{epoch+1}")
+        save_model(model, save_dir, f"model_{epoch+1}")
 
         # Early Stoppingの判定（バリデーションの精度または他のメトリクスで判定）
         if val_accuracy > best_val_metric:
@@ -245,10 +248,11 @@ def train_func(
 
         # patienceを超えた場合にEarly Stoppingを実行
         if patience_counter >= patience:
-            print(f"バリデーションメトリクスの改善がないため、エポック{epoch+1}でEarly Stoppingを実行します。")
+            print(f"エポック{epoch+1}でEarly Stoppingを実行します。")
             # wandb.alert(
             #    title="Early Stopped",
-            #    text=f"学習が終了しました。\nプロジェクト名：{project_name}\n管理番号：{experiment_name}",
+            #    text=f"学習が終了しました。\nプロジェクト名
+            # ：{project_name}\n管理番号：{experiment_name}",
             #    level=wandb.AlertLevel.ERROR,
             # )
             break
@@ -261,6 +265,6 @@ def train_func(
 
     if best_model_state is not None:
         model.load_state_dict(best_model_state)
-        save_model(model, f"{PATH}/models/{project_name}/{experiment_name}", "best_model")
+        save_model(model, save_dir, "best_model")
 
     return model
