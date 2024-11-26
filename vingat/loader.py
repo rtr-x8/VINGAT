@@ -10,7 +10,7 @@ import torch
 from tqdm.notebook import tqdm
 
 
-use_nutritions = ["niacin", "fiber","sugars", "sodium", "carbohydrates",
+use_nutritions = ["niacin", "fiber", "sugars", "sodium", "carbohydrates",
                   "vitaminB6", "calories", "thiamin", "fat", "folate",
                   "caloriesFromFat", "calcium", "magnesium", "iron",
                   "cholesterol", "protein", "vitaminA", "potassium",
@@ -23,6 +23,7 @@ def parse_nutrient_json(json_dict):
         res.update({un: eval(json_dict).get(un).get("amount")})
     return res
 
+
 def core_file_loader(
         directory_path: str
     ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -34,8 +35,11 @@ def core_file_loader(
     )
 
 
-""" アイテム - 栄養素の一次保存データ """
 def load_recipe_nutrients(directory_path: str, originarl_df: pd.DataFrame):
+    """
+    アイテム - 栄養素の一次保存データ
+    """
+
     file_path = f"{directory_path}/recipe_nutrients.csv"
     if not os.path.isfile(file_path):
 
@@ -43,7 +47,7 @@ def load_recipe_nutrients(directory_path: str, originarl_df: pd.DataFrame):
         __recipes[use_nutritions] = 0.0
         __recipes["nutritions"] = __recipes["nutritions"].to_dict()
 
-        for idx, row in tqdm(__recipes.iterrows(), total = __recipes.shape[0]):
+        for idx, row in tqdm(__recipes.iterrows(), total=__recipes.shape[0]):
             nutri_text = row["nutritions"]
             nutri_val = parse_nutrient_json(nutri_text)
             for key, val in nutri_val.items():
@@ -56,12 +60,14 @@ def load_recipe_nutrients(directory_path: str, originarl_df: pd.DataFrame):
     return recipe_nutrients
 
 
-"""食材の一時保存データ。"""
 def load_ingredients(directory_path: str, originarl_df: pd.DataFrame):
+    """
+    食材の一時保存データ。
+    """
     if not os.path.isfile(f"{directory_path}/ingredients.csv"):
         __recipes = originarl_df.copy()
         ingredients = set([""])
-        for idx, row in tqdm(__recipes.iterrows(), total = __recipes.shape[0]):
+        for idx, row in tqdm(__recipes.iterrows(), total=__recipes.shape[0]):
             for ing in row["ingredients"].split("^"):
                 ingredients.add(ing)
         ingredients.remove("")
@@ -74,8 +80,10 @@ def load_ingredients(directory_path: str, originarl_df: pd.DataFrame):
     return ingredients
 
 
-""" アイテム - 食材の一時保存データ """
 def load_recipe_ingredients(directory_path: str, originarl_df: pd.DataFrame):
+    """
+    アイテム - 食材の一時保存データ
+    """
     file_path = f"{directory_path}/recipe_ingredients.csv"
     if not os.path.isfile(file_path):
 
@@ -106,11 +114,13 @@ def load_recipe_ingredients(directory_path: str, originarl_df: pd.DataFrame):
     return recipe_ingredients
 
 
-"""レシピ名、調理工程、レシピ画像の一時保存データ"""
 def load_recipe_cooking_directions(
         directory_path: str,
         originarl_df: pd.DataFrame
     ) -> pd.DataFrame:
+    """
+    レシピ名、調理工程、レシピ画像の一時保存データ
+    """
     file_path = f"{directory_path}/recipe_cooking_directions.csv"
     key = file_path
     if not os.path.isfile(file_path):
@@ -123,7 +133,7 @@ def load_recipe_cooking_directions(
             index=__recipes.index,
             columns=["direction"]
         )
-        for i in tqdm(__recipes.index.to_list(), total = __recipes.shape[0]):
+        for i in tqdm(__recipes.index.to_list(), total=__recipes.shape[0]):
             txt = __recipes.at[i, key]
             txt = eval(txt).get('directions')
             txts = txt.split("\n")
@@ -137,11 +147,13 @@ def load_recipe_cooking_directions(
     return recipe_cooking_directions
 
 
-""" 食材の埋込データ """
 def load_ingredients_with_embeddings(
         directory_path: str,
         originarl_df: pd.DataFrame
     ):
+    """
+    食材の埋込データ
+    """
     file_path = f"{directory_path}/ingredients_with_embeddings.csv"
     if not os.path.isfile(file_path):
          # next cell, next next cell, next next next cell
@@ -151,11 +163,13 @@ def load_ingredients_with_embeddings(
     return ingredients_with_embeddings
 
 
-""" レシピ画像の特徴データ """
 def load_recipe_image_embeddings(
         directory_path: str,
         originarl_df: pd.DataFrame, device
     ) -> pd.DataFrame:
+    """
+    レシピ画像の特徴データ
+    """
     file_path = f"{directory_path}/recipe_image_embeddings.csv"
     if not os.path.isfile(file_path):
         cnn_model = models.resnet50(pretrained=True)
