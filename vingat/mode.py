@@ -1,11 +1,10 @@
 import torch
-import torch.nn.functional as F
-from torch_geometric.nn import MessagePassing
-from torch_geometric.nn import SAGEConv, GATConv
-from torch_geometric.utils import softmax
-from torch_geometric.nn import HeteroConv
+from torch_geometric.nn import GATConv
 from torch_geometric.nn import BatchNorm
 import torch.nn as nn
+import pandas as pd
+import numpy as np
+
 
 
 class StaticEmbeddingLoader():
@@ -13,13 +12,17 @@ class StaticEmbeddingLoader():
         self.data = data
         self.embedding_dim = dimention
         self.cols = [f"e_{i}" for i in range(dimention)]
+        self.device = device
 
     def __call__(self, indices: list):
-        return torch.tensor(self.data.loc[indices.cpu(), self.cols].values, dtype=torch.float32).to(device)
+        return torch.tensor(
+            self.data.loc[indices.cpu(), self.cols].values,
+            dtype=torch.float32
+        ).to(self.device)
 
 
 class MultiModalAttentionFusion(nn.Module):
-    def __init__(self,feature_dim=1024,num_heads=8,dropout=0.1):
+    def __init__(self, feature_dim=1024, num_heads=8, dropout=0.1):
         super().__init__()
         self.feature_dim = feature_dim
         # 各モダリティの特徴量を変換するための線形層
@@ -48,7 +51,7 @@ class MultiModalAttentionFusion(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, image_features, taste_features, nutrition_features):
-        batch_size = image_features.size(0)
+        # batch_size = image_features.size(0)
 
         # 各特徴量を変換
         image_proj = self.image_projection(image_features)
@@ -88,16 +91,22 @@ class MultiModalAttentionFusion(nn.Module):
 
         return fused_features
 
+
 class RecommendationModel(nn.Module):
-    def __init__(self,
+    def __init__(
+        self,
         num_users,
         num_recipes,
         num_ingredients,
+        ingredients_with_embeddings,
+        recipe_image_embeddings,
         input_recipe_feature_dim=20,
-        dropout_rate = 0.3,
-        device = "cpu"
+        dropout_rate=0.3,
+        device="cpu"
     ):
         super().__init__()
+
+        self.device = device
 
         hidden_dim = 128
         self.hidden_dim = hidden_dim
@@ -122,18 +131,30 @@ class RecommendationModel(nn.Module):
         self.ingredient_linear = nn.Linear(1024, hidden_dim)
 
         # 食材からレシピへのGAT
-        self.ing_to_recipe = GATConv((hidden_dim, hidden_dim), hidden_dim,
-                                heads=2, concat=False, dropout=dropout_rate)
+        self.ing_to_recipe = GATConv(
+            (hidden_dim, hidden_dim),
+            hidden_dim,
+            heads=2,
+            concat=False,
+            dropout=dropout_rate)
 
         # ユーザーとレシピ間のGAT
-        self.user_recipe_gat = GATConv((hidden_dim, hidden_dim), hidden_dim, heads=2,
-                                concat=False, dropout=dropout_rate)
+        self.user_recipe_gat = GATConv(
+            (hidden_dim, hidden_dim),
+            hidden_dim,
+            heads=2,
+            concat=False,
+            dropout=dropout_rate)
 
-        self.multimodal_fusion_gat = GATConv((hidden_dim, hidden_dim), hidden_dim, heads=2,
-                                concat=False, dropout=dropout_rate)
+        self.multimodal_fusion_gat = GATConv(
+            (hidden_dim, hidden_dim),
+            hidden_dim,
+            heads=2,
+            concat=False,
+            dropout=dropout_rate)
 
         # recipeの特徴量を自己集約
-        #self.feature_fusion = MultiModalAttentionFusion(
+        # self.feature_fusion = MultiModalAttentionFusion(
         #  feature_dim=hidden_dim,
         #  num_heads=4,
         #  dropout=dropout_rate
@@ -168,18 +189,22 @@ class RecommendationModel(nn.Module):
         data['recipe'].visual_feature = self.image_feature_loader(data["recipe"].id.long())
 
         # レシピの特徴量：intention
-        data['recipe'].intention_feature = torch.ones((data["recipe"].num_nodes, self.hidden_dim)).to(device)
+        data['recipe'].intention_feature = torch.ones(
+            (data["recipe"].num_nodes, self.hidden_dim)
+        ).to(self.device)
 
         # レシピの特徴量：taste
-        data['recipe'].taste_feature = torch.ones((data["recipe"].num_nodes, self.hidden_dim)).to(device)
+        data['recipe'].taste_feature = torch.ones(
+            (data["recipe"].num_nodes, self.hidden_dim)
+        ).to(self.device)
 
         # レシピ特徴を登録
 
-        #item_features = self.feature_fusion(
+        # item_features = self.feature_fusion(
         #  image_feture,
         #  intention_feature,
         #  taste_feature
-        #)
+        # )
 
         # レシピの特徴量を更新
         data['recipe'].x = data['recipe'].x + self.ing_to_recipe(

@@ -6,7 +6,7 @@ from enum import Enum
 import numpy as np
 from .loader import use_nutritions
 import pandas as pd
-from torch_geometric.loader import DataLoader, NeighborLoader, LinkNeighborLoader
+from torch_geometric.loader import LinkNeighborLoader
 
 
 class RecipeFeatureType(Enum):
@@ -89,7 +89,7 @@ def create_hetrodata(ratings: pd.DataFrame,
     return hetro
 
 
-def create_dataloader(
+def create_data(
     core_train_rating: pd.DataFrame,
     core_test_rating: pd.DataFrame,
     core_val_rating: pd.DataFrame,
@@ -139,7 +139,7 @@ def create_dataloader(
     return train, test, val
 
 
-def create_dataloader(data, shuffle=True, neg_sampling_ratio=1.0):
+def create_dataloader(data, shuffle=True, batch_size, neg_sampling_ratio=1.0):
     return LinkNeighborLoader(
         data=data,
         num_neighbors={
@@ -148,9 +148,12 @@ def create_dataloader(data, shuffle=True, neg_sampling_ratio=1.0):
             ('ingredient', 'used_in', 'recipe'): [10, 5],
             ('recipe', 'self_loop', 'recipe'): [-1, -1]
         },
-        edge_label_index=(('user', 'buys', 'recipe'), data['user', 'buys', 'recipe'].edge_label_index),
+        edge_label_index=(
+            ('user', 'buys', 'recipe'),
+            data['user', 'buys', 'recipe'].edge_label_index
+        ),
         edge_label=data['user', 'buys', 'recipe'].edge_label,
-        batch_size=CONFIG["batch_size"],
+        batch_size=batch_size,
         shuffle=shuffle,
         neg_sampling_ratio=neg_sampling_ratio,  # 正例に対する負例の比率
     )
