@@ -9,6 +9,7 @@ import numpy as np
 from torch_geometric.utils import negative_sampling
 from sklearn.metrics import roc_auc_score
 from .metrics import ndcg_at_k
+from typing import Callable
 
 
 def evaluate_model(
@@ -136,8 +137,8 @@ def train_func(
     criterion,
     epochs,
     device,
-    train_epoch_logger: callable,
-    valid_epoch_logger: callable,
+    train_epoch_logger: Callable,
+    valid_epoch_logger: Callable,
     directory_path: str,
     project_name: str,
     experiment_name: str,

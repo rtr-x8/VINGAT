@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def ndcg_at_k(r: list, k: int):
+def ndcg_at_k(r: np.ndarray, k: int):
     r = np.asfarray(r)[:k]
     if r.size:
         dcg = np.sum(r / np.log2(np.arange(2, r.size + 2)))
