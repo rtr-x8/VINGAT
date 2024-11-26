@@ -1,6 +1,5 @@
 import pandas as pd
 import os
-import tqdm
 import torchvision.models as models
 import torchvision.transforms as transforms
 import torchvision.io as io
@@ -21,7 +20,7 @@ def parse_nutrient_json(json_dict):
     res.update({un: eval(json_dict).get(un).get("amount")})
   return res
 
-def core_file_loader(directory_path: str) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame):
+def core_file_loader(directory_path: str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     return (
         pd.read_csv(f"{directory_path}/core-data_recipe.csv", index_col=0),
         pd.read_csv(f"{directory_path}/core-data-train_rating.csv"),
@@ -70,17 +69,17 @@ def load_ingredients(directory_path: str, originarl_df: pd.DataFrame):
 def load_recipe_ingredients(directory_path: str, originarl_df: pd.DataFrame):
     if not os.path.isfile(f"{directory_path}/recipe_ingredients.csv"):
 
-    __recipes = originarl_df.copy()
-    recipe_ingredients = pd.DataFrame([], columns=["recipe_id", "ingredient_id"])
-    ingredients = load_ingredients(directory_path, originarl_df)
-    all_ings = ingredients.values.reshape(-1)
-    for recipe_id, recipe_row in tqdm(__recipes.iterrows(), total = __recipes.shape[0]):
-        for recip_ing in recipe_row["ingredients"].split("^"):
-        if recip_ing in all_ings:
-            recipe_ingredients = pd.concat([recipe_ingredients,
-                                            pd.DataFrame([[recipe_id, np.where(all_ings == recip_ing)[0][0]]],
-                                                        columns=["recipe_id", "ingredient_id"])])
-    recipe_ingredients.to_csv(f"{directory_path}/recipe_ingredients.csv")
+        __recipes = originarl_df.copy()
+        recipe_ingredients = pd.DataFrame([], columns=["recipe_id", "ingredient_id"])
+        ingredients = load_ingredients(directory_path, originarl_df)
+        all_ings = ingredients.values.reshape(-1)
+        for recipe_id, recipe_row in tqdm(__recipes.iterrows(), total = __recipes.shape[0]):
+            for recip_ing in recipe_row["ingredients"].split("^"):
+            if recip_ing in all_ings:
+                recipe_ingredients = pd.concat([recipe_ingredients,
+                                                pd.DataFrame([[recipe_id, np.where(all_ings == recip_ing)[0][0]]],
+                                                            columns=["recipe_id", "ingredient_id"])])
+        recipe_ingredients.to_csv(f"{directory_path}/recipe_ingredients.csv")
 
     recipe_ingredients = pd.read_csv(f"{directory_path}/recipe_ingredients.csv", index_col=0)
     print("recipe_ingredients is loaded")
@@ -142,6 +141,7 @@ def load_recipe_image_embeddings(directory_path: str, originarl_df: pd.DataFrame
             ),
         ])
 
+        recipe_ingredients = load_recipe_ingredients(directory_path, originarl_df)
         recipe_image_embeddings = pd.DataFrame([], index=recipe_ingredients["recipe_id"].unique(), columns=[f"e_{i}" for i in range(1024)])
         errors = []
 
