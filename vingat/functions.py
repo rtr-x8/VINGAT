@@ -222,7 +222,7 @@ def train_func(
             model, val_copied, device, k=k, desc=f"[Valid] Epoch {epoch+1}/{epochs}")
 
         # 結果を表示
-        txt = f'Accuracy@{k}: {val_accuracy:.4f}, Recall@{k}: {val_recall:.4f}, F1@{k}: {val_f1:.4f},'
+        txt = f'Acc@{k}: {val_accuracy:.4f}, Recall@{k}: {val_recall:.4f}, F1@{k}: {val_f1:.4f},'
         txt = f"{txt} Pre@{k}: {val_precision:.4f}, NDCG@{k}: {val_ndcg:.4f}, AUC: {val_auc:.4f}"
         print(txt)
         print("===")
@@ -233,7 +233,7 @@ def train_func(
             f"val/NDCG@{k}": val_ndcg,
             f"val/Accuracy@{k}": val_accuracy,
             f"val/F1@{k}": val_f1,
-            f"val/AUC": val_auc,
+            "val/AUC": val_auc,
         })
 
         save_model(model, save_dir, f"model_{epoch+1}")
