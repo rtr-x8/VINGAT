@@ -1,9 +1,11 @@
 name: Update Version on Commit
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows:
+      - Python Syntax Check
+    types:
+      - completed
 
 jobs:
   update-version:

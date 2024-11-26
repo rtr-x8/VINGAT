@@ -89,5 +89,3 @@ def create_dataloader(
     train = create_hetrodata(core_train_rating, ingredients.copy(), train_recipe_ingedient.copy(), recipe_nutrients, user_label_encoder, recipe_label_encoder, ingredient_label_encoder, device)
     #test = create_hetrodata(core_test_rating, ingredients.copy(), test_recipe_ingedient.copy(), recipe_nutrients, user_label_encoder, recipe_label_encoder, ingredient_label_encoder, device)
     val = create_hetrodata(core_val_rating, ingredients.copy(), val_recipe_ingedient.copy(), recipe_nutrients, user_label_encoder, recipe_label_encoder, ingredient_label_encoder, device)
-
-train
