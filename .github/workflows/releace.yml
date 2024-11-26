@@ -33,17 +33,12 @@ jobs:
     - name: Run flake8
       run: flake8 .
 
-    # pyflakesで構文チェック
-    - name: Run pyflakes
-      run: |
-        find . -name "*.py" | xargs pyflakes
-
     # mypyで型チェック
     - name: Run mypy
       run: |
         mypy .
 
-      
+
   update-version:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
