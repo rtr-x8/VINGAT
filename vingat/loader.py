@@ -93,9 +93,9 @@ def load_recipe_ingredients(directory_path: str, originarl_df: pd.DataFrame):
         ingredients = load_ingredients(directory_path, originarl_df)
         all_ings = ingredients.values.reshape(-1)
         for recipe_id, recipe_row in tqdm(
-                __recipes.iterrows(),
-                total=__recipes.shape[0]
-            ):
+            __recipes.iterrows(),
+            total=__recipes.shape[0]
+        ):
             for recip_ing in recipe_row["ingredients"].split("^"):
                 if recip_ing in all_ings:
                     recipe_ingredients = pd.concat([
@@ -196,8 +196,8 @@ def load_recipe_image_embeddings(
             transforms.CenterCrop(224),
             transforms.ToTensor(),
             transforms.Normalize(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225]
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225]
             ),
         ])
 
