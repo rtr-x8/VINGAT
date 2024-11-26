@@ -20,8 +20,7 @@ def create_hetrodata(ratings: pd.DataFrame,
                      user_label_encoder: LabelEncoder,
                      recipe_label_encoder: LabelEncoder,
                      ingredient_label_encoder: LabelEncoder,
-                     device,
-                     recipe_nutrients) -> HeteroData:
+                     device) -> HeteroData:
 
     hetro = HeteroData()
 
