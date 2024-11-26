@@ -136,12 +136,12 @@ def train_func(
     criterion,
     epochs,
     device,
-    patience=5,
     train_epoch_logger: callable,
     valid_epoch_logger: callable,
     directory_path: str,
     project_name: str,
-    experiment_name: str
+    experiment_name: str,
+    patience=5
 ):
     model.to(device)
     model.train()
