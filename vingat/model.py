@@ -159,7 +159,7 @@ class RecommendationModel(nn.Module):
         #  feature_dim=hidden_dim,
         #  num_heads=4,
         #  dropout=dropout_rate
-        #)
+        # )
 
         # Nromali
         self.recipe_norm = BatchNorm(hidden_dim)

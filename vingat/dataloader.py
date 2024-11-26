@@ -139,7 +139,7 @@ def create_data(
     return train, test, val
 
 
-def create_dataloader(data, shuffle=True, batch_size, neg_sampling_ratio=1.0):
+def create_dataloader(data, batch_size, shuffle=True, neg_sampling_ratio=1.0):
     return LinkNeighborLoader(
         data=data,
         num_neighbors={
