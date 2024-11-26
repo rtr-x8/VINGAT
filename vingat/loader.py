@@ -10,7 +10,7 @@ import torch
 from tqdm.notebook import tqdm
 
 
-use_nutritions = ["niacin", "fiber","sugars", "sodium", "carbohydrates", 
+use_nutritions = ["niacin", "fiber","sugars", "sodium", "carbohydrates",
                   "vitaminB6", "calories", "thiamin", "fat", "folate",
                   "caloriesFromFat", "calcium", "magnesium", "iron",
                   "cholesterol", "protein", "vitaminA", "potassium",
@@ -80,18 +80,21 @@ def load_recipe_ingredients(directory_path: str, originarl_df: pd.DataFrame):
     if not os.path.isfile(file_path):
 
         __recipes = originarl_df.copy()
-        recipe_ingredients = pd.DataFrame([], columns=["recipe_id", 
+        recipe_ingredients = pd.DataFrame([], columns=["recipe_id",
                                                        "ingredient_id"])
         ingredients = load_ingredients(directory_path, originarl_df)
         all_ings = ingredients.values.reshape(-1)
-        for recipe_id, recipe_row in tqdm(__recipes.iterrows(), total=__recipes.shape[0]):
+        for recipe_id, recipe_row in tqdm(
+                __recipes.iterrows(),
+                total=__recipes.shape[0]
+            ):
             for recip_ing in recipe_row["ingredients"].split("^"):
                 if recip_ing in all_ings:
                     recipe_ingredients = pd.concat([
                         recipe_ingredients,
                         pd.DataFrame(
                             [[
-                                recipe_id, 
+                                recipe_id,
                                 np.where(all_ings == recip_ing)[0][0]
                             ]],
                             columns=["recipe_id", "ingredient_id"])]
@@ -105,7 +108,7 @@ def load_recipe_ingredients(directory_path: str, originarl_df: pd.DataFrame):
 
 """レシピ名、調理工程、レシピ画像の一時保存データ"""
 def load_recipe_cooking_directions(
-        directory_path: str, 
+        directory_path: str,
         originarl_df: pd.DataFrame
     ) -> pd.DataFrame:
     file_path = f"{directory_path}/recipe_cooking_directions.csv"
@@ -116,7 +119,7 @@ def load_recipe_cooking_directions(
         __recipes[key] = __recipes[key].to_dict()
 
         recipe_cooking_directions = pd.DataFrame(
-            [], 
+            [],
             index=__recipes.index,
             columns=["direction"]
         )
@@ -150,7 +153,7 @@ def load_ingredients_with_embeddings(
 
 """ レシピ画像の特徴データ """
 def load_recipe_image_embeddings(
-        directory_path: str, 
+        directory_path: str,
         originarl_df: pd.DataFrame, device
     ) -> pd.DataFrame:
     file_path = f"{directory_path}/recipe_image_embeddings.csv"
@@ -159,10 +162,10 @@ def load_recipe_image_embeddings(
         cnn = nn.Sequential(
             # 最後の平均プーリング層の手前まで取得
             *(list(cnn_model.children())[:-2]),
-            
+
             # 1x1畳み込み層でoutput_dim次元に
             nn.Conv2d(2048, 1024, kernel_size=1),
-            
+
             # 出力を1x1にプールしてoutput_dim次元ベクトルに変換
             nn.AdaptiveAvgPool2d((1, 1))
         ).to(device)
@@ -184,17 +187,20 @@ def load_recipe_image_embeddings(
             ),
         ])
 
-        recipe_ingredients = load_recipe_ingredients(directory_path, originarl_df)
+        recipe_ingredients = load_recipe_ingredients(
+            directory_path, originarl_df)
         recipe_image_embeddings = pd.DataFrame(
-            [], 
-            index=recipe_ingredients["recipe_id"].unique(), 
+            [],
+            index=recipe_ingredients["recipe_id"].unique(),
             columns=[f"e_{i}" for i in range(1024)])
         errors = []
 
         def process_image(recipe_id):
+            image_path = f"{directory_path}/core-data-images/core-data-images"
+            image_path = f"{image_path}/{recipe_id}.jpg"
+
             """個別の画像の読み込みと特徴量抽出を行う"""
             try:
-                image_path = f"{directory_path}/core-data-images/core-data-images/{recipe_id}.jpg"
                 image = io.read_image(image_path).to(device)
                 image = image_transform(image).unsqueeze(0).to(device)
 
@@ -212,7 +218,10 @@ def load_recipe_image_embeddings(
         # 画像をバッチ処理
         with ThreadPoolExecutor(max_workers=4) as executor:
             results = list(tqdm(
-                executor.map(process_image, recipe_image_embeddings.index.tolist()),
+                executor.map(
+                    process_image,
+                    recipe_image_embeddings.index.tolist()
+                ),
                 total=len(recipe_image_embeddings.index.tolist()),
                 desc="Image Embedding gen"))
         for recipe_id, embedding in tqdm(results, desc="save..."):

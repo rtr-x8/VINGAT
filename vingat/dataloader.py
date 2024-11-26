@@ -33,13 +33,14 @@ def create_hetrodata(ratings: pd.DataFrame,
     hetro["user"].id = tensor(user_indices, dtype=torch.long)  # 連番に振り直す
     hetro["user"].num_nodes = len(user_features)
 
-    recipe_features = recipe_nutrients.loc[recipe_label_encoder.classes_, use_nutritions].values
+    recipe_features = recipe_nutrients.loc[
+        recipe_label_encoder.classes_, use_nutritions].values
     #  recipe_indices = np.arange(0, len(recipe_label_encoder.classes_))
     hetro["recipe"].x = tensor(recipe_features, dtype=torch.float32)
     hetro["recipe"].id = tensor(recipe_label_encoder.classes_, dtype=torch.long)
     hetro["recipe"].num_nodes = len(recipe_label_encoder.classes_)
     hetro["recipe"].visual_feature = torch.ones(
-        (len(recipe_label_encoder.classes_), 1), 
+        (len(recipe_label_encoder.classes_), 1),
         dtype=torch.float32)
     hetro["recipe"].intention_feature = torch.ones(
         (len(recipe_label_encoder.classes_), 1),
@@ -51,16 +52,18 @@ def create_hetrodata(ratings: pd.DataFrame,
     ingredient_features = ingredient_label_encoder.classes_
     #  ingredient_indices = np.arange(0, len(ingredient_label_encoder.classes_))
     hetro["ingredient"].x = tensor(ingredient_features, dtype=torch.float32)
-    hetro["ingredient"].id = tensor(ingredient_label_encoder.classes_, dtype=torch.long)
-    hetro["ingredient"].num_nodes = len(ingredient_label_encoder.classes_)
+    hetro["ingredient"].id = tensor(ingredient_features, dtype=torch.long)
+    hetro["ingredient"].num_nodes = len(ingredient_features)
 
     # edgeはデータに基づくリンクだけ設定する。
     edge_index_user_recipe = np.array([
-        user_label_encoder.transform(ratings["user_id"]), 
+        user_label_encoder.transform(ratings["user_id"]),
         recipe_label_encoder.transform(ratings["recipe_id"])
     ])
-    hetro["user", "buys", "recipe"].edge_index = tensor(edge_index_user_recipe, dtype=torch.long)
-    hetro["recipe", "bought_by", "user"].edge_index = tensor(edge_index_user_recipe, dtype=torch.long).flip(0)
+    hetro["user", "buys", "recipe"].edge_index = tensor(
+        edge_index_user_recipe, dtype=torch.long)
+    hetro["recipe", "bought_by", "user"].edge_index = tensor(
+        edge_index_user_recipe, dtype=torch.long).flip(0)
 
     # 自己ループ
     self_loop_edges = torch.arange(len(recipe_label_encoder.classes_))
@@ -69,14 +72,16 @@ def create_hetrodata(ratings: pd.DataFrame,
 
     # for LinkNeighborLoader
     hetro['user', 'buys', 'recipe'].edge_label = torch.ones(
-        edge_index_user_recipe.shape[1], 
+        edge_index_user_recipe.shape[1],
         dtype=torch.long)
-    hetro["user", "buys", "recipe"].edge_label_index = tensor(edge_index_user_recipe, dtype=torch.long)
+    hetro["user", "buys", "recipe"].edge_label_index = tensor(
+        edge_index_user_recipe, dtype=torch.long)
 
     edge_index_ingredient_recipe = np.array([
         ingredient_label_encoder.transform(recipe_ingredients["ingredient_id"]),
         recipe_label_encoder.transform(recipe_ingredients["recipe_id"])])
-    hetro["ingredient", "used_in", "recipe"].edge_index = tensor(edge_index_ingredient_recipe, dtype=torch.long)
+    hetro["ingredient", "used_in", "recipe"].edge_index = tensor(
+        edge_index_ingredient_recipe, dtype=torch.long)
 
     hetro.to(device)
 
@@ -93,28 +98,41 @@ def create_dataloader(
     device: torch.device
 ):
     all_user_id = pd.concat([
-        core_train_rating["user_id"], 
-        core_test_rating["user_id"], 
+        core_train_rating["user_id"],
+        core_test_rating["user_id"],
         core_val_rating["user_id"]
     ]).unique()
-    
+
     all_recipe_id = pd.concat([
-        core_train_rating["recipe_id"], 
-        core_test_rating["recipe_id"], 
-        core_val_rating["recipe_id"], 
+        core_train_rating["recipe_id"],
+        core_test_rating["recipe_id"],
+        core_val_rating["recipe_id"],
         recipe_ingredients["recipe_id"]
     ]).unique()
 
     user_label_encoder = LabelEncoder().fit(all_user_id)
     recipe_label_encoder = LabelEncoder().fit(all_recipe_id)
-    ingredient_label_encoder = LabelEncoder().fit(recipe_ingredients["ingredient_id"].unique())
+    ingredient_indices = recipe_ingredients["ingredient_id"].unique()
+    ingredient_label_encoder = LabelEncoder().fit(ingredient_indices)
 
-    train_recipe_ingedient = recipe_ingredients[recipe_ingredients["recipe_id"].isin(core_train_rating["recipe_id"])]
-    test_recipe_ingedient = recipe_ingredients[recipe_ingredients["recipe_id"].isin(core_test_rating["recipe_id"])]
-    val_recipe_ingedient = recipe_ingredients[recipe_ingredients["recipe_id"].isin(core_val_rating["recipe_id"])]
+    train_recipe_ingedient = recipe_ingredients[
+        recipe_ingredients["recipe_id"].isin(core_train_rating["recipe_id"])]
+    test_recipe_ingedient = recipe_ingredients[
+        recipe_ingredients["recipe_id"].isin(core_test_rating["recipe_id"])]
+    val_recipe_ingedient = recipe_ingredients[
+        recipe_ingredients["recipe_id"].isin(core_val_rating["recipe_id"])]
 
-    train = create_hetrodata(core_train_rating, ingredients.copy(), train_recipe_ingedient.copy(), recipe_nutrients, user_label_encoder, recipe_label_encoder, ingredient_label_encoder, device)
-    test = create_hetrodata(core_test_rating, ingredients.copy(), test_recipe_ingedient.copy(), recipe_nutrients, user_label_encoder, recipe_label_encoder, ingredient_label_encoder, device)
-    val = create_hetrodata(core_val_rating, ingredients.copy(), val_recipe_ingedient.copy(), recipe_nutrients, user_label_encoder, recipe_label_encoder, ingredient_label_encoder, device)
+    train = create_hetrodata(
+        core_train_rating, ingredients.copy(), train_recipe_ingedient.copy(),
+        recipe_nutrients, user_label_encoder, recipe_label_encoder,
+        ingredient_label_encoder, device)
+    test = create_hetrodata(
+        core_test_rating, ingredients.copy(), test_recipe_ingedient.copy(),
+        recipe_nutrients, user_label_encoder, recipe_label_encoder,
+        ingredient_label_encoder, device)
+    val = create_hetrodata(
+        core_val_rating, ingredients.copy(), val_recipe_ingedient.copy(),
+        recipe_nutrients, user_label_encoder, recipe_label_encoder,
+        ingredient_label_encoder, device)
 
     return train, test, val
