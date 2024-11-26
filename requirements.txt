@@ -4,3 +4,6 @@ numpy
 setuptools
 datetime
 pytz
+torchvision
+concurrent
+torch
