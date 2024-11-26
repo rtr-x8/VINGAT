@@ -1,10 +1,10 @@
 import torch
-import os
 import torch_geometric
 import torch_scatter
 import torch_sparse
 import pyg_lib
 import torchvision
+
 
 def assert_package_versions():
     assert torch.__version__ == "2.4.1+cu121"

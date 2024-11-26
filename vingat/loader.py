@@ -9,16 +9,18 @@ import numpy as np
 import torch
 from tqdm.notebook import tqdm
 
-use_nutritions = ["niacin","fiber","sugars","sodium","carbohydrates","vitaminB6",
-                  "calories","thiamin","fat","folate","caloriesFromFat","calcium",
-                  "magnesium","iron","cholesterol","protein","vitaminA","potassium",
-                  "saturatedFat","vitaminC"]
+
+use_nutritions = ["niacin", "fiber","sugars", "sodium", "carbohydrates", "vitaminB6",
+                  "calories", "thiamin", "fat", "folate", "caloriesFromFat", "calcium",
+                  "magnesium", "iron", "cholesterol", "protein", "vitaminA", "potassium",
+                  "saturatedFat", "vitaminC"]
+
 
 def parse_nutrient_json(json_dict):
-  res = {}
-  for un in use_nutritions:
-    res.update({un: eval(json_dict).get(un).get("amount")})
-  return res
+    res = {}
+    for un in use_nutritions:
+        res.update({un: eval(json_dict).get(un).get("amount")})
+    return res
 
 def core_file_loader(directory_path: str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     return (
@@ -164,6 +166,7 @@ def load_recipe_image_embeddings(directory_path: str, originarl_df: pd.DataFrame
                 # 特徴量をCPUに移動してフラット化
             except Exception as e:
                 errors.append(recipe_id)
+                print(e)
                 return recipe_id, np.zeros(1024)
 
             return recipe_id, output.view(-1).cpu().numpy()

@@ -1,11 +1,11 @@
 from torch_geometric.data import HeteroData
 from sklearn.preprocessing import LabelEncoder
-from torch_geometric.utils import negative_sampling
 import torch
-import torch.nn as nn
 from enum import Enum
 import numpy as np
-from .loader import use_nutritions, load_recipe_nutrients
+from .loader import use_nutritions
+import pandas as pd
+
 
 class RecipeFeatureType(Enum):
     VISUAL = 0
@@ -24,14 +24,15 @@ def create_hetrodata(ratings: pd.DataFrame,
 
     hetro = HeteroData()
 
-    user_features = user_label_encoder.classes_ # 全てのユーザーノードを登録する必要がる
+    # 全てのユーザーノードを登録する必要がる
+    user_features = user_label_encoder.classes_
     user_indices = np.arange(0, len(user_label_encoder.classes_))
     hetro["user"].x = torch.tensor(user_features, dtype=torch.float32).unsqueeze(1)
-    hetro["user"].id = torch.tensor(user_indices, dtype=torch.long) # 連番に振り直す
+    hetro["user"].id = torch.tensor(user_indices, dtype=torch.long)  # 連番に振り直す
     hetro["user"].num_nodes = len(user_features)
 
     recipe_features = recipe_nutrients.loc[recipe_label_encoder.classes_, use_nutritions].values
-    recipe_indices = np.arange(0, len(recipe_label_encoder.classes_))
+    #  recipe_indices = np.arange(0, len(recipe_label_encoder.classes_))
     hetro["recipe"].x = torch.tensor(recipe_features, dtype=torch.float32)
     hetro["recipe"].id = torch.tensor(recipe_label_encoder.classes_, dtype=torch.long)
     hetro["recipe"].num_nodes = len(recipe_label_encoder.classes_)
@@ -40,7 +41,7 @@ def create_hetrodata(ratings: pd.DataFrame,
     hetro["recipe"].taste_feature = torch.ones((len(recipe_label_encoder.classes_), 1), dtype=torch.float32)
 
     ingredient_features = ingredient_label_encoder.classes_
-    ingredient_indices = np.arange(0, len(ingredient_label_encoder.classes_))
+    #  ingredient_indices = np.arange(0, len(ingredient_label_encoder.classes_))
     hetro["ingredient"].x = torch.tensor(ingredient_features, dtype=torch.float32)
     hetro["ingredient"].id = torch.tensor(ingredient_label_encoder.classes_, dtype=torch.long)
     hetro["ingredient"].num_nodes = len(ingredient_label_encoder.classes_)
@@ -59,7 +60,7 @@ def create_hetrodata(ratings: pd.DataFrame,
     hetro["user", "buys", "recipe"].edge_label_index = torch.tensor(edge_index_user_recipe, dtype=torch.long)
 
     edge_index_ingredient_recipe = np.array([ingredient_label_encoder.transform(recipe_ingredients["ingredient_id"]),
-                                                recipe_label_encoder.transform(recipe_ingredients["recipe_id"])])
+                                            recipe_label_encoder.transform(recipe_ingredients["recipe_id"])])
     hetro["ingredient", "used_in", "recipe"].edge_index = torch.tensor(edge_index_ingredient_recipe, dtype=torch.long)
 
     hetro.to(device)
@@ -87,5 +88,7 @@ def create_dataloader(
     val_recipe_ingedient = recipe_ingredients[recipe_ingredients["recipe_id"].isin(core_val_rating["recipe_id"])]
 
     train = create_hetrodata(core_train_rating, ingredients.copy(), train_recipe_ingedient.copy(), recipe_nutrients, user_label_encoder, recipe_label_encoder, ingredient_label_encoder, device)
-    #test = create_hetrodata(core_test_rating, ingredients.copy(), test_recipe_ingedient.copy(), recipe_nutrients, user_label_encoder, recipe_label_encoder, ingredient_label_encoder, device)
+    test = create_hetrodata(core_test_rating, ingredients.copy(), test_recipe_ingedient.copy(), recipe_nutrients, user_label_encoder, recipe_label_encoder, ingredient_label_encoder, device)
     val = create_hetrodata(core_val_rating, ingredients.copy(), val_recipe_ingedient.copy(), recipe_nutrients, user_label_encoder, recipe_label_encoder, ingredient_label_encoder, device)
+
+    return train, test, val

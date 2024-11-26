@@ -1,0 +1,3 @@
+[flake8]
+per-file-ignores =
+    vingat/__init__.py: F403, F401
