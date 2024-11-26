@@ -8,6 +8,7 @@ import torch.nn as nn
 import numpy as np
 import torch
 from tqdm.notebook import tqdm
+from typing import Dict
 
 
 use_nutritions = ["niacin", "fiber", "sugars", "sodium", "carbohydrates",
@@ -49,7 +50,7 @@ def load_recipe_nutrients(directory_path: str, originarl_df: pd.DataFrame):
 
         for idx, row in tqdm(__recipes.iterrows(), total=__recipes.shape[0]):
             nutri_text = row["nutritions"]
-            nutri_val = parse_nutrient_json(nutri_text)
+            nutri_val: Dict[int, str] = parse_nutrient_json(nutri_text)
             for key, val in nutri_val.items():
                 __recipes.loc[idx, key] = val
 
@@ -75,9 +76,9 @@ def load_ingredients(directory_path: str, originarl_df: pd.DataFrame):
         res.index.name = "ingredient_id"
         res.to_csv(f"{directory_path}/ingredients.csv")
 
-    ingredients = pd.read_csv(f"{directory_path}/ingredients.csv", index_col=0)
+    df = pd.read_csv(f"{directory_path}/ingredients.csv", index_col=0)
     print("ingredients is loaded")
-    return ingredients
+    return df
 
 
 def load_recipe_ingredients(directory_path: str, originarl_df: pd.DataFrame):
