@@ -47,6 +47,7 @@ def load_recipe_nutrients(directory_path: str, originarl_df: pd.DataFrame):
 
     recipe_nutrients = pd.read_csv(f"{directory_path}/recipe_nutrients.csv", index_col=0)
     print("recipe_nutrients is loaded")
+    return recipe_nutrients
 
 
 """食材の一時保存データ。"""
@@ -64,6 +65,7 @@ def load_ingredients(directory_path: str, originarl_df: pd.DataFrame):
 
     ingredients = pd.read_csv(f"{directory_path}/ingredients.csv", index_col=0)
     print("ingredients is loaded")
+    return ingredients
 
 """ アイテム - 食材の一時保存データ """
 def load_recipe_ingredients(directory_path: str, originarl_df: pd.DataFrame):
@@ -83,6 +85,7 @@ def load_recipe_ingredients(directory_path: str, originarl_df: pd.DataFrame):
 
     recipe_ingredients = pd.read_csv(f"{directory_path}/recipe_ingredients.csv", index_col=0)
     print("recipe_ingredients is loaded")
+    return recipe_ingredients
 
 
 """レシピ名、調理工程、レシピ画像の一時保存データ"""
@@ -101,9 +104,10 @@ def load_recipe_cooking_directions(directory_path: str, originarl_df: pd.DataFra
             txt = "\n".join(txts)
             recipe_cooking_directions.at[i, "direction"] = txt
         recipe_cooking_directions.to_csv(f"{directory_path}/recipe_cooking_directions.csv")
-        
+
     recipe_cooking_directions = pd.read_csv(f"{directory_path}/recipe_cooking_directions.csv", index_col=0)
     print("recipe_cooking_directions is loaded")
+    return recipe_cooking_directions
 
 
 """ 食材の埋込データ """
@@ -112,6 +116,7 @@ def load_ingredients_with_embeddings(directory_path: str, originarl_df: pd.DataF
         raise Exception("embedding file not found") # next cell, next next cell, next next next cell
     ingredients_with_embeddings = pd.read_csv(f"{directory_path}/ingredients_with_embeddings.csv", index_col=0)
     print("ingredients_with_embeddings is loaded")
+    return ingredients_with_embeddings
 
 
 """ レシピ画像の特徴データ """
@@ -175,4 +180,4 @@ def load_recipe_image_embeddings(directory_path: str, originarl_df: pd.DataFrame
 
     recipe_image_embeddings = pd.read_csv(f"{directory_path}/recipe_image_embeddings.csv", index_col=0)
     print("recipe_image_embeddings is loaded")
-    recipe_image_embeddings.head()
+    return recipe_image_embeddings
