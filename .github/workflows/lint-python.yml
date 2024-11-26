@@ -33,8 +33,9 @@ jobs:
     - name: Get changed Python files
       id: changed-files
       run: |
-        git diff --name-only ${{ github.event.before }} ${{ github.sha }} > changed_files.txt
+        git diff --name-only HEAD~ > changed_files.txt
         grep '\.py$' changed_files.txt > python_files.txt || true
+
 
     # flake8で文法チェック
     - name: Run flake8
