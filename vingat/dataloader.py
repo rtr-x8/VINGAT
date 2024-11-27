@@ -135,7 +135,14 @@ def create_data(
         recipe_nutrients, user_label_encoder, recipe_label_encoder,
         ingredient_label_encoder, device)
 
-    return train, test, val
+    return (
+        train,
+        test,
+        val,
+        user_label_encoder,
+        recipe_label_encoder,
+        ingredient_label_encoder
+    )
 
 
 def create_dataloader(data, batch_size, shuffle=True, neg_sampling_ratio=1.0):
