@@ -13,8 +13,9 @@ class StaticEmbeddingLoader():
         self.device = device
 
     def __call__(self, indices: list):
+        _indices = indices.cuda().cpu().numpy()  # type: ignore[attr-defined]
         return torch.tensor(
-            self.data.loc[indices.cuda().cpu().numpy(), self.cols].values,  # type: ignore[attr-defined]
+            self.data.loc[_indices, self.cols].values,
             dtype=torch.float32
         ).to(self.device)
 
