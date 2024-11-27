@@ -13,7 +13,7 @@ class StaticEmbeddingLoader():
         self.device = device
 
     def __call__(self, indices: torch.tensor):
-        _indices = indices.detach().clone().to("cpu").numpy()
+        _indices = indices.clone().detach().to("cpu").numpy()
         values = self.data.loc[_indices, self.cols].values
         return torch.tensor(
             values,
