@@ -17,10 +17,11 @@ class StaticEmbeddingLoader():
         print(f"indices device: {indices.device}")
         _indices = indices.clone().detach().to("cpu").numpy()
         values = self.data.loc[_indices, self.cols].values
-        return torch.tensor(
+        return torch.as_tensor(
             values,
-            dtype=torch.float32
-        ).to(self.device)
+            dtype=torch.float32,
+            device=self.device
+        )
 
 
 class MultiModalAttentionFusion(nn.Module):
