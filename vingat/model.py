@@ -16,7 +16,7 @@ class StaticEmbeddingLoader():
         return torch.tensor(
             self.data.loc[indices, self.cols].values,
             dtype=torch.float32,
-            device=indices.device 
+            device=indices.device
         ).to(self.device)
 
 
