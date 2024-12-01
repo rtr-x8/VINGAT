@@ -248,3 +248,4 @@ def load_recipe_image_embeddings(
     recipe_image_embeddings = pd.read_csv(file_path, index_col=0)
     print("recipe_image_embeddings is loaded")
     return recipe_image_embeddings
+
