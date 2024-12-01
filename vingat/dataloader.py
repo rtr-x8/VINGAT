@@ -52,7 +52,10 @@ def create_hetrodata(
     hetro["image"].num_nodes = num_recipes
 
     # Intention nodes (one-to-one with recipes)
+    nutrient_features = recipe_nutrients.loc[
+        recipe_label_encoder.classes_, use_nutritions].values
     hetro["intention"].x = torch.zeros((num_recipes, 512), dtype=torch.float32)
+    hetro["intention"].nutient =  torch.tensor(recipe_features, dtype=torch.float32)
     hetro["intention"].recipe_id = recipe_id
     hetro["intention"].num_nodes = num_recipes
 
@@ -64,7 +67,7 @@ def create_hetrodata(
 
     # Ingredient nodes
     num_ingredients = len(ingredient_label_encoder.classes_)
-    ingredient_x = torch.zeros((num_ingredients, 512), dtype=torch.float32)  # Adjust embedding_dim if needed
+    ingredient_x = torch.zeros((num_ingredients, 512), dtype=torch.float32)
     ingredient_id = torch.tensor(ingredient_label_encoder.classes_, dtype=torch.long)
     hetro["ingredient"].x = ingredient_x
     hetro["ingredient"].ingredient_id = ingredient_id
@@ -81,17 +84,26 @@ def create_hetrodata(
     hetro["recipe", "bought_by", "user"].edge_index = edge_index_user_recipe.flip(0)
 
     # Edges between image and recipe (one-to-one)
-    edge_index_image_recipe = torch.stack([torch.arange(num_recipes), torch.arange(num_recipes)], dim=0)
+    edge_index_image_recipe = torch.stack([
+        torch.arange(num_recipes),
+        torch.arange(num_recipes)
+    ], dim=0)
     hetro["image", "associated_with", "recipe"].edge_index = edge_index_image_recipe
     hetro["recipe", "has_image", "image"].edge_index = edge_index_image_recipe.flip(0)
 
     # Edges between intention and recipe (one-to-one)
-    edge_index_intention_recipe = torch.stack([torch.arange(num_recipes), torch.arange(num_recipes)], dim=0)
+    edge_index_intention_recipe = torch.stack([
+        torch.arange(num_recipes),
+        torch.arange(num_recipes)
+    ], dim=0)
     hetro["intention", "associated_with", "recipe"].edge_index = edge_index_intention_recipe
     hetro["recipe", "has_intention", "intention"].edge_index = edge_index_intention_recipe.flip(0)
 
     # Edges between taste and recipe (one-to-one)
-    edge_index_taste_recipe = torch.stack([torch.arange(num_recipes), torch.arange(num_recipes)], dim=0)
+    edge_index_taste_recipe = torch.stack([
+        torch.arange(num_recipes),
+        torch.arange(num_recipes)
+    ], dim=0)
     hetro["taste", "associated_with", "recipe"].edge_index = edge_index_taste_recipe
     hetro["recipe", "has_taste", "taste"].edge_index = edge_index_taste_recipe.flip(0)
 
@@ -115,7 +127,6 @@ def create_hetrodata(
     hetro["taste", "contains", "ingredient"].edge_index = edge_index_taste_ingredient
     hetro["ingredient", "part_of", "taste"].edge_index = edge_index_taste_ingredient.flip(0)
 
-
     # for LinkNeighborLoader #
     hetro['user', 'buys', 'recipe'].edge_label = torch.ones(
         edge_index_user_recipe.shape[1],
@@ -123,9 +134,7 @@ def create_hetrodata(
     hetro["user", "buys", "recipe"].edge_label_index = torch.tensor(
         edge_index_user_recipe, dtype=torch.long)
         
-
     hetro.to(device)
-
     return hetro
 
 
