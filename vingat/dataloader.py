@@ -55,7 +55,7 @@ def create_hetrodata(
     nutrient_features = recipe_nutrients.loc[
         recipe_label_encoder.classes_, use_nutritions].values
     hetro["intention"].x = torch.zeros((num_recipes, 512), dtype=torch.float32)
-    hetro["intention"].nutient =  torch.tensor(recipe_features, dtype=torch.float32)
+    hetro["intention"].nutient = torch.tensor(nutrient_features, dtype=torch.float32)
     hetro["intention"].recipe_id = recipe_id
     hetro["intention"].num_nodes = num_recipes
 
@@ -123,7 +123,7 @@ def create_hetrodata(
     edge_index_ingredient_recipe = np.array([
         ingredient_label_encoder.transform(recipe_ingredients["ingredient_id"]),
         recipe_label_encoder.transform(recipe_ingredients["recipe_id"])])
-    edge_index_taste_ingredient  = torch.tensor(edge_index_ingredient_recipe, dtype=torch.long)
+    edge_index_taste_ingredient = torch.tensor(edge_index_ingredient_recipe, dtype=torch.long)
     hetro["taste", "contains", "ingredient"].edge_index = edge_index_taste_ingredient
     hetro["ingredient", "part_of", "taste"].edge_index = edge_index_taste_ingredient.flip(0)
 
@@ -133,7 +133,7 @@ def create_hetrodata(
         dtype=torch.long)
     hetro["user", "buys", "recipe"].edge_label_index = torch.tensor(
         edge_index_user_recipe, dtype=torch.long)
-        
+
     hetro.to(device)
     return hetro
 
