@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from torch_geometric.nn import HANConv, BatchNorm
 from sentence_transformers import SentenceTransformer
 import torch.nn as nn
@@ -73,26 +74,38 @@ class VLMEncoder(nn.Module):
         )
 
 
+class ContrastiveEncoder(mm.Module):
+    def __init__(self, input_dim, output_dim):
+        super(Encoder, self).__init__()
+        self.fc1 = nn.Linear(input_dim, 128)
+        self.fc2 = nn.Linear(128, output_dim)
+
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = F.normalize(self.fc2(x), dim=1)  # 出力を正規化して、意味空間に投影
+        return x
+
+
+def contrastive_loss(z1, z2, temperature=0.5):
+    # Cosine Similarityを計算
+    similarity_matrix = torch.matmul(z1, z2.T) / temperature
+    labels = torch.arange(z1.size(0)).to(z1.device)
+    loss_fn = nn.CrossEntropyLoss()
+    loss = loss_fn(similarity_matrix, labels)
+    return loss
+
+
 class ContrastiveLearning(nn.Module):
-    def __init__(self, device, mergin: int = 1.0):
-        self.device = device
-        self.mergin = mergin
-
-    def forward(self, sentences: list):
-
-
-class ContrastiveLearning(nn.Module):
-    def __init__(self, margin=1.0):
+    def __init__(self, input_dim, output_dim, temperature=0.5):
         super().__init__()
-        self.margin = margin
-        self.cosine_similarity = nn.CosineSimilarity(dim=1)
-        self.loss_fn = nn.MarginRankingLoss(margin=margin)
+        self.encoder = ContrastiveEncoder(input_dim, output_dim)
+        self.temperature = temperature
 
-    def forward(self, tensor1, tensor2, label):
-        # Cosine similarity between the two tensors
-        similarity = self.cosine_similarity(tensor1, tensor2)
-        # Compute the contrastive loss
-        loss = self.loss_fn(similarity, torch.zeros_like(similarity), label)
+
+    def forward(self, x1, x2, label):
+        z1 = self.encoder(x1)
+        z2 = self.encoder(x2)
+        loss = contrastive_loss(z1, z2, self.temperature)
         return loss
 
 
