@@ -144,6 +144,7 @@ def train_func(
     experiment_name: str,
     patience=5,
 ):
+    os.environ['TORCH_USE_CUDA_DSA'] = '1'
     model.to(device)
     model.train()
     best_val_metric = 0    # 現時点での最良のバリデーションメトリクスを初期化
@@ -151,6 +152,8 @@ def train_func(
     best_model_state = None
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
+
+    torch.cuda.synchronize()
 
     for epoch in range(epochs):
         total_loss = 0
