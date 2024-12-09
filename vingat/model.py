@@ -38,6 +38,22 @@ class TextEncoder(nn.Module):
         )
 
 
+class CookingDirectionEncoder(nn.Module):
+    def __init__(self, data: pd.DataFrame, dimention: int, device) -> None:
+        self.device = device
+        self.data = data
+        self.sbert = TextEncoder(dimention, device)
+
+    def forward(self, indices: list):
+        _indices = indices.clone().detach().to("cpu").numpy()
+        values = self.data.loc[_indices, "cooking_directions"].values
+        return torch.as_tensor(
+            self.sbert.encode(values),
+            dtype=torch.float32,
+            device=self.device
+        )
+
+
 class VLMEncoder(nn.Module):
     def __init__(self, data: pd.DataFrame, dimention: int, device) -> None:
         super().__init__()
@@ -65,9 +81,9 @@ class ContrastiveLearning(nn.Module):
     def forward(self, sentences: list):
 
 
-class SimpleContrastiveLearning(nn.Module):
+class ContrastiveLearning(nn.Module):
     def __init__(self, margin=1.0):
-        super(SimpleContrastiveLearning, self).__init__()
+        super().__init__()
         self.margin = margin
         self.cosine_similarity = nn.CosineSimilarity(dim=1)
         self.loss_fn = nn.MarginRankingLoss(margin=margin)
@@ -89,6 +105,7 @@ class RecommendationModel(nn.Module):
         recipe_image_vlm_caption,
         ingredients_with_embeddings,
         recipe_image_embeddings,
+        recipe_cooking_directions,
         input_recipe_feature_dim=20,
         dropout_rate=0.3,
         device="cpu",
@@ -99,6 +116,7 @@ class RecommendationModel(nn.Module):
         self.device = device
         self.hidden_dim = hidden_dim
 
+        # Encoders
         self.user_encoder = nn.Embedding(num_users, hidden_dim, max_norm=1.0)
         self.visual_encoder = StaticEmbeddingLoader(
             recipe_image_embeddings,
@@ -116,20 +134,35 @@ class RecommendationModel(nn.Module):
             hidden_dim,
             device
         )
+        self.cooking_direction_encoder = CookingDirectionEncoder(
+            recipe_cooking_directions,
+            hidden_dim,
+            device
+        )
 
+        # Contrastive caption and nutrient
+        self.close_nutrient_to_caption = ContrastiveLearning()
 
+        # Fusion of ingredient and recipe
+        self.ing_to_recipe = HANConv(
+            in_channels=hidden_dim,
+            out_channels=hidden_dim,
+            metadata=(['ingredient', 'taste'],
+                      [('ingredient', 'part_of', 'taste'),
+                       ('taste', 'contains', 'ingredient')]
+                    )
+        )
 
         # HANConv layers
         self.han_conv = HANConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
-            metadata=(['user', 'recipe', 'ingredient', 'taste', 'intention', 'image'],
-                      [('ingredient', 'to', 'taste'),
-                       ('taste', 'to', 'recipe'),
-                       ('intention', 'to', 'recipe'),
-                       ('image', 'to', 'recipe'),
-                       ('user', 'to', 'recipe'),
-                       ('recipe', 'to', 'user')])
+            metadata=(['user', 'item', 'ingredient', 'taste', 'intention', 'image'],
+                      [('taste', 'associated_with', 'item'),
+                       ('intention', 'associated_with', 'item'),
+                       ('image', 'associated_with', 'item'),
+                       ('user', 'buys', 'item'),
+                       ('item', 'bought_by', 'user')])
         )
 
         # Nromali
@@ -145,50 +178,25 @@ class RecommendationModel(nn.Module):
         )
 
     def forward(self, data):
-        # ユーザー特徴量
-        data['user'].x = self.user_encoder(data['user'].user_id.long())
+        user_x = self.user_encoder(data['user'].user_id.long())
+        visual_x = self.visual_encoder(data['image'].recipe_id.long())
+        caption_x = self.visual_caption_encoder(data['image'].recipe_id.long())
+        nutrient_x = self.nutrient_encoder(data['intention'].nutrient.float())
+        ingredient_x = self.ingredient_embedding(
+            data['ingredient'].ingredient_id.long())
+        cooking_direction_x = self.cooking_direction_encoder(
+            data["taste"].recipe_id.long())
 
-        # 食材特徴量
-        ingredient_ids = data['ingredient'].id.long()
-        data['ingredient'].x = self.ingredient_embedding(ingredient_ids)
+        # update
+        data["user"].x = user_x
+        data["visual"].x = visual_x
+        data["intention"].x = self.close_nutrient_to_caption(nutrient_x,
+                                                             caption_x)
+        data["taste"].x = self.ing_to_recipe(ingredient_x, cooking_direction_x)
 
-        # レシピの特徴量：x
-        recipe_feature = self.recipe_linear(data["recipe"].x)
-        data['recipe'].x = self.recipe_norm(recipe_feature)
-
-        # レシピの特徴量：visual
-        data['recipe'].visual_feature = self.visual_encoder(data["recipe"].id.long())
-
-        # レシピの特徴量：intention
-        data['recipe'].intention_feature = torch.ones(
-            (data["recipe"].num_nodes, self.hidden_dim)
-        ).to(self.device)
-
-        # レシピの特徴量：taste
-        data['recipe'].taste_feature = torch.ones(
-            (data["recipe"].num_nodes, self.hidden_dim)
-        ).to(self.device)
-
-        # レシピ特徴を登録
-
-        # item_features = self.feature_fusion(
-        #  image_feture,
-        #  intention_feature,
-        #  taste_feature
-        # )
-
-        # レシピの特徴量を更新
-        data['recipe'].x = data['recipe'].x + self.ing_to_recipe(
-            (data['ingredient'].x, data['recipe'].x),
-            data['ingredient', 'used_in', 'recipe'].edge_index
-        )
-
-        # ユーザーとレシピ間の情報伝播
-        recipe_out = self.user_recipe_gat(
-            (data['user'].x, data['recipe'].x),
-            data['user', 'buys', 'recipe'].edge_index
-        )
-        data['recipe'].x = recipe_out
+        # Message passing
+        data.x_dict = self.han_conv(data.x_dict, data.edge_index_dict)
+        data.x_dict = {key: self.recipe_norm(x) for key, x in data.x_dict.items()}
 
         return data
 

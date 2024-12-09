@@ -43,9 +43,9 @@ def create_hetrodata(
     num_recipes = len(recipe_label_encoder.classes_)
     recipe_x = torch.zeros((num_recipes, hidden_dim), dtype=torch.float32)
     recipe_id = torch.tensor(recipe_label_encoder.classes_, dtype=torch.long)
-    hetro["recipe"].x = recipe_x
-    hetro["recipe"].recipe_id = recipe_id
-    hetro["recipe"].num_nodes = num_recipes
+    hetro["item"].x = recipe_x
+    hetro["item"].recipe_id = recipe_id
+    hetro["item"].num_nodes = num_recipes
 
     # Image nodes (one-to-one with recipes)
     hetro["image"].x = torch.zeros((num_recipes, hidden_dim), dtype=torch.float32)
@@ -81,32 +81,32 @@ def create_hetrodata(
         user_label_encoder.transform(ratings["user_id"].values),
         recipe_label_encoder.transform(ratings["recipe_id"].values)
     ], dtype=torch.long)
-    hetro["user", "buys", "recipe"].edge_index = edge_index_user_recipe
-    hetro["recipe", "bought_by", "user"].edge_index = edge_index_user_recipe.flip(0)
+    hetro["user", "buys", "item"].edge_index = edge_index_user_recipe
+    hetro["item", "bought_by", "user"].edge_index = edge_index_user_recipe.flip(0)
 
     # Edges between image and recipe (one-to-one)
     edge_index_image_recipe = torch.stack([
         torch.arange(num_recipes),
         torch.arange(num_recipes)
     ], dim=0)
-    hetro["image", "associated_with", "recipe"].edge_index = edge_index_image_recipe
-    hetro["recipe", "has_image", "image"].edge_index = edge_index_image_recipe.flip(0)
+    hetro["image", "associated_with", "item"].edge_index = edge_index_image_recipe
+    hetro["item", "has_image", "image"].edge_index = edge_index_image_recipe.flip(0)
 
     # Edges between intention and recipe (one-to-one)
     edge_index_intention_recipe = torch.stack([
         torch.arange(num_recipes),
         torch.arange(num_recipes)
     ], dim=0)
-    hetro["intention", "associated_with", "recipe"].edge_index = edge_index_intention_recipe
-    hetro["recipe", "has_intention", "intention"].edge_index = edge_index_intention_recipe.flip(0)
+    hetro["intention", "associated_with", "item"].edge_index = edge_index_intention_recipe
+    hetro["item", "has_intention", "intention"].edge_index = edge_index_intention_recipe.flip(0)
 
     # Edges between taste and recipe (one-to-one)
     edge_index_taste_recipe = torch.stack([
         torch.arange(num_recipes),
         torch.arange(num_recipes)
     ], dim=0)
-    hetro["taste", "associated_with", "recipe"].edge_index = edge_index_taste_recipe
-    hetro["recipe", "has_taste", "taste"].edge_index = edge_index_taste_recipe.flip(0)
+    hetro["taste", "associated_with", "item"].edge_index = edge_index_taste_recipe
+    hetro["item", "has_taste", "taste"].edge_index = edge_index_taste_recipe.flip(0)
 
     """ GPT Rec
     taste_indices = recipe_ingredients["recipe_id"].map(recipe_id_to_index)
@@ -129,10 +129,10 @@ def create_hetrodata(
     hetro["ingredient", "part_of", "taste"].edge_index = edge_index_taste_ingredient.flip(0)
 
     # for LinkNeighborLoader #
-    hetro['user', 'buys', 'recipe'].edge_label = torch.ones(
+    hetro['user', 'buys', 'item'].edge_label = torch.ones(
         edge_index_user_recipe.shape[1],
         dtype=torch.long)
-    hetro["user", "buys", "recipe"].edge_label_index = torch.tensor(
+    hetro["user", "buys", "item"].edge_label_index = torch.tensor(
         edge_index_user_recipe, dtype=torch.long)
 
     hetro.to(device)
@@ -201,19 +201,19 @@ def create_dataloader(data, batch_size, shuffle=True, neg_sampling_ratio=1.0):
     return LinkNeighborLoader(
         data=data,
         num_neighbors={
-            ('user', 'buys', 'recipe'): [10, 5],
-            ('recipe', 'bought_by', 'user'): [10, 5],
-            ('image', 'associated_with', 'recipe'): [1, 0],
-            ('intention', 'associated_with', 'recipe'): [1, 0],
-            ('taste', 'associated_with', 'recipe'): [1, 0],
+            ('user', 'buys', 'item'): [10, 5],
+            ('item', 'bought_by', 'user'): [10, 5],
+            ('image', 'associated_with', 'item'): [1, 0],
+            ('intention', 'associated_with', 'item'): [1, 0],
+            ('taste', 'associated_with', 'item'): [1, 0],
             ('taste', 'contains', 'ingredient'): [10, 5],
             ('ingredient', 'part_of', 'taste'): [10, 5]
         },
         edge_label_index=(
-            ('user', 'buys', 'recipe'),
-            data['user', 'buys', 'recipe'].edge_label_index
+            ('user', 'buys', 'item'),
+            data['user', 'buys', 'item'].edge_label_index
         ),
-        edge_label=data['user', 'buys', 'recipe'].edge_label,
+        edge_label=data['user', 'buys', 'item'].edge_label,
         batch_size=batch_size,
         shuffle=shuffle,
         neg_sampling_ratio=neg_sampling_ratio,
