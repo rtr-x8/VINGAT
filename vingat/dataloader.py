@@ -23,7 +23,8 @@ def create_hetrodata(
     user_label_encoder: LabelEncoder,
     recipe_label_encoder: LabelEncoder,
     ingredient_label_encoder: LabelEncoder,
-    device
+    device,
+    hidden_dim: int = 128
 ) -> HeteroData:
 
     hetro = HeteroData()
@@ -32,7 +33,7 @@ def create_hetrodata(
 
     # User nodes
     num_users = len(user_label_encoder.classes_)
-    user_x = torch.zeros((num_users, 512), dtype=torch.float32)
+    user_x = torch.zeros((num_users, hidden_dim), dtype=torch.float32)
     user_id = torch.tensor(user_label_encoder.classes_, dtype=torch.long)
     hetro["user"].x = user_x
     hetro["user"].user_id = user_id
@@ -40,34 +41,34 @@ def create_hetrodata(
 
     # Recipe nodes
     num_recipes = len(recipe_label_encoder.classes_)
-    recipe_x = torch.zeros((num_recipes, 512), dtype=torch.float32)
+    recipe_x = torch.zeros((num_recipes, hidden_dim), dtype=torch.float32)
     recipe_id = torch.tensor(recipe_label_encoder.classes_, dtype=torch.long)
     hetro["recipe"].x = recipe_x
     hetro["recipe"].recipe_id = recipe_id
     hetro["recipe"].num_nodes = num_recipes
 
     # Image nodes (one-to-one with recipes)
-    hetro["image"].x = torch.zeros((num_recipes, 512), dtype=torch.float32)
+    hetro["image"].x = torch.zeros((num_recipes, hidden_dim), dtype=torch.float32)
     hetro["image"].recipe_id = recipe_id
     hetro["image"].num_nodes = num_recipes
 
     # Intention nodes (one-to-one with recipes)
     nutrient_features = recipe_nutrients.loc[
         recipe_label_encoder.classes_, use_nutritions].values
-    hetro["intention"].x = torch.zeros((num_recipes, 512), dtype=torch.float32)
+    hetro["intention"].x = torch.zeros((num_recipes, hidden_dim), dtype=torch.float32)
     hetro["intention"].nutient = torch.tensor(nutrient_features, dtype=torch.float32)
     hetro["intention"].recipe_id = recipe_id
     hetro["intention"].num_nodes = num_recipes
 
     # Taste nodes (one-to-one with recipes)
     # hetro["taste"].x = cooking_direction_embeddings.to(torch.float32)
-    hetro["taste"].x = torch.zeros((num_recipes, 512), dtype=torch.float32)
+    hetro["taste"].x = torch.zeros((num_recipes, hidden_dim), dtype=torch.float32)
     hetro["taste"].recipe_id = recipe_id
     hetro["taste"].num_nodes = num_recipes
 
     # Ingredient nodes
     num_ingredients = len(ingredient_label_encoder.classes_)
-    ingredient_x = torch.zeros((num_ingredients, 512), dtype=torch.float32)
+    ingredient_x = torch.zeros((num_ingredients, hidden_dim), dtype=torch.float32)
     ingredient_id = torch.tensor(ingredient_label_encoder.classes_, dtype=torch.long)
     hetro["ingredient"].x = ingredient_x
     hetro["ingredient"].ingredient_id = ingredient_id
@@ -145,7 +146,8 @@ def create_data(
     recipe_ingredients: pd.DataFrame,
     ingredients: pd.DataFrame,
     recipe_nutrients: pd.DataFrame,
-    device: torch.device
+    device: torch.device,
+    hidden_dim: int = 128
 ):
     all_user_id = pd.concat([
         core_train_rating["user_id"],
@@ -175,15 +177,15 @@ def create_data(
     train = create_hetrodata(
         core_train_rating, ingredients.copy(), train_recipe_ingedient.copy(),
         recipe_nutrients, user_label_encoder, recipe_label_encoder,
-        ingredient_label_encoder, device)
+        ingredient_label_encoder, device, hidden_dim)
     test = create_hetrodata(
         core_test_rating, ingredients.copy(), test_recipe_ingedient.copy(),
         recipe_nutrients, user_label_encoder, recipe_label_encoder,
-        ingredient_label_encoder, device)
+        ingredient_label_encoder, device, hidden_dim)
     val = create_hetrodata(
         core_val_rating, ingredients.copy(), val_recipe_ingedient.copy(),
         recipe_nutrients, user_label_encoder, recipe_label_encoder,
-        ingredient_label_encoder, device)
+        ingredient_label_encoder, device, hidden_dim)
 
     return (
         train,
@@ -201,8 +203,6 @@ def create_dataloader(data, batch_size, shuffle=True, neg_sampling_ratio=1.0):
         num_neighbors={
             ('user', 'buys', 'recipe'): [10, 5],
             ('recipe', 'bought_by', 'user'): [10, 5],
-            ('ingredient', 'used_in', 'recipe'): [10, 5],
-            ('recipe', 'self_loop', 'recipe'): [-1, -1],
             ('image', 'associated_with', 'recipe'): [1, 0],
             ('intention', 'associated_with', 'recipe'): [1, 0],
             ('taste', 'associated_with', 'recipe'): [1, 0],
