@@ -248,3 +248,12 @@ def load_recipe_image_embeddings(
     recipe_image_embeddings = pd.read_csv(file_path, index_col=0)
     print("recipe_image_embeddings is loaded")
     return recipe_image_embeddings
+
+
+def load_recipe_image_vlm_caption(directory_path: str,) -> pd.DataFrame:
+    """
+    レシピ画像のVLMキャプションデータ
+    https://colab.research.google.com/drive/1Z0EV32iNRv5SeAovl1tM-1YkM7jZdcgT?usp=sharing
+    """
+    return pd.read_csv(f"{directory_path}/recipe_image_vlm_caption.csv",
+                       index_col=0)

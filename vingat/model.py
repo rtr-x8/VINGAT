@@ -1,5 +1,6 @@
 import torch
 from torch_geometric.nn import HANConv, BatchNorm
+from sentence_transformers import SentenceTransformer
 import torch.nn as nn
 import pandas as pd
 
@@ -21,12 +22,48 @@ class StaticEmbeddingLoader():
         )
 
 
+class TextEncoder(nn.Module):
+    def __init__(self, dimention: int, device) -> None:
+        super().__init__()
+        self.sbert = SentenceTransformer('paraphrase-MiniLM-L6-v2',
+                                         truncate_dim=dimention,
+                                         device=device)
+        self.device = device
+
+    def forward(self, sentences: list):
+        return torch.as_tensor(
+            self.sbert.encode(sentences),
+            dtype=torch.float32,
+            device=self.device
+        )
+
+
+class VLMEncoder(nn.Module):
+    def __init__(self, data: pd.DataFrame, dimention: int, device) -> None:
+        super().__init__()
+        self.data = data
+        self.embedding_dim = dimention
+        self.device = device
+        self.sbert = SentenceTransformer('paraphrase-MiniLM-L6-v2',
+                                         truncate_dim=dimention,
+                                         device=device)
+
+    def forward(self, indices: torch.tensor):
+        values = self.data.loc[indices, "text"].values
+        return torch.as_tensor(
+            self.sbert.encode(values),
+            dtype=torch.float32,
+            device=self.device
+        )
+
+
 class RecommendationModel(nn.Module):
     def __init__(
         self,
         num_users,
         num_recipes,
         num_ingredients,
+        recipe_image_vlm_caption,
         ingredients_with_embeddings,
         recipe_image_embeddings,
         input_recipe_feature_dim=20,
@@ -39,20 +76,22 @@ class RecommendationModel(nn.Module):
         self.device = device
         self.hidden_dim = hidden_dim
 
-        self.user_embedding = nn.Embedding(num_users, hidden_dim, max_norm=1.0)
+        self.user_encoder = nn.Embedding(num_users, hidden_dim, max_norm=1.0)
+        self.visual_encoder = StaticEmbeddingLoader(
+            recipe_image_embeddings,
+            hidden_dim,
+            device)
+        self.visual_caption_encoder = StaticEmbeddingLoader(
+            recipe_image_embeddings,
+        )
+        
         self.recipe_linear = nn.Linear(input_recipe_feature_dim, hidden_dim)
 
-        # 食材の埋め込みを取得する
         self.ingredient_embedding = StaticEmbeddingLoader(
             ingredients_with_embeddings,
             hidden_dim,
             device)
 
-        # レシピ画像の埋め込み取得
-        self.image_feature_loader = StaticEmbeddingLoader(
-            recipe_image_embeddings,
-            hidden_dim,
-            device)
 
         # 食材の特徴量を変換する線形そう
         self.ingredient_linear = nn.Linear(1024, hidden_dim)
@@ -84,7 +123,7 @@ class RecommendationModel(nn.Module):
 
     def forward(self, data):
         # ユーザー特徴量
-        data['user'].x = self.user_embedding(data['user'].user_id.long())
+        data['user'].x = self.user_encoder(data['user'].user_id.long())
 
         # 食材特徴量
         ingredient_ids = data['ingredient'].id.long()
@@ -95,7 +134,7 @@ class RecommendationModel(nn.Module):
         data['recipe'].x = self.recipe_norm(recipe_feature)
 
         # レシピの特徴量：visual
-        data['recipe'].visual_feature = self.image_feature_loader(data["recipe"].id.long())
+        data['recipe'].visual_feature = self.visual_encoder(data["recipe"].id.long())
 
         # レシピの特徴量：intention
         data['recipe'].intention_feature = torch.ones(
