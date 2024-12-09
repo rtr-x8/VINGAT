@@ -41,6 +41,7 @@ class TextEncoder(nn.Module):
 
 class CookingDirectionEncoder(nn.Module):
     def __init__(self, data: pd.DataFrame, dimention: int, device) -> None:
+        super().__init__()
         self.device = device
         self.data = data
         self.sbert = TextEncoder(dimention, device)
@@ -153,7 +154,8 @@ class RecommendationModel(nn.Module):
         )
 
         # Contrastive caption and nutrient
-        self.close_nutrient_to_caption = ContrastiveLearning()
+        self.close_nutrient_to_caption = ContrastiveLearning(hidden_dim,
+                                                             hidden_dim)
 
         # Fusion of ingredient and recipe
         self.ing_to_recipe = HANConv(

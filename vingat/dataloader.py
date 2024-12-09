@@ -3,7 +3,8 @@ from sklearn.preprocessing import LabelEncoder
 import torch
 from enum import Enum
 import numpy as np
-from .loader import use_nutritions
+from vingat.loader import use_nutritions
+
 import pandas as pd
 from torch_geometric.loader import LinkNeighborLoader
 
@@ -108,18 +109,6 @@ def create_hetrodata(
     hetro["taste", "associated_with", "item"].edge_index = edge_index_taste_recipe
     hetro["item", "has_taste", "taste"].edge_index = edge_index_taste_recipe.flip(0)
 
-    """ GPT Rec
-    taste_indices = recipe_ingredients["recipe_id"].map(recipe_id_to_index)
-    ingredient_indices = recipe_ingredients["ingredient_id"].map(ingredient_id_to_index)
-    valid_indices = taste_indices.notna() & ingredient_indices.notna()
-    edge_index_taste_ingredient = torch.tensor([
-        taste_indices[valid_indices].values.astype(int),
-        ingredient_indices[valid_indices].values.astype(int)
-    ], dtype=torch.long)
-    hetro["taste", "contains", "ingredient"].edge_index = edge_index_taste_ingredient
-    hetro["ingredient", "part_of", "taste"].edge_index = edge_index_taste_ingredient.flip(0)
-    """
-
     # ing to taste(recupe)
     edge_index_ingredient_recipe = np.array([
         ingredient_label_encoder.transform(recipe_ingredients["ingredient_id"]),
@@ -207,7 +196,10 @@ def create_dataloader(data, batch_size, shuffle=True, neg_sampling_ratio=1.0):
             ('intention', 'associated_with', 'item'): [1, 0],
             ('taste', 'associated_with', 'item'): [1, 0],
             ('taste', 'contains', 'ingredient'): [10, 5],
-            ('ingredient', 'part_of', 'taste'): [10, 5]
+            ('ingredient', 'part_of', 'taste'): [10, 5],
+            ('item', 'has_image', 'image'): [1, 0],
+            ('item', 'has_intention', 'intention'): [1, 0],
+            ('item', 'has_taste', 'taste'): [1, 0], 
         },
         edge_label_index=(
             ('user', 'buys', 'item'),
