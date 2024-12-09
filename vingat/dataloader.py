@@ -199,7 +199,7 @@ def create_dataloader(data, batch_size, shuffle=True, neg_sampling_ratio=1.0):
             ('ingredient', 'part_of', 'taste'): [10, 5],
             ('item', 'has_image', 'image'): [1, 0],
             ('item', 'has_intention', 'intention'): [1, 0],
-            ('item', 'has_taste', 'taste'): [1, 0], 
+            ('item', 'has_taste', 'taste'): [1, 0],
         },
         edge_label_index=(
             ('user', 'buys', 'item'),
