@@ -84,14 +84,13 @@ class RecommendationModel(nn.Module):
         self.visual_caption_encoder = StaticEmbeddingLoader(
             recipe_image_embeddings,
         )
-        
+
         self.recipe_linear = nn.Linear(input_recipe_feature_dim, hidden_dim)
 
         self.ingredient_embedding = StaticEmbeddingLoader(
             ingredients_with_embeddings,
             hidden_dim,
             device)
-
 
         # 食材の特徴量を変換する線形そう
         self.ingredient_linear = nn.Linear(1024, hidden_dim)
