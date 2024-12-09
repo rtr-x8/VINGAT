@@ -74,9 +74,9 @@ class VLMEncoder(nn.Module):
         )
 
 
-class ContrastiveEncoder(mm.Module):
+class ContrastiveEncoder(nn.Module):
     def __init__(self, input_dim, output_dim):
-        super(Encoder, self).__init__()
+        super().__init__()
         self.fc1 = nn.Linear(input_dim, 128)
         self.fc2 = nn.Linear(128, output_dim)
 
@@ -101,8 +101,7 @@ class ContrastiveLearning(nn.Module):
         self.encoder = ContrastiveEncoder(input_dim, output_dim)
         self.temperature = temperature
 
-
-    def forward(self, x1, x2, label):
+    def forward(self, x1, x2):
         z1 = self.encoder(x1)
         z2 = self.encoder(x2)
         loss = contrastive_loss(z1, z2, self.temperature)
@@ -162,8 +161,7 @@ class RecommendationModel(nn.Module):
             out_channels=hidden_dim,
             metadata=(['ingredient', 'taste'],
                       [('ingredient', 'part_of', 'taste'),
-                       ('taste', 'contains', 'ingredient')]
-                    )
+                       ('taste', 'contains', 'ingredient')])
         )
 
         # HANConv layers
