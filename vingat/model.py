@@ -45,7 +45,7 @@ class CookingDirectionEncoder(nn.Module):
         self.data = data
         self.sbert = TextEncoder(dimention, device)
 
-    def forward(self, indices: list):
+    def forward(self, indices: torch.tensor):
         _indices = indices.clone().detach().to("cpu").numpy()
         values = self.data.loc[_indices, "cooking_directions"].values
         return torch.as_tensor(
