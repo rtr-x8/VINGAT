@@ -57,6 +57,29 @@ class VLMEncoder(nn.Module):
         )
 
 
+class ContrastiveLearning(nn.Module):
+    def __init__(self, device, mergin: int = 1.0):
+        self.device = device
+        self.mergin = mergin
+
+    def forward(self, sentences: list):
+
+
+class SimpleContrastiveLearning(nn.Module):
+    def __init__(self, margin=1.0):
+        super(SimpleContrastiveLearning, self).__init__()
+        self.margin = margin
+        self.cosine_similarity = nn.CosineSimilarity(dim=1)
+        self.loss_fn = nn.MarginRankingLoss(margin=margin)
+
+    def forward(self, tensor1, tensor2, label):
+        # Cosine similarity between the two tensors
+        similarity = self.cosine_similarity(tensor1, tensor2)
+        # Compute the contrastive loss
+        loss = self.loss_fn(similarity, torch.zeros_like(similarity), label)
+        return loss
+
+
 class RecommendationModel(nn.Module):
     def __init__(
         self,
@@ -80,20 +103,21 @@ class RecommendationModel(nn.Module):
         self.visual_encoder = StaticEmbeddingLoader(
             recipe_image_embeddings,
             hidden_dim,
-            device)
-        self.visual_caption_encoder = StaticEmbeddingLoader(
-            recipe_image_embeddings,
+            device
         )
-
-        self.recipe_linear = nn.Linear(input_recipe_feature_dim, hidden_dim)
-
-        self.ingredient_embedding = StaticEmbeddingLoader(
+        self.visual_caption_encoder = VLMEncoder(
+            recipe_image_vlm_caption,
+            hidden_dim,
+            device
+        )
+        self.nutrient_encoder = nn.Linear(input_recipe_feature_dim, hidden_dim)
+        self.ingredient_embedding = StaticEmbeddingLoader(  # TODO: to SBERT
             ingredients_with_embeddings,
             hidden_dim,
-            device)
+            device
+        )
 
-        # 食材の特徴量を変換する線形そう
-        self.ingredient_linear = nn.Linear(1024, hidden_dim)
+
 
         # HANConv layers
         self.han_conv = HANConv(
