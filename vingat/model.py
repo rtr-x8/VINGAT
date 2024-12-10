@@ -126,8 +126,8 @@ class TasteGNN(nn.Module):
         self.lin = nn.Linear(out_channels, out_channels)
 
     def forward(self, x_dict, edge_index_dict):
-        x_dict = {k: v for k, v in self.NODES.items() if k in self.NODES}
-        edge_index_dict = {k: v for k, v in self.EDFGES.items() if k in self.EDFGES}
+        x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
+        edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDFGES}
         out = self.gnn(x_dict, edge_index_dict)
         return out
 
@@ -139,7 +139,7 @@ class MultiModalFusionGAT(nn.Module):
              ('image', 'associated_with', 'item'),
              ('user', 'buys', 'item'),
              ('item', 'bought_by', 'user')]
-
+    
     def __init__(self, in_channels, out_channels):
         super().__init__()
         self.gnn = HANConv(
@@ -150,8 +150,8 @@ class MultiModalFusionGAT(nn.Module):
         self.lin = nn.Linear(out_channels, out_channels)
 
     def forward(self, x_dict, edge_index_dict):
-        x_dict = {k: v for k, v in self.NODES.items() if k in self.NODES}
-        edge_index_dict = {k: v for k, v in self.EDFGES.items() if k in self.EDFGES}
+        x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
+        edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDFGES}
         out = self.gnn(x_dict, edge_index_dict)
         return out
 
