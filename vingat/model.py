@@ -112,38 +112,45 @@ class ContrastiveLearning(nn.Module):
 
 
 class TasteGNN(nn.Module):
+    NODES = ['ingredient', 'taste']
+    EDFGES = [('ingredient', 'part_of', 'taste'),
+              ('taste', 'contains', 'ingredient')]
+
     def __init__(self, in_channels, out_channels):
         super().__init__()
         self.gnn = HANConv(
             in_channels=in_channels,
             out_channels=out_channels,
-            metadata=(['ingredient', 'taste'],
-                      [('ingredient', 'part_of', 'taste'),
-                       ('taste', 'contains', 'ingredient')])
+            metadata=(self.NODES, self.EDFGES)
         )
         self.lin = nn.Linear(out_channels, out_channels)
 
     def forward(self, x_dict, edge_index_dict):
+        x_dict = {k: v for k, v in self.NODES.items() if k in self.NODES}
+        edge_index_dict = {k: v for k, v in self.EDFGES.items() if k in self.EDFGES}
         out = self.gnn(x_dict, edge_index_dict)
         return out
 
 
 class MultiModalFusionGAT(nn.Module):
+    NODES = ['user', 'item', 'taste', 'intention', 'image']
+    EDGES = [('taste', 'associated_with', 'item'),
+             ('intention', 'associated_with', 'item'),
+             ('image', 'associated_with', 'item'),
+             ('user', 'buys', 'item'),
+             ('item', 'bought_by', 'user')]
     def __init__(self, in_channels, out_channels):
         super().__init__()
         self.gnn = HANConv(
             in_channels=in_channels,
             out_channels=out_channels,
-            metadata=(['user', 'item', 'taste', 'intention', 'image'],
-                      [('taste', 'associated_with', 'item'),
-                       ('intention', 'associated_with', 'item'),
-                       ('image', 'associated_with', 'item'),
-                       ('user', 'buys', 'item'),
-                       ('item', 'bought_by', 'user')])
+            metadata=(self.NODES, self.EDGES)
         )
         self.lin = nn.Linear(out_channels, out_channels)
 
     def forward(self, x_dict, edge_index_dict):
+        x_dict = {k: v for k, v in self.NODES.items() if k in self.NODES}
+        edge_index_dict = {k: v for k, v in self.EDFGES.items() if k in self.EDFGES}
         out = self.gnn(x_dict, edge_index_dict)
         return out
 
