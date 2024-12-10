@@ -68,8 +68,7 @@ class VLMEncoder(nn.Module):
                                          device=device)
 
     def forward(self, indices: torch.tensor):
-        _indices = indices.clone().detach().to("cpu").numpy()
-        values = self.data.loc[_indices, "text"].values
+        values = self.data.loc[cols].values.reshape(-1)
         return torch.as_tensor(
             self.sbert.encode(values),
             dtype=torch.float32,
@@ -124,7 +123,8 @@ class RecommendationModel(nn.Module):
         input_recipe_feature_dim=20,
         dropout_rate=0.3,
         device="cpu",
-        hidden_dim=128
+        hidden_dim=128,
+        user_max=22653215
     ):
         super().__init__()
 
@@ -134,7 +134,7 @@ class RecommendationModel(nn.Module):
         self.hidden_dim = hidden_dim
 
         # Encoders
-        self.user_encoder = nn.Embedding(num_users, hidden_dim, max_norm=1.0)
+        self.user_encoder = nn.Embedding(user_max, hidden_dim, max_norm=1.0)
         self.visual_encoder = StaticEmbeddingLoader(
             recipe_image_embeddings,
             hidden_dim,

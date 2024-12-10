@@ -57,7 +57,7 @@ def create_hetrodata(
     nutrient_features = recipe_nutrients.loc[
         recipe_label_encoder.classes_, use_nutritions].values
     hetro["intention"].x = torch.zeros((num_recipes, hidden_dim), dtype=torch.float32)
-    hetro["intention"].nutient = torch.tensor(nutrient_features, dtype=torch.float32)
+    hetro["intention"].nutrient = torch.tensor(nutrient_features, dtype=torch.float32)
     hetro["intention"].recipe_id = recipe_id
     hetro["intention"].num_nodes = num_recipes
 
