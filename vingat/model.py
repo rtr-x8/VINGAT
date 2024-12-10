@@ -49,7 +49,7 @@ class CookingDirectionEncoder(nn.Module):
 
     def forward(self, indices: torch.tensor):
         _indices = indices.clone().detach().to("cpu").numpy()
-        values = self.data.loc[_indices, "cooking_directions"].values
+        values = self.data.loc[_indices, "direction"].values
         return torch.as_tensor(
             self.sbert.encode(values),
             dtype=torch.float32,
