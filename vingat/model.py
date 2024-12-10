@@ -68,7 +68,8 @@ class VLMEncoder(nn.Module):
                                          device=device)
 
     def forward(self, indices: torch.tensor):
-        values = self.data.loc[cols].values.reshape(-1)
+        _indices = indices.clone().detach().to("cpu").numpy()
+        values = self.data.loc[_indices].values.reshape(-1)
         return torch.as_tensor(
             self.sbert.encode(values),
             dtype=torch.float32,
