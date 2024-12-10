@@ -124,7 +124,7 @@ class TasteGNN(nn.Module):
         self.lin = nn.Linear(out_channels, out_channels)
 
     def forward(self, x_dict, edge_index_dict):
-        out = self.han_conv(x_dict, edge_index_dict)
+        out = self.gnn(x_dict, edge_index_dict)
         return out
 
 
