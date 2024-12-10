@@ -4,6 +4,7 @@ from torch_geometric.nn import HANConv, BatchNorm
 from sentence_transformers import SentenceTransformer
 import torch.nn as nn
 import pandas as pd
+import os
 
 
 class StaticEmbeddingLoader():
@@ -67,7 +68,8 @@ class VLMEncoder(nn.Module):
                                          device=device)
 
     def forward(self, indices: torch.tensor):
-        values = self.data.loc[indices, "text"].values
+        _indices = indices.clone().detach().to("cpu").numpy()
+        values = self.data.loc[_indices, "text"].values
         return torch.as_tensor(
             self.sbert.encode(values),
             dtype=torch.float32,
@@ -125,6 +127,8 @@ class RecommendationModel(nn.Module):
         hidden_dim=128
     ):
         super().__init__()
+
+        os.environ['TORCH_USE_CUDA_DSA'] = '1'
 
         self.device = device
         self.hidden_dim = hidden_dim

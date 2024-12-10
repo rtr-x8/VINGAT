@@ -144,7 +144,6 @@ def train_func(
     experiment_name: str,
     patience=5,
 ):
-    os.environ['TORCH_USE_CUDA_DSA'] = '1'
     model.to(device)
     model.train()
     best_val_metric = 0    # 現時点での最良のバリデーションメトリクスを初期化
