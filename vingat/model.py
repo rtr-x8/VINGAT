@@ -139,6 +139,7 @@ class MultiModalFusionGAT(nn.Module):
              ('image', 'associated_with', 'item'),
              ('user', 'buys', 'item'),
              ('item', 'bought_by', 'user')]
+
     def __init__(self, in_channels, out_channels):
         super().__init__()
         self.gnn = HANConv(
