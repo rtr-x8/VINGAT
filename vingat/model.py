@@ -108,28 +108,28 @@ class ContrastiveLearning(nn.Module):
         z1 = self.encoder(x1)
         z2 = self.encoder(x2)
         loss = contrastive_loss(z1, z2, self.temperature)
-        return loss
+        return z1, z2, loss
 
 
 class TasteGNN(nn.Module):
     NODES = ['ingredient', 'taste']
-    EDFGES = [('ingredient', 'part_of', 'taste'),
-              ('taste', 'contains', 'ingredient')]
+    EDGES = [('ingredient', 'part_of', 'taste'),
+             ('taste', 'contains', 'ingredient')]
 
     def __init__(self, in_channels, out_channels):
         super().__init__()
         self.gnn = HANConv(
             in_channels=in_channels,
             out_channels=out_channels,
-            metadata=(self.NODES, self.EDFGES)
+            metadata=(self.NODES, self.EDGES)
         )
         self.lin = nn.Linear(out_channels, out_channels)
 
     def forward(self, x_dict, edge_index_dict):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
-        edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDFGES}
+        edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.gnn(x_dict, edge_index_dict)
-        return out
+        return out["taste"], out["ingredient"]
 
 
 class MultiModalFusionGAT(nn.Module):
@@ -151,9 +151,9 @@ class MultiModalFusionGAT(nn.Module):
 
     def forward(self, x_dict, edge_index_dict):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
-        edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDFGES}
+        edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.gnn(x_dict, edge_index_dict)
-        return out
+        return out["user"], out["item"], out["taste"], out["intention"], out["image"]
 
 
 class RecommendationModel(nn.Module):
@@ -166,11 +166,11 @@ class RecommendationModel(nn.Module):
         ingredients_with_embeddings,
         recipe_image_embeddings,
         recipe_cooking_directions,
-        input_recipe_feature_dim=20,
-        dropout_rate=0.3,
-        device="cpu",
-        hidden_dim=128,
-        user_max=22653215
+        input_recipe_feature_dim,
+        dropout_rate,
+        device,
+        hidden_dim,
+        user_max
     ):
         super().__init__()
 
@@ -231,17 +231,24 @@ class RecommendationModel(nn.Module):
         nutrient_x = self.nutrient_encoder(data['intention'].nutrient.float())
         ingredient_x = self.ingredient_embedding(data['ingredient'].ingredient_id.long())
         cooking_direction_x = self.cooking_direction_encoder(data["taste"].recipe_id.long())
+        cl_nutirnent_x, cl_caption_x, cl_loss = self.close_nutrient_to_caption(nutrient_x, caption_x)
 
         # update
+        print("user dim debug", data["user"].x.shape, user_x.shape, data['user'].user_id.long().shape)
         data["user"].x = user_x
         data["visual"].x = visual_x
-        data["intention"].x = self.close_nutrient_to_caption(nutrient_x, caption_x)
+        data["intention"].x = cl_caption_x
         data["ingredient"].x = ingredient_x
         data["taste"].x = cooking_direction_x
 
         # Message passing
-        data.x_dict = self.ing_to_recipe(data.x_dict, data.edge_index_dict).x_dict
-        data.x_dict = self.fusion_gat(data.x_dict, data.edge_index_dict).x_dict
+        data.x_dict["taste"],
+        data.x_dict["ingredient"] = self.ing_to_recipe(data.x_dict, data.edge_index_dict)
+        data.x_dict["user"],
+        data.x_dict["item"],
+        data.x_dict["taste"],
+        data.x_dict["intention"],
+        data.x_dict["image"] = self.fusion_gat(data.x_dict, data.edge_index_dict)
         # data.x_dict = {key: self.recipe_norm(x) for key, x in data.x_dict.items()}
 
         return data

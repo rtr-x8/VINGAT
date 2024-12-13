@@ -32,11 +32,11 @@ def evaluate_model(
         out = model(data)
 
         # 評価用のエッジラベルとエッジインデックスを取得
-        edge_label_index = data['user', 'buys', 'recipe'].edge_label_index
+        edge_label_index = data['user', 'buys', 'item'].edge_label_index
 
         # ユーザーとレシピの埋め込みを取得
         user_embeddings = out['user'].x
-        recipe_embeddings = out['recipe'].x
+        recipe_embeddings = out['item'].x
 
         unique_user_ids = edge_label_index[0].unique()
 
@@ -167,16 +167,16 @@ def train_func(
             out = model(batch_data)
 
             # エッジのラベルとエッジインデックスを取得
-            # edge_label = batch_data['user', 'buys', 'recipe'].edge_label
-            edge_label_index = batch_data['user', 'buys', 'recipe'].edge_label_index
+            # edge_label = batch_data['user', 'buys', 'item'].edge_label
+            edge_label_index = batch_data['user', 'buys', 'item'].edge_label_index
 
             # ユーザーとレシピの埋め込みを取得
             user_embeddings = out['user'].x
-            recipe_embeddings = out['recipe'].x
+            recipe_embeddings = out['item'].x
 
             # 正例と負例のマスクを取得
-            pos_mask = batch_data['user', 'buys', 'recipe'].edge_label == 1
-            neg_mask = batch_data['user', 'buys', 'recipe'].edge_label == 0
+            pos_mask = batch_data['user', 'buys', 'item'].edge_label == 1
+            neg_mask = batch_data['user', 'buys', 'item'].edge_label == 0
 
             # エッジインデックスからノードの埋め込みを取得
             user_embed = user_embeddings[edge_label_index[0]]
