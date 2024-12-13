@@ -204,7 +204,7 @@ class RecommendationModel(nn.Module):
         )
 
         # Contrastive caption and nutrient
-        self.close_nutrient_to_caption = ContrastiveLearning(hidden_dim, hidden_dim)
+        self.cl_nutrient_to_caption = ContrastiveLearning(hidden_dim, hidden_dim)
 
         # Fusion of ingredient and recipe
         self.ing_to_recipe = TasteGNN(hidden_dim, hidden_dim)
@@ -231,9 +231,7 @@ class RecommendationModel(nn.Module):
         nutrient_x = self.nutrient_encoder(data['intention'].nutrient.float())
         ingredient_x = self.ingredient_embedding(data['ingredient'].ingredient_id.long())
         cooking_direction_x = self.cooking_direction_encoder(data["taste"].recipe_id.long())
-        cl_nutirnent_x,
-        cl_caption_x,
-        cl_loss = self.close_nutrient_to_caption(nutrient_x, caption_x)
+        cl_nutirnent_x, cl_caption_x, cl_loss = self.cl_nutrient_to_caption(nutrient_x, caption_x)
 
         # update
         data["user"].x = user_x
