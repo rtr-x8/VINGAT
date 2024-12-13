@@ -231,10 +231,11 @@ class RecommendationModel(nn.Module):
         nutrient_x = self.nutrient_encoder(data['intention'].nutrient.float())
         ingredient_x = self.ingredient_embedding(data['ingredient'].ingredient_id.long())
         cooking_direction_x = self.cooking_direction_encoder(data["taste"].recipe_id.long())
-        cl_nutirnent_x, cl_caption_x, cl_loss = self.close_nutrient_to_caption(nutrient_x, caption_x)
+        cl_nutirnent_x,
+        cl_caption_x,
+        cl_loss = self.close_nutrient_to_caption(nutrient_x, caption_x)
 
         # update
-        print("user dim debug", data["user"].x.shape, user_x.shape, data['user'].user_id.long().shape)
         data["user"].x = user_x
         data["visual"].x = visual_x
         data["intention"].x = cl_caption_x
