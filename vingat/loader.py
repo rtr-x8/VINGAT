@@ -9,6 +9,7 @@ import numpy as np
 import torch
 from tqdm.notebook import tqdm
 from typing import Dict
+from sentence_transformers import SentenceTransformer
 
 
 use_nutritions = ["niacin", "fiber", "sugars", "sodium", "carbohydrates",
@@ -23,6 +24,66 @@ def parse_nutrient_json(json_dict):
     for un in use_nutritions:
         res.update({un: eval(json_dict).get(un).get("amount")})
     return res
+
+
+def text_to_embedding(
+    directory_path: str,
+    data: pd.DataFrame,
+    name: str,
+    cols: list,
+    break_flag=False
+):
+    result = pd.DataFrame([], columns=cols)
+    sbert = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+    _c = 0
+    for i in tqdm(data.index, desc=f"[{name} embedding...]"):
+        try:
+            emb = sbert.encode(data.loc[i])
+            emb = pd.DataFrame([emb[0]], index=[i], columns=cols)
+            result = pd.concat([result, emb], axis=0)
+        except ValueError:
+            print(f"{name} in {i} has Error, Skipped.")
+            continue
+        if _c > 5 and break_flag:
+            break
+        _c += 1
+    result.to_csv(f"{directory_path}/{name}_embeddings.csv")
+
+
+def load_recipe_cooking_directions_embeddings(
+    directory_path: str,
+    originarl_df: pd.DataFrame,
+    col_range: int = 384
+) -> pd.DataFrame:
+    name = "recipe_cooking_directions"
+    cols = [f"e_{i}" for i in range(col_range)]
+    file_path = f"{directory_path}/{name}_embeddings.csv"
+    if not os.path.isfile(file_path):
+        text_to_embedding(
+            directory_path,
+            originarl_df,
+            name,
+            cols
+        )
+    return pd.read_csv(file_path, index_col=0)
+
+
+def load_recipe_image_vlm_caption_embeddings(
+    directory_path: str,
+    originarl_df: pd.DataFrame,
+    col_range: int = 384
+) -> pd.DataFrame:
+    name = "recipe_image_vlm_caption"
+    cols = [f"e_{i}" for i in range(col_range)]
+    file_path = f"{directory_path}/{name}_embeddings.csv"
+    if not os.path.isfile(file_path):
+        text_to_embedding(
+            directory_path,
+            originarl_df,
+            name,
+            cols
+        )
+    return pd.read_csv(file_path, index_col=0)
 
 
 def core_file_loader(

@@ -210,13 +210,18 @@ def train_func(
         txt = f"Loss: {avg_loss:.4f}, Accuracy: {epoch_accuracy:.4f},"
         print(f"{txt} Recall: {epoch_recall:.4f}, F1: {epoch_f1:.4f}")
 
-        train_epoch_logger({
-            "train/total_loss": total_loss,
-            "train/aveg_loss": aveg_loss,
-            "train/accuracy": epoch_accuracy,
-            "train/recall": epoch_recall,
-            "train/f1": epoch_f1
-        }, step=epoch+1)
+        train_epoch_logger(
+            metrics={
+                "train": {
+                    "total_loss": total_loss,
+                    "aveg_loss": aveg_loss,
+                    "accuracy": epoch_accuracy,
+                    "recall": epoch_recall,
+                    "f1": epoch_f1,
+                }
+            },
+            step=epoch+1
+        )
 
         # Valid
         k = 10
@@ -230,14 +235,18 @@ def train_func(
         print(txt)
         print("===")
 
-        valid_epoch_logger({
-            f"val/Precision@{k}": val_precision,
-            f"val/Recall@{k}": val_recall,
-            f"val/NDCG@{k}": val_ndcg,
-            f"val/Accuracy@{k}": val_accuracy,
-            f"val/F1@{k}": val_f1,
-            "val/AUC": val_auc,
-        })
+        valid_epoch_logger(
+            metrics={
+                "val": {
+                    f"Precision@{k}": val_precision,
+                    f"Recall@{k}": val_recall,
+                    f"NDCG@{k}": val_ndcg,
+                    f"Accuracy@{k}": val_accuracy,
+                    f"F1@{k}": val_f1,
+                    "AUC": val_auc,
+                }
+            }
+        )
 
         save_model(model, save_dir, f"model_{epoch+1}")
 

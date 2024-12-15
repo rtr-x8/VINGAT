@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from torch_geometric.nn import HANConv, BatchNorm
+from torch_geometric.nn import HANConv, BatchNorm, LGConv
 from sentence_transformers import SentenceTransformer
 import torch.nn as nn
 import pandas as pd
@@ -113,23 +113,32 @@ class ContrastiveLearning(nn.Module):
 
 class TasteGNN(nn.Module):
     NODES = ['ingredient', 'taste']
-    EDGES = [('ingredient', 'part_of', 'taste'),
-             ('taste', 'contains', 'ingredient')]
+    EDGES = [('ingredient', 'part_of', 'taste')]
 
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, hidden_dim):
         super().__init__()
+        """
         self.gnn = HANConv(
-            in_channels=in_channels,
-            out_channels=out_channels,
+            in_channels=hidden_dim,
+            out_channels=hidden_dim,
             metadata=(self.NODES, self.EDGES)
         )
-        self.lin = nn.Linear(out_channels, out_channels)
+        """
+        self.gnn = LGConv()
 
     def forward(self, x_dict, edge_index_dict):
+        """
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.gnn(x_dict, edge_index_dict)
-        return out["taste"], out["ingredient"]
+        return out["taste"]
+        """
+
+        taste_x = x_dict['taste']
+        taste_edge_index = edge_index_dict[('taste', 'contains', 'ingredient')]
+
+        # LGConvの適用
+        return self.gnn(taste_x, taste_edge_index)
 
 
 class MultiModalFusionGAT(nn.Module):
@@ -140,14 +149,13 @@ class MultiModalFusionGAT(nn.Module):
              ('user', 'buys', 'item'),
              ('item', 'bought_by', 'user')]
 
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, hidden_dim):
         super().__init__()
         self.gnn = HANConv(
-            in_channels=in_channels,
-            out_channels=out_channels,
+            in_channels=hidden_dim,
+            out_channels=hidden_dim,
             metadata=(self.NODES, self.EDGES)
         )
-        self.lin = nn.Linear(out_channels, out_channels)
 
     def forward(self, x_dict, edge_index_dict):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
@@ -162,10 +170,10 @@ class RecommendationModel(nn.Module):
         num_users,
         num_recipes,
         num_ingredients,
-        recipe_image_vlm_caption,
+        recipe_image_vlm_caption_embeddings,
         ingredients_with_embeddings,
         recipe_image_embeddings,
-        recipe_cooking_directions,
+        recipe_cooking_directions_embeddings,
         input_recipe_feature_dim,
         dropout_rate,
         device,
@@ -186,8 +194,8 @@ class RecommendationModel(nn.Module):
             hidden_dim,
             device
         )
-        self.visual_caption_encoder = VLMEncoder(
-            recipe_image_vlm_caption,
+        self.visual_caption_encoder = StaticEmbeddingLoader(
+            recipe_image_vlm_caption_embeddings,
             hidden_dim,
             device
         )
@@ -197,8 +205,8 @@ class RecommendationModel(nn.Module):
             hidden_dim,
             device
         )
-        self.cooking_direction_encoder = CookingDirectionEncoder(
-            recipe_cooking_directions,
+        self.cooking_direction_encoder = StaticEmbeddingLoader(
+            recipe_cooking_directions_embeddings,
             hidden_dim,
             device
         )
@@ -207,10 +215,10 @@ class RecommendationModel(nn.Module):
         self.cl_nutrient_to_caption = ContrastiveLearning(hidden_dim, hidden_dim)
 
         # Fusion of ingredient and recipe
-        self.ing_to_recipe = TasteGNN(hidden_dim, hidden_dim)
+        self.ing_to_recipe = TasteGNN(hidden_dim)
 
         # HANConv layers
-        self.fusion_gat = MultiModalFusionGAT(hidden_dim, hidden_dim)
+        self.fusion_gat = MultiModalFusionGAT(hidden_dim)
 
         # Nromali
         self.recipe_norm = BatchNorm(hidden_dim)
@@ -241,8 +249,7 @@ class RecommendationModel(nn.Module):
         data["taste"].x = cooking_direction_x
 
         # Message passing
-        data.x_dict["taste"],
-        data.x_dict["ingredient"] = self.ing_to_recipe(data.x_dict, data.edge_index_dict)
+        data.x_dict["taste"] = self.ing_to_recipe(data.x_dict, data.edge_index_dict)
         data.x_dict["user"],
         data.x_dict["item"],
         data.x_dict["taste"],
