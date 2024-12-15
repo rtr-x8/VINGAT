@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from torch_geometric.nn import HANConv, BatchNorm, LGConv
+from torch_geometric.nn import BatchNorm, LGConv, HGTConv
 from sentence_transformers import SentenceTransformer
 import torch.nn as nn
 import pandas as pd
@@ -151,7 +151,7 @@ class MultiModalFusionGAT(nn.Module):
 
     def __init__(self, hidden_dim):
         super().__init__()
-        self.gnn = HANConv(
+        self.gnn = HGTConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
             metadata=(self.NODES, self.EDGES)
