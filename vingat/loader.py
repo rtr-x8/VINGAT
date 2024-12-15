@@ -65,7 +65,9 @@ def load_recipe_cooking_directions_embeddings(
             name,
             cols
         )
-    return pd.read_csv(file_path, index_col=0)
+    df = pd.read_csv(file_path, index_col=0)
+    df = df.fillna(0)
+    return df
 
 
 def load_recipe_image_vlm_caption_embeddings(
@@ -83,7 +85,9 @@ def load_recipe_image_vlm_caption_embeddings(
             name,
             cols
         )
-    return pd.read_csv(file_path, index_col=0)
+    df = pd.read_csv(file_path, index_col=0)
+    df = df.fillna(0)
+    return df
 
 
 def core_file_loader(
