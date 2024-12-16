@@ -304,8 +304,8 @@ def create_base_hetero(
     ing_lencoder = LabelEncoder().fit(all_ingredient_ids)
 
     scaler = MinMaxScaler()
-    recipe_nutrients = pd.DataFrame(scaler.fit_transform(recipe_nutrients),
-                                    columns=recipe_nutrients.columns)
+    _recipe_nutrients = pd.DataFrame(scaler.fit_transform(recipe_nutrients[use_nutritions]),
+                                     columns=use_nutritions)
 
     # hetero
     data = HeteroData()
@@ -331,7 +331,7 @@ def create_base_hetero(
     data["intention"].num_nodes = len(item_lencoder.classes_)
     data["intention"].item_id = torch.tensor(item_lencoder.classes_)
     data["intention"].nutrient = torch.tensor(
-        recipe_nutrients.loc[item_lencoder.classes_, use_nutritions].values,
+        _recipe_nutrients.loc[item_lencoder.classes_, use_nutritions].values,
         dtype=torch.float32)
     data["intention"].x = StaticEmbeddingLoader(recipe_image_vlm_caption_embeddings,
                                                 dimention=hidden_dim, device=device)
