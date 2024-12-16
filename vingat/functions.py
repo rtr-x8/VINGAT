@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from torch_geometric.data import HeteroData
 from tqdm.notebook import tqdm
-import copy
 from sklearn.metrics import accuracy_score, recall_score, f1_score
 import os
 import numpy as np
@@ -150,8 +149,8 @@ def train_func(
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
     model.to(device)
     model.train()
-    best_val_metric = 0    # 現時点での最良のバリデーションメトリクスを初期化
-    patience_counter = 0    # Early Stoppingのカウンターを初期化
+    # best_val_metric = 0    # 現時点での最良のバリデーションメトリクスを初期化
+    # patience_counter = 0    # Early Stoppingのカウンターを初期化
     best_model_state = None
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
@@ -227,9 +226,8 @@ def train_func(
         # Valid
         """
         k = 10
-        val_copied = copy.deepcopy(val)
         val_precision, val_recall, val_ndcg, val_accuracy, val_f1, val_auc = evaluate_model(
-            model, val_copied, device, k=k, desc=f"[Valid] Epoch {epoch+1}/{epochs}")
+            model, val, device, k=k, desc=f"[Valid] Epoch {epoch+1}/{epochs}")
 
         # 結果を表示
         txt = f'Acc@{k}: {val_accuracy:.4f}, Recall@{k}: {val_recall:.4f}, F1@{k}: {val_f1:.4f},'
