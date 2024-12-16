@@ -4,9 +4,9 @@ import torch
 from enum import Enum
 import numpy as np
 from vingat.loader import use_nutritions
-
 import pandas as pd
 from torch_geometric.loader import LinkNeighborLoader
+from .encoder import StaticEmbeddingLoader
 
 
 class RecipeFeatureType(Enum):
@@ -17,10 +17,8 @@ class RecipeFeatureType(Enum):
 
 def create_hetrodata(
     ratings: pd.DataFrame,
-    ingredients: pd.DataFrame,
     recipe_ingredients: pd.DataFrame,
     recipe_nutrients: pd.DataFrame,
-    # cooking_direction_embeddings: torch.Tensor,
     user_label_encoder: LabelEncoder,
     recipe_label_encoder: LabelEncoder,
     ingredient_label_encoder: LabelEncoder,
@@ -149,9 +147,9 @@ def create_data(
     core_test_rating: pd.DataFrame,
     core_val_rating: pd.DataFrame,
     recipe_ingredients: pd.DataFrame,
-    ingredients: pd.DataFrame,
     recipe_nutrients: pd.DataFrame,
     device: torch.device,
+    directory_path: str,
     hidden_dim: int = 128
 ):
     all_user_id = pd.concat([
@@ -198,19 +196,34 @@ def create_data(
 
     print("train")
     train = create_hetrodata(
-        core_train_rating, ingredients.copy(), train_recipe_ingedient.copy(),
-        recipe_nutrients, user_label_encoder, recipe_label_encoder,
-        ingredient_label_encoder, device, hidden_dim)
+        core_train_rating,
+        train_recipe_ingedient.copy(),
+        recipe_nutrients,
+        user_label_encoder,
+        recipe_label_encoder,
+        ingredient_label_encoder,
+        device,
+        hidden_dim)
     print("test")
     test = create_hetrodata(
-        core_test_rating, ingredients.copy(), test_recipe_ingedient.copy(),
-        recipe_nutrients, user_label_encoder, recipe_label_encoder,
-        ingredient_label_encoder, device, hidden_dim)
+        core_test_rating,
+        test_recipe_ingedient.copy(),
+        recipe_nutrients,
+        user_label_encoder,
+        recipe_label_encoder,
+        ingredient_label_encoder,
+        device,
+        hidden_dim)
     print("val")
     val = create_hetrodata(
-        core_val_rating, ingredients.copy(), val_recipe_ingedient.copy(),
-        recipe_nutrients, user_label_encoder, recipe_label_encoder,
-        ingredient_label_encoder, device, hidden_dim)
+        core_val_rating,
+        val_recipe_ingedient.copy(),
+        recipe_nutrients,
+        user_label_encoder,
+        recipe_label_encoder,
+        ingredient_label_encoder,
+        device,
+        hidden_dim)
 
     return (
         train,
