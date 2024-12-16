@@ -96,7 +96,8 @@ class RecommendationModel(nn.Module):
         self,
         dropout_rate,
         device,
-        hidden_dim
+        hidden_dim,
+        nutrient_dim=20
     ):
         super().__init__()
 
@@ -104,6 +105,8 @@ class RecommendationModel(nn.Module):
 
         self.device = device
         self.hidden_dim = hidden_dim
+
+        self.nutrient_projection = nn.Linear(nutrient_dim, hidden_dim)
 
         # Contrastive caption and nutrient
         self.cl_nutrient_to_caption = ContrastiveLearning(hidden_dim, hidden_dim)
@@ -127,10 +130,14 @@ class RecommendationModel(nn.Module):
         )
 
     def forward(self, data):
+
         cl_nutirnent_x, cl_caption_x, cl_loss = self.cl_nutrient_to_caption(
-            data["intention"].nutrient,
+            self.nutrient_projection(data["intention"].nutrient),
             data["intention"].x
         )
+        data.x_dict.update({
+            "intention": cl_caption_x,
+        })
 
         # Message passing
         taste_out = self.ing_to_recipe(data.x_dict, data.edge_index_dict)
