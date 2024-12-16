@@ -136,7 +136,6 @@ def create_hetrodata(
     if hetro["item"].min() < 0:
         raise ValueError("edge_index のレシピインデックスに負の値が含まれています。")
 
-
     hetro.to(device)
     return hetro
 
