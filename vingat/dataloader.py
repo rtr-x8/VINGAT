@@ -124,6 +124,19 @@ def create_hetrodata(
     hetro["user", "buys", "item"].edge_label_index = torch.tensor(
         edge_index_user_recipe, dtype=torch.long)
 
+    # edge_index の包括的なチェック
+    # ユーザーインデックスのチェック
+    if hetro["user"].x.shape[0] >= num_users:
+        raise ValueError("edge_index のユーザーインデックスがノード数を超えています。")
+    if hetro["user"].x.shape[0] < 0:
+        raise ValueError("edge_index のユーザーインデックスに負の値が含まれています。")
+    # レシピインデックスのチェック
+    if hetro["item"].max() >= num_recipes:
+        raise ValueError("edge_index のレシピインデックスがノード数を超えています。")
+    if hetro["item"].min() < 0:
+        raise ValueError("edge_index のレシピインデックスに負の値が含まれています。")
+
+
     hetro.to(device)
     return hetro
 
@@ -162,6 +175,21 @@ def create_data(
         recipe_ingredients["recipe_id"].isin(core_test_rating["recipe_id"])]
     val_recipe_ingedient = recipe_ingredients[
         recipe_ingredients["recipe_id"].isin(core_val_rating["recipe_id"])]
+
+    # データの整合性を確認
+    def check_data_integrity(df, label_encoder, column_name):
+        encoded_values = label_encoder.transform(df[column_name])
+        if (encoded_values < 0).any():
+            raise ValueError(f"{column_name} に負のインデックスが含まれています。")
+        if encoded_values.max() >= len(label_encoder.classes_):
+            raise ValueError(f"{column_name} のインデックスがノード数を超えています。")
+
+    check_data_integrity(core_train_rating, user_label_encoder, "user_id")
+    check_data_integrity(core_train_rating, recipe_label_encoder, "recipe_id")
+    check_data_integrity(core_test_rating, user_label_encoder, "user_id")
+    check_data_integrity(core_test_rating, recipe_label_encoder, "recipe_id")
+    check_data_integrity(core_val_rating, user_label_encoder, "user_id")
+    check_data_integrity(core_val_rating, recipe_label_encoder, "recipe_id")
 
     train = create_hetrodata(
         core_train_rating, ingredients.copy(), train_recipe_ingedient.copy(),
