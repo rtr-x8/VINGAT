@@ -50,6 +50,27 @@ def text_to_embedding(
     result.to_csv(f"{directory_path}/{name}_embeddings.csv")
 
 
+def load_user_embeddings(
+    directory_path: str,
+    originarl_df: pd.DataFrame,
+    col_range: int = 384
+) -> pd.DataFrame:
+    name = "users"
+    cols = [f"e_{i}" for i in range(col_range)]
+    file_path = f"{directory_path}/{name}_embeddings.csv"
+    originarl_df = originarl_df.astype(str)
+    if not os.path.isfile(file_path):
+        text_to_embedding(
+            directory_path,
+            originarl_df,
+            name,
+            cols
+        )
+    df = pd.read_csv(file_path, index_col=0)
+    df = df.fillna(0)
+    return df
+
+
 def load_recipe_cooking_directions_embeddings(
     directory_path: str,
     originarl_df: pd.DataFrame,
