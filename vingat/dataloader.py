@@ -313,7 +313,7 @@ def create_base_hetero(
     data["user"].user_id = torch.tensor(user_lencoder.classes_)
     data["user"].x = StaticEmbeddingLoader(
         load_user_embeddings(directory_path, user_lencoder.classes_),
-        dimention=hidden_dim, device=device)
+        dimention=hidden_dim, device=device)(user_lencoder.classes_)
 
     data["item"].num_nodes = len(item_lencoder.classes_)
     data["item"].item_id = torch.tensor(item_lencoder.classes_)
@@ -324,7 +324,7 @@ def create_base_hetero(
     data["image"].item_id = torch.tensor(item_lencoder.classes_)
     data["image"].x = StaticEmbeddingLoader(recipe_image_embeddings,
                                             dimention=hidden_dim,
-                                            device=device)
+                                            device=device)(item_lencoder.classes_)
 
     data["intention"].num_nodes = len(item_lencoder.classes_)
     data["intention"].item_id = torch.tensor(item_lencoder.classes_)
@@ -332,18 +332,20 @@ def create_base_hetero(
         _recipe_nutrients.loc[item_lencoder.classes_, use_nutritions].values,
         dtype=torch.float32)
     data["intention"].x = StaticEmbeddingLoader(recipe_image_vlm_caption_embeddings,
-                                                dimention=hidden_dim, device=device)
+                                                dimention=hidden_dim,
+                                                device=device)(item_lencoder.classes_)
 
     data["taste"].num_nodes = len(item_lencoder.classes_)
     data["taste"].item_id = torch.tensor(item_lencoder.classes_)
     data["taste"].x = StaticEmbeddingLoader(
         recipe_cooking_directions_embeddings,
-        dimention=hidden_dim, device=device)
+        dimention=hidden_dim, device=device)(item_lencoder.classes_)
 
     data["ingredient"].num_nodes = len(ing_lencoder.classes_)
     data["ingredient"].ingredient_id = torch.tensor(ing_lencoder.classes_)
     data["ingredient"].x = StaticEmbeddingLoader(ingredients_with_embeddings,
-                                                 dimention=hidden_dim, device=device)
+                                                 dimention=hidden_dim,
+                                                 device=device)(ing_lencoder.classes_)
 
     # Edge
     ei_attr_item = torch.stack([
