@@ -258,9 +258,13 @@ class RecommendationModel(nn.Module):
 
         if not self.training:
             for k, v in data.edge_index_dict.items():
-                print(k, v[0].min(), v[0].max(), v[1].min(), v[1].max())
-            print(data.x_dict["user"].shape, data.x_dict["item"].shape)
-            print(data.edge_index_dict[('user', 'buys', 'item')].shape)
+                n1 = k[0]
+                n2 = k[2]
+                print(n1, data.x_dict[n1].shape[0] >= v[0].max(),
+                      data.x_dict[n1].shape, v[0].max())
+                print(n2, data.x_dict[n2].shape[0] >= v[1].max(),
+                      data.x_dict[n2].shape, v[1].max())
+                print(k, v[0].min(), v[1].min())
         data.x_dict["user"],
         data.x_dict["item"] = self.fusion_gat(data.x_dict, data.edge_index_dict)
         # data.x_dict = {key: self.recipe_norm(x) for key, x in data.x_dict.items()}

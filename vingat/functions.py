@@ -27,6 +27,8 @@ def evaluate_model(
     all_f1_scores = []
     all_aucs = []
 
+    os.environ['TORCH_USE_CUDA_DSA'] = '1'
+
     with torch.no_grad():
         data = data.to(device)
         out = model(data)
