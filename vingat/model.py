@@ -267,7 +267,7 @@ class RecommendationModel(nn.Module):
                           data.x_dict[n1].shape, v[0].max())
                 if not data.x_dict[n2].shape[0] >= v[1].max():
                     print(n2, data.x_dict[n2].shape[0] >= v[1].max(),
-                        data.x_dict[n2].shape, v[1].max())
+                          data.x_dict[n2].shape, v[1].max())
         data.x_dict["user"],
         data.x_dict["item"] = self.fusion_gat(data.x_dict, data.edge_index_dict)
         # data.x_dict = {key: self.recipe_norm(x) for key, x in data.x_dict.items()}
