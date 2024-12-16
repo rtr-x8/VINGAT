@@ -311,9 +311,10 @@ def create_base_hetero(
     # Node
     data["user"].num_nodes = len(user_lencoder.classes_)
     data["user"].user_id = torch.tensor(user_lencoder.classes_)
-    data["user"].x = StaticEmbeddingLoader(
+    user_encoder = StaticEmbeddingLoader(
         load_user_embeddings(directory_path, user_lencoder.classes_),
-        dimention=hidden_dim, device=device)(user_lencoder.classes_)
+        dimention=hidden_dim, device=device)
+    data["user"].x = user_encoder(torch.tensor(user_lencoder.classes_, dtype=torch.long))
 
     data["item"].num_nodes = len(item_lencoder.classes_)
     data["item"].item_id = torch.tensor(item_lencoder.classes_)
@@ -322,30 +323,34 @@ def create_base_hetero(
 
     data["image"].num_nodes = len(item_lencoder.classes_)
     data["image"].item_id = torch.tensor(item_lencoder.classes_)
-    data["image"].x = StaticEmbeddingLoader(recipe_image_embeddings,
+    image_encoder = StaticEmbeddingLoader(recipe_image_embeddings,
                                             dimention=hidden_dim,
-                                            device=device)(item_lencoder.classes_)
+                                            device=device)
+    data["image"].x = image_encoder(torch.tensor(item_lencoder.classes_, dtype=torch.long))
 
     data["intention"].num_nodes = len(item_lencoder.classes_)
     data["intention"].item_id = torch.tensor(item_lencoder.classes_)
     data["intention"].nutrient = torch.tensor(
         _recipe_nutrients.loc[item_lencoder.classes_, use_nutritions].values,
         dtype=torch.float32)
-    data["intention"].x = StaticEmbeddingLoader(recipe_image_vlm_caption_embeddings,
+    caption_encoder = StaticEmbeddingLoader(recipe_image_vlm_caption_embeddings,
                                                 dimention=hidden_dim,
-                                                device=device)(item_lencoder.classes_)
+                                                device=device)
+    data["intention"].x = caption_encoder(torch.tensor(item_lencoder.classes_, dtype=torch.long))
 
     data["taste"].num_nodes = len(item_lencoder.classes_)
     data["taste"].item_id = torch.tensor(item_lencoder.classes_)
-    data["taste"].x = StaticEmbeddingLoader(
+    vlm_encoder = StaticEmbeddingLoader(
         recipe_cooking_directions_embeddings,
-        dimention=hidden_dim, device=device)(item_lencoder.classes_)
+        dimention=hidden_dim, device=device)
+    data["taste"].x = vlm_encoder(torch.tensor(item_lencoder.classes_, dtype=torch.long))
 
     data["ingredient"].num_nodes = len(ing_lencoder.classes_)
     data["ingredient"].ingredient_id = torch.tensor(ing_lencoder.classes_)
-    data["ingredient"].x = StaticEmbeddingLoader(ingredients_with_embeddings,
+    ingre_encoder = StaticEmbeddingLoader(ingredients_with_embeddings,
                                                  dimention=hidden_dim,
-                                                 device=device)(ing_lencoder.classes_)
+                                                 device=device)
+    data["ingredient"].x = ingre_encoder(torch.tensor(ing_lencoder.classes_, dtype=torch.long))
 
     # Edge
     ei_attr_item = torch.stack([
