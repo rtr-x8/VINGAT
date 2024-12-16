@@ -324,8 +324,8 @@ def create_base_hetero(
     data["image"].num_nodes = len(item_lencoder.classes_)
     data["image"].item_id = torch.tensor(item_lencoder.classes_)
     image_encoder = StaticEmbeddingLoader(recipe_image_embeddings,
-                                            dimention=hidden_dim,
-                                            device=device)
+                                          dimention=hidden_dim,
+                                          device=device)
     data["image"].x = image_encoder(torch.tensor(item_lencoder.classes_, dtype=torch.long))
 
     data["intention"].num_nodes = len(item_lencoder.classes_)
@@ -334,8 +334,8 @@ def create_base_hetero(
         _recipe_nutrients.loc[item_lencoder.classes_, use_nutritions].values,
         dtype=torch.float32)
     caption_encoder = StaticEmbeddingLoader(recipe_image_vlm_caption_embeddings,
-                                                dimention=hidden_dim,
-                                                device=device)
+                                            dimention=hidden_dim,
+                                            device=device)
     data["intention"].x = caption_encoder(torch.tensor(item_lencoder.classes_, dtype=torch.long))
 
     data["taste"].num_nodes = len(item_lencoder.classes_)
@@ -348,8 +348,8 @@ def create_base_hetero(
     data["ingredient"].num_nodes = len(ing_lencoder.classes_)
     data["ingredient"].ingredient_id = torch.tensor(ing_lencoder.classes_)
     ingre_encoder = StaticEmbeddingLoader(ingredients_with_embeddings,
-                                                 dimention=hidden_dim,
-                                                 device=device)
+                                          dimention=hidden_dim,
+                                          device=device)
     data["ingredient"].x = ingre_encoder(torch.tensor(ing_lencoder.classes_, dtype=torch.long))
 
     # Edge
