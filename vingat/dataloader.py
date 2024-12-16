@@ -320,9 +320,9 @@ def create_base_hetero(
     data['item'].x = torch.empty((len(item_lencoder.classes_), hidden_dim)).to(device)
     init.kaiming_uniform_(data['item'].x, a=math.sqrt(5))
 
-    data["visual"].num_nodes = len(item_lencoder.classes_)
-    data["visual"].item_id = torch.tensor(item_lencoder.classes_)
-    data["visual"].x = StaticEmbeddingLoader(recipe_image_embeddings,
+    data["image"].num_nodes = len(item_lencoder.classes_)
+    data["image"].item_id = torch.tensor(item_lencoder.classes_)
+    data["image"].x = StaticEmbeddingLoader(recipe_image_embeddings,
                                              dimention=hidden_dim,
                                              device=device)
 
@@ -389,8 +389,7 @@ def add_edge(
     data['user', 'buys', 'item'].edge_label = torch.ones(
         edge_index_user_recipe.shape[1],
         dtype=torch.long)
-    data["user", "buys", "item"].edge_label_index = torch.tensor(
-        edge_index_user_recipe, dtype=torch.long)
+    data["user", "buys", "item"].edge_label_index = edge_index_user_recipe.clone().detach()
 
     ei_ing_item = torch.tensor([
         ing_lencoder.transform(ing_item["ingredient_id"].values),
