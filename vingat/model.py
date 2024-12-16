@@ -128,7 +128,7 @@ class RecommendationModel(nn.Module):
 
     def forward(self, data):
         cl_nutirnent_x, cl_caption_x, cl_loss = self.cl_nutrient_to_caption(
-            data["intention"].nutirient,
+            data["intention"].nutrient,
             data["intention"].x
         )
 
