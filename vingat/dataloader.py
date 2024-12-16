@@ -12,7 +12,6 @@ from torch.nn import init
 import copy
 import math
 from vingat.loader import load_user_embeddings
-from sklearn.preprocessing import MinMaxScaler
 
 
 class RecipeFeatureType(Enum):
@@ -303,9 +302,8 @@ def create_base_hetero(
     item_lencoder = LabelEncoder().fit(all_item_ids)
     ing_lencoder = LabelEncoder().fit(all_ingredient_ids)
 
-    scaler = MinMaxScaler()
-    _recipe_nutrients = pd.DataFrame(scaler.fit_transform(recipe_nutrients[use_nutritions]),
-                                     columns=use_nutritions)
+    _df = recipe_nutrients.copy()[use_nutritions]
+    _recipe_nutrients = (_df - _df.mean()) / _df.std()
 
     # hetero
     data = HeteroData()
