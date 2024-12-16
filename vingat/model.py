@@ -3,7 +3,6 @@ import torch.nn.functional as F
 from torch_geometric.nn import BatchNorm, LGConv, HGTConv
 import torch.nn as nn
 import os
-from .encoder import StaticEmbeddingLoader
 
 
 class ContrastiveEncoder(nn.Module):

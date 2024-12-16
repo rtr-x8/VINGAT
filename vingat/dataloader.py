@@ -323,8 +323,8 @@ def create_base_hetero(
     data["image"].num_nodes = len(item_lencoder.classes_)
     data["image"].item_id = torch.tensor(item_lencoder.classes_)
     data["image"].x = StaticEmbeddingLoader(recipe_image_embeddings,
-                                             dimention=hidden_dim,
-                                             device=device)
+                                            dimention=hidden_dim,
+                                            device=device)
 
     data["intention"].num_nodes = len(item_lencoder.classes_)
     data["intention"].item_id = torch.tensor(item_lencoder.classes_)
