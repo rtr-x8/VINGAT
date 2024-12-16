@@ -212,13 +212,11 @@ def train_func(
 
         train_epoch_logger(
             metrics={
-                "train": {
-                    "total_loss": total_loss,
-                    "aveg_loss": aveg_loss,
-                    "accuracy": epoch_accuracy,
-                    "recall": epoch_recall,
-                    "f1": epoch_f1,
-                }
+                "train/total_loss": total_loss,
+                "train/aveg_loss": aveg_loss,
+                "train/accuracy": epoch_accuracy,
+                "train/recall": epoch_recall,
+                "train/f1": epoch_f1,
             },
             step=epoch+1
         )
@@ -237,14 +235,12 @@ def train_func(
 
         valid_epoch_logger(
             metrics={
-                "val": {
-                    f"Precision@{k}": val_precision,
-                    f"Recall@{k}": val_recall,
-                    f"NDCG@{k}": val_ndcg,
-                    f"Accuracy@{k}": val_accuracy,
-                    f"F1@{k}": val_f1,
-                    "AUC": val_auc,
-                }
+                f"val/Precision@{k}": val_precision,
+                f"val/Recall@{k}": val_recall,
+                f"val/NDCG@{k}": val_ndcg,
+                f"val/Accuracy@{k}": val_accuracy,
+                f"val/F1@{k}": val_f1,
+                "val/AUC": val_auc,
             }
         )
 
