@@ -225,6 +225,7 @@ def train_func(
         )
 
         # Valid
+        """
         k = 10
         val_copied = copy.deepcopy(val)
         val_precision, val_recall, val_ndcg, val_accuracy, val_f1, val_auc = evaluate_model(
@@ -246,10 +247,12 @@ def train_func(
                 "val/AUC": val_auc,
             }
         )
+        """
 
         save_model(model, save_dir, f"model_{epoch+1}")
 
         # Early Stoppingの判定（バリデーションの精度または他のメトリクスで判定）
+        """
         if val_accuracy > best_val_metric:
             best_val_metric = val_accuracy    # 最良のバリデーションメトリクスを更新
             patience_counter = 0    # 改善が見られたためカウンターをリセット
@@ -267,6 +270,7 @@ def train_func(
             #    level=wandb.AlertLevel.ERROR,
             # )
             break
+        """
 
     # wandb.alert(
     #    title="訓練終了",

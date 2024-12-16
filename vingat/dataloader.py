@@ -180,6 +180,7 @@ def create_data(
         recipe_ingredients["recipe_id"].isin(core_val_rating["recipe_id"])]
 
     # データの整合性を確認
+    """
     def check_data_integrity(df, label_encoder, column_name):
         encoded_values = label_encoder.transform(df[column_name])
         if (encoded_values < 0).any():
@@ -193,6 +194,7 @@ def create_data(
     check_data_integrity(core_test_rating, recipe_label_encoder, "recipe_id")
     check_data_integrity(core_val_rating, user_label_encoder, "user_id")
     check_data_integrity(core_val_rating, recipe_label_encoder, "recipe_id")
+    """
 
     print("train")
     train = create_hetrodata(
