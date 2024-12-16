@@ -140,8 +140,9 @@ class RecommendationModel(nn.Module):
         })
 
         # Message passing
-        taste_out = self.ing_to_recipe(data.x_dict, data.edge_index_dict)
-        data.x_dict.update(taste_out)
+        data.x_dict.update({
+            "taste": self.ing_to_recipe(data.x_dict, data.edge_index_dict)
+        })
 
         if not self.training:
             print("====")
