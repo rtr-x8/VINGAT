@@ -143,7 +143,7 @@ class RecommendationModel(nn.Module):
         data.x_dict.update({
             "taste": self.ing_to_recipe(data.x_dict, data.edge_index_dict)
         })
-
+        """
         if not self.training:
             print("====")
             for k, v in data.edge_index_dict.items():
@@ -156,7 +156,7 @@ class RecommendationModel(nn.Module):
                 if not data.x_dict[n2].shape[0] >= v[1].max():
                     print(n2, data.x_dict[n2].shape[0] >= v[1].max(),
                           data.x_dict[n2].shape, v[1].max())
-
+        """
         fusion_out = self.fusion_gat(data.x_dict, data.edge_index_dict)
         data.x_dict.update(fusion_out)
 
