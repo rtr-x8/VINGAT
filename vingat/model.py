@@ -259,6 +259,7 @@ class RecommendationModel(nn.Module):
         if not self.training:
             print("====")
             for k, v in data.edge_index_dict.items():
+                print("-----")
                 n1 = k[0]
                 n2 = k[2]
                 print(n1, data.x_dict[n1].shape[0] >= v[0].max(),
