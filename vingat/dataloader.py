@@ -132,7 +132,6 @@ def create_hetrodata(
     num_recipes = len(recipe_label_encoder.classes_)
     num_ingredients = len(ingredient_label_encoder.classes_)
 
-
     # イントネーション（intention）インデックスのチェック
 
     # 材料（ingredient）インデックスのチェック
