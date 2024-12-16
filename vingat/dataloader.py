@@ -6,6 +6,11 @@ import numpy as np
 from vingat.loader import use_nutritions
 import pandas as pd
 from torch_geometric.loader import LinkNeighborLoader
+from vingat.encoder import StaticEmbeddingLoader
+from typing import Tuple
+from torch.nn import init
+import copy
+import math
 
 
 class RecipeFeatureType(Enum):
@@ -265,3 +270,124 @@ def create_dataloader(
         neg_sampling_ratio=neg_sampling_ratio,
         num_workers=num_workers
     )
+
+
+def create_base_hetero(
+    core_train_rating: pd.DataFrame,
+    core_test_rating: pd.DataFrame,
+    core_val_rating: pd.DataFrame,
+    ingredients: pd.DataFrame,
+    recipe_nutrients: pd.DataFrame,
+    recipe_image_embeddings: pd.DataFrame,
+    recipe_image_vlm_caption_embeddings: pd.DataFrame,
+    recipe_cooking_directions_embeddings: pd.DataFrame,
+    ingredients_with_embeddings: pd.DataFrame,
+    device: torch.device,
+    hidden_dim: int
+) -> Tuple[HeteroData, LabelEncoder, LabelEncoder, LabelEncoder]:
+    # 全データ
+    all_user_ids = pd.concat([
+        core_train_rating["user_id"],
+        core_test_rating["user_id"],
+        core_val_rating["user_id"]]).unique()
+    all_item_ids = pd.concat([
+        core_train_rating["recipe_id"],
+        core_test_rating["recipe_id"],
+        core_val_rating["recipe_id"]]).unique()
+    all_ingredient_ids = ingredients.index.to_list()
+
+    user_lencoder = LabelEncoder().fit(all_user_ids)
+    item_lencoder = LabelEncoder().fit(all_item_ids)
+    ing_lencoder = LabelEncoder().fit(all_ingredient_ids)
+
+    recipe_nutrients = recipe_nutrients.normalize()
+
+    # hetero
+    data = HeteroData()
+
+    # Node
+    data["user"].num_nodes = len(user_lencoder.classes_)
+    data["user"].user_id = torch.tensor(user_lencoder.classes_)
+    data["user"].x = StaticEmbeddingLoader(load_user_embeddings(PATH, user_lencoder.classes_),
+                                           dimention=hidden_dim, device=device)
+
+    data["item"].num_nodes = len(item_lencoder.classes_)
+    data["item"].item_id = torch.tensor(item_lencoder.classes_)
+    data['item'].x = torch.empty((len(item_lencoder.classes_), hidden_dim)).to(device)
+    init.kaiming_uniform_(data['item'].x, a=math.sqrt(5))
+
+    data["visual"].num_nodes = len(item_lencoder.classes_)
+    data["visual"].item_id = torch.tensor(item_lencoder.classes_)
+    data["visual"].x = StaticEmbeddingLoader(recipe_image_embeddings,
+                                             dimention=hidden_dim,
+                                             device=device)
+
+    data["intention"].num_nodes = len(item_lencoder.classes_)
+    data["intention"].item_id = torch.tensor(item_lencoder.classes_)
+    data["intention"].nutrient = torch.tensor(
+        recipe_nutrients.loc[item_lencoder.classes_, use_nutritions].values,
+        dtype=torch.float32)
+    data["intention"].x = StaticEmbeddingLoader(recipe_image_vlm_caption_embeddings,
+                                                dimention=hidden_dim, device=device)
+
+    data["taste"].num_nodes = len(item_lencoder.classes_)
+    data["taste"].item_id = torch.tensor(item_lencoder.classes_)
+    data["taste"].x = StaticEmbeddingLoader(
+        recipe_cooking_directions_embeddings,
+        dimention=hidden_dim, device=device)
+
+    data["ingredient"].num_nodes = len(ing_lencoder.classes_)
+    data["ingredient"].ingredient_id = torch.tensor(ing_lencoder.classes_)
+    data["ingredient"].x = StaticEmbeddingLoader(ingredients_with_embeddings,
+                                                 dimention=hidden_dim, device=device)
+
+    # Edge
+    ei_attr_item = torch.stack([
+        torch.arange(len(item_lencoder.classes_)),
+        torch.arange(len(item_lencoder.classes_))
+    ], dim=0)
+    data["image", "associated_with", "item"].edge_index = ei_attr_item.detach().clone()
+    data["item", "has_image", "image"].edge_index = ei_attr_item.detach().clone().flip(0)
+    data["intention", "associated_with", "item"].edge_index = ei_attr_item.detach().clone()
+    data["item", "has_intention", "intention"].edge_index = ei_attr_item.detach().clone().flip(0)
+    data["taste", "associated_with", "item"].edge_index = ei_attr_item.detach().clone()
+    data["item", "has_taste", "taste"].edge_index = ei_attr_item.detach().clone().flip(0)
+
+    data.to(device=device)
+
+    return data, user_lencoder, item_lencoder, ing_lencoder
+
+
+def add_edge(
+    hetero: HeteroData,
+    rating: pd.DataFrame,
+    recipe_ingredients: pd.DataFrame,
+    user_lencoder: LabelEncoder,
+    item_lencoder: LabelEncoder,
+    ing_lencoder: LabelEncoder,
+) -> HeteroData:
+
+    # 環境ごとのデータ
+    user_recipe_set = rating[["user_id", "recipe_id"]]
+    ing_item = recipe_ingredients.loc[
+        recipe_ingredients["recipe_id"].isin(user_recipe_set["recipe_id"])
+    ]
+
+    data = copy.deepcopy(hetero)
+
+    # edge
+    edge_index_user_recipe = torch.tensor([
+        user_lencoder.transform(rating["user_id"].values),
+        item_lencoder.transform(rating["recipe_id"].values)
+    ], dtype=torch.long)
+    data["user", "buys", "item"].edge_index = edge_index_user_recipe
+    data["item", "bought_by", "user"].edge_index = edge_index_user_recipe.detach().clone().flip(0)
+
+    ei_ing_item = torch.tensor([
+        ing_lencoder.transform(ing_item["ingredient_id"].values),
+        item_lencoder.transform(ing_item["recipe_id"].values)
+    ], dtype=torch.long)
+    data["ingredient", "part_of", "taste"].edge_index = ei_ing_item
+    data["taste", "contains", "ingredient"].edge_index = ei_ing_item.detach().clone().flip(0)
+
+    return data
