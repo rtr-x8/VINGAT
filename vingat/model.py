@@ -254,6 +254,11 @@ class RecommendationModel(nn.Module):
         data["taste"].x = cooking_direction_x
 
         # Message passing
+
+        if self.training:
+            for k, v in data.x_dict.items():
+                print(k, v.shape)
+
         data.x_dict["taste"] = self.ing_to_recipe(data.x_dict, data.edge_index_dict)
         data.x_dict["user"],
         data.x_dict["item"] = self.fusion_gat(data.x_dict, data.edge_index_dict)
