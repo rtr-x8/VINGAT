@@ -58,7 +58,7 @@ def load_user_embeddings(
     name = "users"
     cols = [f"e_{i}" for i in range(col_range)]
     file_path = f"{directory_path}/{name}_embeddings.csv"
-    originarl_df = pd.DataFrame(user_ids, columns=["name"], index=["user_id"])
+    originarl_df = pd.DataFrame(user_ids, columns=["name"], index=user_ids)
     originarl_df = originarl_df.astype(str)
     if not os.path.isfile(file_path):
         text_to_embedding(
