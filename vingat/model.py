@@ -255,7 +255,8 @@ class RecommendationModel(nn.Module):
 
         # Message passing
 
-        if self.training:
+        if not self.training:
+            print("==== x_dict ====")
             for k, v in data.x_dict.items():
                 print(k, v.shape)
 
