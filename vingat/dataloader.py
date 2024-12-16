@@ -278,6 +278,7 @@ def create_base_hetero(
     core_val_rating: pd.DataFrame,
     ingredients: pd.DataFrame,
     recipe_nutrients: pd.DataFrame,
+    user_embeddings: pd.DataFrame,
     recipe_image_embeddings: pd.DataFrame,
     recipe_image_vlm_caption_embeddings: pd.DataFrame,
     recipe_cooking_directions_embeddings: pd.DataFrame,
@@ -308,8 +309,7 @@ def create_base_hetero(
     # Node
     data["user"].num_nodes = len(user_lencoder.classes_)
     data["user"].user_id = torch.tensor(user_lencoder.classes_)
-    data["user"].x = StaticEmbeddingLoader(load_user_embeddings(PATH, user_lencoder.classes_),
-                                           dimention=hidden_dim, device=device)
+    data["user"].x = StaticEmbeddingLoader(user_embeddings, dimention=hidden_dim, device=device)
 
     data["item"].num_nodes = len(item_lencoder.classes_)
     data["item"].item_id = torch.tensor(item_lencoder.classes_)
