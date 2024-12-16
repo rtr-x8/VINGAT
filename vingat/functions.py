@@ -268,7 +268,7 @@ def train_func(
             #    level=wandb.AlertLevel.ERROR,
             # )
             break
-        """
+            """
 
     # wandb.alert(
     #    title="訓練終了",
