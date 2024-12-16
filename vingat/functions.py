@@ -10,7 +10,7 @@ from torch_geometric.utils import negative_sampling
 from sklearn.metrics import roc_auc_score
 from vingat.metrics import ndcg_at_k
 from typing import Callable
-from torch.cuda.amp import autocast, GradScaler
+from torch.cuda.amp import GradScaler
 
 
 def evaluate_model(
