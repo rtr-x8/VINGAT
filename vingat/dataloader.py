@@ -133,10 +133,10 @@ def create_hetrodata(
         print(hetro["user"].x.shape[0])
         raise ValueError("edge_index のユーザーインデックスに負の値が含まれています。")
     # レシピインデックスのチェック
-    if hetro["item"].max() > num_recipes:
+    if hetro["item"].recipe_id.max() > num_recipes:
         print(hetro["item"].max(), num_recipes)
         raise ValueError("edge_index のレシピインデックスがノード数を超えています。")
-    if hetro["item"].min() < 0:
+    if hetro["item"].recipe_id.min() < 0:
         print(hetro["item"].min())
         raise ValueError("edge_index のレシピインデックスに負の値が含まれています。")
 
