@@ -186,7 +186,13 @@ def create_data(
     )
 
 
-def create_dataloader(data, batch_size, shuffle=True, neg_sampling_ratio=1.0):
+def create_dataloader(
+    data,
+    batch_size,
+    shuffle=True,
+    neg_sampling_ratio=1.0,
+    num_workers=0
+):
     return LinkNeighborLoader(
         data=data,
         num_neighbors={
@@ -209,4 +215,5 @@ def create_dataloader(data, batch_size, shuffle=True, neg_sampling_ratio=1.0):
         batch_size=batch_size,
         shuffle=shuffle,
         neg_sampling_ratio=neg_sampling_ratio,
+        num_workers=num_workers
     )

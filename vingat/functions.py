@@ -145,6 +145,7 @@ def train_func(
     experiment_name: str,
     patience=5,
 ):
+    os.environ['TORCH_USE_CUDA_DSA'] = '1'
     model.to(device)
     model.train()
     best_val_metric = 0    # 現時点での最良のバリデーションメトリクスを初期化
@@ -164,42 +165,41 @@ def train_func(
             optimizer.zero_grad()
             batch_data = batch_data.to(device)
 
-            # モデルのフォワードパス
-            out = model(batch_data)
+            with autocast():
+                # モデルのフォワードパス
+                out = model(batch_data)
 
-            # エッジのラベルとエッジインデックスを取得
-            # edge_label = batch_data['user', 'buys', 'item'].edge_label
-            edge_label_index = batch_data['user', 'buys', 'item'].edge_label_index
+                # エッジのラベルとエッジインデックスを取得
+                # edge_label = batch_data['user', 'buys', 'item'].edge_label
+                edge_label_index = batch_data['user', 'buys', 'item'].edge_label_index
 
-            # ユーザーとレシピの埋め込みを取得
-            user_embeddings = out['user'].x
-            recipe_embeddings = out['item'].x
+                # ユーザーとレシピの埋め込みを取得
+                user_embeddings = out['user'].x
+                recipe_embeddings = out['item'].x
 
-            # 正例と負例のマスクを取得
-            pos_mask = batch_data['user', 'buys', 'item'].edge_label == 1
-            neg_mask = batch_data['user', 'buys', 'item'].edge_label == 0
+                # 正例と負例のマスクを取得
+                pos_mask = batch_data['user', 'buys', 'item'].edge_label == 1
+                neg_mask = batch_data['user', 'buys', 'item'].edge_label == 0
 
-            # エッジインデックスからノードの埋め込みを取得
-            user_embed = user_embeddings[edge_label_index[0]]
-            recipe_embed = recipe_embeddings[edge_label_index[1]]
+                # エッジインデックスからノードの埋め込みを取得
+                user_embed = user_embeddings[edge_label_index[0]]
+                recipe_embed = recipe_embeddings[edge_label_index[1]]
 
-            # 正例のスコアを計算
-            pos_user_embed = user_embed[pos_mask]
-            pos_recipe_embed = recipe_embed[pos_mask]
-            pos_scores = model.predict(pos_user_embed, pos_recipe_embed).squeeze()
+                # 正例のスコアを計算
+                pos_user_embed = user_embed[pos_mask]
+                pos_recipe_embed = recipe_embed[pos_mask]
+                pos_scores = model.predict(pos_user_embed, pos_recipe_embed).squeeze()
 
-            # 負例のスコアを計算
-            neg_user_embed = user_embed[neg_mask]
-            neg_recipe_embed = recipe_embed[neg_mask]
-            neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
+                # 負例のスコアを計算
+                neg_user_embed = user_embed[neg_mask]
+                neg_recipe_embed = recipe_embed[neg_mask]
+                neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
 
-            # 損失の計算
-            loss = criterion(pos_scores, neg_scores, model.parameters())
+                # 損失の計算
+                loss = criterion(pos_scores, neg_scores, model.parameters())
 
-            # loss.backward()
+                # loss.backward()
             scaler.scale(loss).backward()
-
-            # optimizer.step()
             scaler.step(optimizer)
             scaler.update()
 
