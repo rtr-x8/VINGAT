@@ -130,11 +130,11 @@ def create_hetrodata(
     if hetro["user"].x.shape[0] > num_users:
         print("1", hetro["user"].x.shape[0], num_users)
         haserror = True
-    if hetro["user"].x.shape[0] < 0:
-        print("2", hetro["user"].x.shape[0])
+    if hetro["user"].user_id.min() < 0:
+        print("2", hetro["user"].user_id.min())
         haserror = True
     # レシピインデックスのチェック
-    if hetro["item"].recipe_id.max() > num_recipes:
+    if hetro["item"].x.shape[0] > num_recipes:
         print("3", hetro["item"].recipe_id.max(), num_recipes)
         haserror = True
     if hetro["item"].recipe_id.min() < 0:
