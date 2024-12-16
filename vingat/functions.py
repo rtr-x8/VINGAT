@@ -261,14 +261,8 @@ def train_func(
         # patienceを超えた場合にEarly Stoppingを実行
         if patience_counter >= patience:
             print(f"エポック{epoch+1}でEarly Stoppingを実行します。")
-            # wandb.alert(
-            #    title="Early Stopped",
-            #    text=f"学習が終了しました。\nプロジェクト名
-            # ：{project_name}\n管理番号：{experiment_name}",
-            #    level=wandb.AlertLevel.ERROR,
-            # )
             break
-            """
+        """
 
     # wandb.alert(
     #    title="訓練終了",
