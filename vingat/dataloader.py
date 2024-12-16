@@ -126,14 +126,14 @@ def create_hetrodata(
 
     # edge_index の包括的なチェック
     # ユーザーインデックスのチェック
-    if hetro["user"].x.shape[0] >= num_users:
+    if hetro["user"].x.shape[0] > num_users:
         print(hetro["user"].x.shape[0], num_users)
         raise ValueError("edge_index のユーザーインデックスがノード数を超えています。")
     if hetro["user"].x.shape[0] < 0:
         print(hetro["user"].x.shape[0])
         raise ValueError("edge_index のユーザーインデックスに負の値が含まれています。")
     # レシピインデックスのチェック
-    if hetro["item"].max() >= num_recipes:
+    if hetro["item"].max() > num_recipes:
         print(hetro["item"].max(), num_recipes)
         raise ValueError("edge_index のレシピインデックスがノード数を超えています。")
     if hetro["item"].min() < 0:
