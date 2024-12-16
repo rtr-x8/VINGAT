@@ -38,6 +38,7 @@ def evaluate_model(
         user_embeddings = out['user'].x
         recipe_embeddings = out['item'].x
 
+        # userのindexを取得
         unique_user_ids = edge_label_index[0].unique()
 
         # 各ユーザーごとにループ

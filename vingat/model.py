@@ -255,6 +255,12 @@ class RecommendationModel(nn.Module):
 
         # Message passing
         data.x_dict["taste"] = self.ing_to_recipe(data.x_dict, data.edge_index_dict)
+
+        if not self.training:
+            for k, v in data.edge_index_dict.items():
+                print(k, v[0].min(), v[0].max(), v[1].min(), v[1].max())
+            print(data.x_dict["user"].shape, data.x_dict["item"].shape)
+            print(data.edge_index_dict[('user', 'buys', 'item')].shape)
         data.x_dict["user"],
         data.x_dict["item"] = self.fusion_gat(data.x_dict, data.edge_index_dict)
         # data.x_dict = {key: self.recipe_norm(x) for key, x in data.x_dict.items()}
