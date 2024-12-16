@@ -128,7 +128,7 @@ def create_hetrodata(
     # ユーザーインデックスのチェック
     if hetro["user"].x.shape[0] >= num_users:
         print(hetro["user"].x.shape[0], num_users)
-        raise ValueError(f"edge_index のユーザーインデックスがノード数を超えています。")
+        raise ValueError("edge_index のユーザーインデックスがノード数を超えています。")
     if hetro["user"].x.shape[0] < 0:
         print(hetro["user"].x.shape[0])
         raise ValueError("edge_index のユーザーインデックスに負の値が含まれています。")
