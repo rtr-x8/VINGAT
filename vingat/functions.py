@@ -8,8 +8,9 @@ import os
 import numpy as np
 from torch_geometric.utils import negative_sampling
 from sklearn.metrics import roc_auc_score
-from .metrics import ndcg_at_k
+from vingat.metrics import ndcg_at_k
 from typing import Callable
+from torch.cuda.amp import autocast, GradScaler
 
 
 def evaluate_model(
@@ -152,7 +153,7 @@ def train_func(
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
-    torch.cuda.synchronize()
+    scaler = GradScaler()
 
     for epoch in range(epochs):
         total_loss = 0
@@ -194,8 +195,13 @@ def train_func(
 
             # 損失の計算
             loss = criterion(pos_scores, neg_scores, model.parameters())
-            loss.backward()
-            optimizer.step()
+
+            # loss.backward()
+            scaler.scale(loss).backward()
+
+            # optimizer.step()
+            scaler.step(optimizer)
+            scaler.update()
 
             total_loss += loss.item()
             all_preds.extend((pos_scores > 0.5).int().tolist() + (neg_scores <= 0.5).int().tolist())

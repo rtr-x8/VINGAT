@@ -161,7 +161,7 @@ class MultiModalFusionGAT(nn.Module):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.gnn(x_dict, edge_index_dict)
-        return out["user"], out["item"], out["taste"], out["intention"], out["image"]
+        return out["user"], out["item"]
 
 
 class RecommendationModel(nn.Module):
@@ -174,6 +174,7 @@ class RecommendationModel(nn.Module):
         ingredients_with_embeddings,
         recipe_image_embeddings,
         recipe_cooking_directions_embeddings,
+        user_embeddings,
         input_recipe_feature_dim,
         dropout_rate,
         device,
@@ -188,7 +189,11 @@ class RecommendationModel(nn.Module):
         self.hidden_dim = hidden_dim
 
         # Encoders
-        self.user_encoder = nn.Embedding(user_max, hidden_dim, max_norm=1.0)
+        self.user_encoder = StaticEmbeddingLoader(
+            user_embeddings,
+            hidden_dim,
+            device
+        )
         self.visual_encoder = StaticEmbeddingLoader(
             recipe_image_embeddings,
             hidden_dim,
@@ -251,10 +256,7 @@ class RecommendationModel(nn.Module):
         # Message passing
         data.x_dict["taste"] = self.ing_to_recipe(data.x_dict, data.edge_index_dict)
         data.x_dict["user"],
-        data.x_dict["item"],
-        data.x_dict["taste"],
-        data.x_dict["intention"],
-        data.x_dict["image"] = self.fusion_gat(data.x_dict, data.edge_index_dict)
+        data.x_dict["item"] = self.fusion_gat(data.x_dict, data.edge_index_dict)
         # data.x_dict = {key: self.recipe_norm(x) for key, x in data.x_dict.items()}
 
         return data
