@@ -4,6 +4,7 @@ from torch_geometric.nn import BatchNorm, LGConv, HGTConv
 from sentence_transformers import SentenceTransformer
 import torch.nn as nn
 import os
+from .encoder import StaticEmbeddingLoader
 
 
 class ContrastiveEncoder(nn.Module):

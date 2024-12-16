@@ -6,7 +6,6 @@ import numpy as np
 from vingat.loader import use_nutritions
 import pandas as pd
 from torch_geometric.loader import LinkNeighborLoader
-from .encoder import StaticEmbeddingLoader
 
 
 class RecipeFeatureType(Enum):

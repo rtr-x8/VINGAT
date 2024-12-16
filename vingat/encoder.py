@@ -1,5 +1,4 @@
 import torch
-import torch.nn.functional as F
 from sentence_transformers import SentenceTransformer
 import torch.nn as nn
 import pandas as pd
