@@ -128,8 +128,8 @@ class RecommendationModel(nn.Module):
 
     def forward(self, data):
         cl_nutirnent_x, cl_caption_x, cl_loss = self.cl_nutrient_to_caption(
-            data.x_dict["intention"].nutirient,
-            data.x_dict["intention"].x
+            data["intention"].nutirient,
+            data["intention"].x
         )
 
         # Message passing

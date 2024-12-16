@@ -149,8 +149,8 @@ def train_func(
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
     model.to(device)
     model.train()
-    # best_val_metric = 0    # 現時点での最良のバリデーションメトリクスを初期化
-    # patience_counter = 0    # Early Stoppingのカウンターを初期化
+    best_val_metric = 0    # 現時点での最良のバリデーションメトリクスを初期化
+    patience_counter = 0    # Early Stoppingのカウンターを初期化
     best_model_state = None
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
@@ -224,7 +224,6 @@ def train_func(
         )
 
         # Valid
-        """
         k = 10
         val_precision, val_recall, val_ndcg, val_accuracy, val_f1, val_auc = evaluate_model(
             model, val, device, k=k, desc=f"[Valid] Epoch {epoch+1}/{epochs}")
@@ -245,12 +244,10 @@ def train_func(
                 "val/AUC": val_auc,
             }
         )
-        """
 
         save_model(model, save_dir, f"model_{epoch+1}")
 
         # Early Stoppingの判定（バリデーションの精度または他のメトリクスで判定）
-        """
         if val_accuracy > best_val_metric:
             best_val_metric = val_accuracy    # 最良のバリデーションメトリクスを更新
             patience_counter = 0    # 改善が見られたためカウンターをリセット
@@ -268,7 +265,6 @@ def train_func(
             #    level=wandb.AlertLevel.ERROR,
             # )
             break
-        """
 
     # wandb.alert(
     #    title="訓練終了",
