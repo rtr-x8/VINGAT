@@ -10,7 +10,6 @@ from torch_geometric.utils import negative_sampling
 from sklearn.metrics import roc_auc_score
 from vingat.metrics import ndcg_at_k
 from typing import Callable
-from torch.cuda.amp import GradScaler, autocast
 
 
 def evaluate_model(
@@ -154,8 +153,6 @@ def train_func(
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
-    scaler = GradScaler()
-
     for epoch in range(epochs):
         total_loss = 0
         all_preds = []
@@ -165,43 +162,40 @@ def train_func(
             optimizer.zero_grad()
             batch_data = batch_data.to(device)
 
-            with autocast():
-                # モデルのフォワードパス
-                out = model(batch_data)
+            # モデルのフォワードパス
+            out = model(batch_data)
 
-                # エッジのラベルとエッジインデックスを取得
-                # edge_label = batch_data['user', 'buys', 'item'].edge_label
-                edge_label_index = batch_data['user', 'buys', 'item'].edge_label_index
+            # エッジのラベルとエッジインデックスを取得
+            # edge_label = batch_data['user', 'buys', 'item'].edge_label
+            edge_label_index = batch_data['user', 'buys', 'item'].edge_label_index
 
-                # ユーザーとレシピの埋め込みを取得
-                user_embeddings = out['user'].x
-                recipe_embeddings = out['item'].x
+            # ユーザーとレシピの埋め込みを取得
+            user_embeddings = out['user'].x
+            recipe_embeddings = out['item'].x
 
-                # 正例と負例のマスクを取得
-                pos_mask = batch_data['user', 'buys', 'item'].edge_label == 1
-                neg_mask = batch_data['user', 'buys', 'item'].edge_label == 0
+            # 正例と負例のマスクを取得
+            pos_mask = batch_data['user', 'buys', 'item'].edge_label == 1
+            neg_mask = batch_data['user', 'buys', 'item'].edge_label == 0
 
-                # エッジインデックスからノードの埋め込みを取得
-                user_embed = user_embeddings[edge_label_index[0]]
-                recipe_embed = recipe_embeddings[edge_label_index[1]]
+            # エッジインデックスからノードの埋め込みを取得
+            user_embed = user_embeddings[edge_label_index[0]]
+            recipe_embed = recipe_embeddings[edge_label_index[1]]
 
-                # 正例のスコアを計算
-                pos_user_embed = user_embed[pos_mask]
-                pos_recipe_embed = recipe_embed[pos_mask]
-                pos_scores = model.predict(pos_user_embed, pos_recipe_embed).squeeze()
+            # 正例のスコアを計算
+            pos_user_embed = user_embed[pos_mask]
+            pos_recipe_embed = recipe_embed[pos_mask]
+            pos_scores = model.predict(pos_user_embed, pos_recipe_embed).squeeze()
 
-                # 負例のスコアを計算
-                neg_user_embed = user_embed[neg_mask]
-                neg_recipe_embed = recipe_embed[neg_mask]
-                neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
+            # 負例のスコアを計算
+            neg_user_embed = user_embed[neg_mask]
+            neg_recipe_embed = recipe_embed[neg_mask]
+            neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
 
-                # 損失の計算
-                loss = criterion(pos_scores, neg_scores, model.parameters())
+            # 損失の計算
+            loss = criterion(pos_scores, neg_scores, model.parameters())
 
-                # loss.backward()
-            scaler.scale(loss).backward()
-            scaler.step(optimizer)
-            scaler.update()
+            loss.backward()
+            optimizer.step()
 
             total_loss += loss.item()
             all_preds.extend((pos_scores > 0.5).int().tolist() + (neg_scores <= 0.5).int().tolist())
