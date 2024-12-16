@@ -128,17 +128,17 @@ def create_hetrodata(
     # ユーザーインデックスのチェック
     haserror = False
     if hetro["user"].x.shape[0] > num_users:
-        print(hetro["user"].x.shape[0], num_users)
+        print("1", hetro["user"].x.shape[0], num_users)
         haserror = True
     if hetro["user"].x.shape[0] < 0:
-        print(hetro["user"].x.shape[0])
+        print("2", hetro["user"].x.shape[0])
         haserror = True
     # レシピインデックスのチェック
     if hetro["item"].recipe_id.max() > num_recipes:
-        print(hetro["item"].recipe_id.max(), num_recipes)
+        print("3", hetro["item"].recipe_id.max(), num_recipes)
         haserror = True
     if hetro["item"].recipe_id.min() < 0:
-        print(hetro["item"].recipe_id.min())
+        print("4", hetro["item"].recipe_id.min())
         haserror = True
     if haserror:
         raise ValueError("エッジインデックスが範囲外です。")
@@ -197,14 +197,17 @@ def create_data(
     check_data_integrity(core_val_rating, user_label_encoder, "user_id")
     check_data_integrity(core_val_rating, recipe_label_encoder, "recipe_id")
 
+    print("train")
     train = create_hetrodata(
         core_train_rating, ingredients.copy(), train_recipe_ingedient.copy(),
         recipe_nutrients, user_label_encoder, recipe_label_encoder,
         ingredient_label_encoder, device, hidden_dim)
+    print("test")
     test = create_hetrodata(
         core_test_rating, ingredients.copy(), test_recipe_ingedient.copy(),
         recipe_nutrients, user_label_encoder, recipe_label_encoder,
         ingredient_label_encoder, device, hidden_dim)
+    print("val")
     val = create_hetrodata(
         core_val_rating, ingredients.copy(), val_recipe_ingedient.copy(),
         recipe_nutrients, user_label_encoder, recipe_label_encoder,
