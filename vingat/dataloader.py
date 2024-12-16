@@ -386,6 +386,8 @@ def add_edge(
     ], dtype=torch.long)
     data["user", "buys", "item"].edge_index = edge_index_user_recipe
     data["item", "bought_by", "user"].edge_index = edge_index_user_recipe.detach().clone().flip(0)
+    data["user", "buys", "item"].edge_label_index = torch.tensor(
+        edge_index_user_recipe, dtype=torch.long)
 
     ei_ing_item = torch.tensor([
         ing_lencoder.transform(ing_item["ingredient_id"].values),
