@@ -257,6 +257,7 @@ class RecommendationModel(nn.Module):
         data.x_dict["taste"] = self.ing_to_recipe(data.x_dict, data.edge_index_dict)
 
         if not self.training:
+            print("====")
             for k, v in data.edge_index_dict.items():
                 n1 = k[0]
                 n2 = k[2]
