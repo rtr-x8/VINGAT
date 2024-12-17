@@ -11,6 +11,64 @@ from vingat.metrics import ndcg_at_k
 from typing import Callable
 
 
+def calculate_scores(
+    model,
+    user_embeddings,
+    recipe_embeddings,
+    edge_label_index,
+    pos_mask,
+    neg_mask
+):
+    """
+    正例と負例のスコアを計算する関数。
+
+    Args:
+        model (nn.Module): モデル。
+        user_embeddings (Tensor): ユーザーの埋め込み。
+        recipe_embeddings (Tensor): レシピの埋め込み。
+        edge_label_index (Tensor): エッジのインデックス。
+        pos_mask (Tensor): 正例のマスク。
+        neg_mask (Tensor): 負例のマスク。
+
+    Returns:
+        pos_scores (Tensor), neg_scores (Tensor), threshold (float): 正例と負例のスコア、閾値。
+    """
+    user_embed = user_embeddings[edge_label_index[0]]
+    recipe_embed = recipe_embeddings[edge_label_index[1]]
+
+    # 正例のスコア
+    pos_user_embed = user_embed[pos_mask]
+    pos_recipe_embed = recipe_embed[pos_mask]
+    pos_scores, threshold = model.predict(pos_user_embed, pos_recipe_embed)
+    pos_scores = pos_scores.squeeze()
+
+    # 負例のスコア
+    neg_user_embed = user_embed[neg_mask]
+    neg_recipe_embed = recipe_embed[neg_mask]
+    neg_scores, threshold = model.predict(neg_user_embed, neg_recipe_embed)
+    neg_scores = neg_scores.squeeze()
+
+    return pos_scores, neg_scores, threshold
+
+
+def get_top_k_recommendations(scores, recipe_indices, k=10):
+    """
+    トップkのレコメンデーションを取得する関数。
+
+    Args:
+        scores (np.ndarray): ユーザーごとのスコア。
+        recipe_indices (np.ndarray): レシピのインデックス。
+        k (int): 上位k個を取得。
+
+    Returns:
+        np.ndarray: トップkのレシピインデックス。
+    """
+    k = min(k, len(scores))
+    sorted_indices = np.argsort(-scores)  # 降順にソート
+    top_k_indices = recipe_indices[sorted_indices[:k]]
+    return top_k_indices
+
+
 def evaluate_model(
     model: nn.Module,
     data: HeteroData,
@@ -77,9 +135,7 @@ def evaluate_model(
 
             # 正例と負例のスコアを計算
             pos_scores, _ = model.predict(pos_user_embed, pos_recipe_embed)
-            pos_scores = pos_scores.squeeze()
             neg_scores, _ = model.predict(neg_user_embed, neg_recipe_embed)
-            neg_scores = pos_scores.squeeze()
 
             scores = torch.cat([pos_scores, neg_scores], dim=0).cpu().numpy()
             labels = np.concatenate([np.ones(len(pos_scores)), np.zeros(len(neg_scores))])
@@ -192,13 +248,11 @@ def train_func(
             pos_user_embed = user_embed[pos_mask]
             pos_recipe_embed = recipe_embed[pos_mask]
             pos_scores, threshold = model.predict(pos_user_embed, pos_recipe_embed)
-            pos_scores = pos_scores.squeeze()
 
             # 負例のスコアを計算
             neg_user_embed = user_embed[neg_mask]
             neg_recipe_embed = recipe_embed[neg_mask]
             neg_scores, threshold = model.predict(neg_user_embed, neg_recipe_embed)
-            neg_scores = pos_scores.squeeze()
 
             # 損失の計算
             loss = criterion(pos_scores, neg_scores, model.parameters())

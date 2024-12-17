@@ -45,23 +45,9 @@ class TasteGNN(nn.Module):
 
     def __init__(self, hidden_dim):
         super().__init__()
-        """
-        self.gnn = HANConv(
-            in_channels=hidden_dim,
-            out_channels=hidden_dim,
-            metadata=(self.NODES, self.EDGES)
-        )
-        """
         self.gnn = LGConv()
 
     def forward(self, x_dict, edge_index_dict):
-        """
-        x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
-        edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
-        out = self.gnn(x_dict, edge_index_dict)
-        return out["taste"]
-        """
-
         taste_x = x_dict['taste']
         taste_edge_index = edge_index_dict[('taste', 'contains', 'ingredient')]
 
