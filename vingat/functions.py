@@ -9,7 +9,6 @@ from torch_geometric.utils import negative_sampling
 from sklearn.metrics import roc_auc_score
 from vingat.metrics import ndcg_at_k
 from typing import Callable
-import copy
 
 
 def evaluate_model(
