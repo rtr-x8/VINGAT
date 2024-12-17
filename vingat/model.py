@@ -128,9 +128,6 @@ class RecommendationModel(nn.Module):
         # HANConv layers
         self.fusion_gat = MultiModalFusionGAT(hidden_dim)
 
-        # Nromali
-        self.recipe_norm = BatchNorm(hidden_dim)
-
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
             nn.Linear(hidden_dim + hidden_dim, hidden_dim),

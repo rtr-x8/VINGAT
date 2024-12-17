@@ -146,7 +146,8 @@ def train_func(
     directory_path: str,
     project_name: str,
     experiment_name: str,
-    patience=5,
+    patience=4,
+    validation_interval=5,
 ):
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
     model.to(device)
@@ -228,47 +229,48 @@ def train_func(
         )
 
         # Valid
-        k = 10
-        val_precision, val_recall, val_ndcg, val_accuracy, val_f1, val_auc = evaluate_model(
-            model, val, device, k=k, desc=f"[Valid] Epoch {epoch+1}/{epochs}")
+        if (epoch + 1) % validation_interval == 0:
+            k = 10
+            val_precision, val_recall, val_ndcg, val_accuracy, val_f1, val_auc = evaluate_model(
+                model, val, device, k=k, desc=f"[Valid] Epoch {epoch+1}/{epochs}")
 
-        # 結果を表示
-        txt = f'Acc@{k}: {val_accuracy:.4f}, Recall@{k}: {val_recall:.4f}, F1@{k}: {val_f1:.4f},'
-        txt = f"{txt} Pre@{k}: {val_precision:.4f}, NDCG@{k}: {val_ndcg:.4f}, AUC: {val_auc:.4f}"
-        print(txt)
-        print("===")
+            # 結果を表示
+            txt = f'Acc@{k}: {val_accuracy:.4f}, Recall@{k}: {val_recall:.4f}, F1@{k}: {val_f1:.4f},'
+            txt = f"{txt} Pre@{k}: {val_precision:.4f}, NDCG@{k}: {val_ndcg:.4f}, AUC: {val_auc:.4f}"
+            print(txt)
+            print("===")
 
-        valid_epoch_logger(
-            metrics={
-                f"val/Precision@{k}": val_precision,
-                f"val/Recall@{k}": val_recall,
-                f"val/NDCG@{k}": val_ndcg,
-                f"val/Accuracy@{k}": val_accuracy,
-                f"val/F1@{k}": val_f1,
-                "val/AUC": val_auc,
-            }
-        )
+            valid_epoch_logger(
+                metrics={
+                    f"val/Precision@{k}": val_precision,
+                    f"val/Recall@{k}": val_recall,
+                    f"val/NDCG@{k}": val_ndcg,
+                    f"val/Accuracy@{k}": val_accuracy,
+                    f"val/F1@{k}": val_f1,
+                    "val/AUC": val_auc,
+                }
+            )
 
-        save_model(model, save_dir, f"model_{epoch+1}")
+            save_model(model, save_dir, f"model_{epoch+1}")
 
-        # Early Stoppingの判定（バリデーションの精度または他のメトリクスで判定）
-        if val_accuracy > best_val_metric:
-            best_val_metric = val_accuracy    # 最良のバリデーションメトリクスを更新
-            patience_counter = 0    # 改善が見られたためカウンターをリセット
-            best_model_state = copy.deepcopy(model.state_dict())
-        else:
-            patience_counter += 1    # 改善がなければカウンターを増やす
+            # Early Stoppingの判定（バリデーションの精度または他のメトリクスで判定）
+            if val_accuracy > best_val_metric:
+                best_val_metric = val_accuracy    # 最良のバリデーションメトリクスを更新
+                patience_counter = 0    # 改善が見られたためカウンターをリセット
+                best_model_state = copy.deepcopy(model.state_dict())
+            else:
+                patience_counter += 1    # 改善がなければカウンターを増やす
 
-        # patienceを超えた場合にEarly Stoppingを実行
-        if patience_counter >= patience:
-            print(f"エポック{epoch+1}でEarly Stoppingを実行します。")
-            # wandb.alert(
-            #    title="Early Stopped",
-            #    text=f"学習が終了しました。\nプロジェクト名
-            # ：{project_name}\n管理番号：{experiment_name}",
-            #    level=wandb.AlertLevel.ERROR,
-            # )
-            break
+            # patienceを超えた場合にEarly Stoppingを実行
+            if patience_counter >= patience:
+                print(f"エポック{epoch+1}でEarly Stoppingを実行します。")
+                # wandb.alert(
+                #    title="Early Stopped",
+                #    text=f"学習が終了しました。\nプロジェクト名
+                # ：{project_name}\n管理番号：{experiment_name}",
+                #    level=wandb.AlertLevel.ERROR,
+                # )
+                break
 
     # wandb.alert(
     #    title="訓練終了",
