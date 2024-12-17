@@ -168,7 +168,7 @@ def train_func(
             batch_data = batch_data.to(device)
 
             # モデルのフォワードパス
-            out = model(batch_data)
+            out, cl_loss = model(batch_data)
 
             # エッジのラベルとエッジインデックスを取得
             # edge_label = batch_data['user', 'buys', 'item'].edge_label
@@ -198,6 +198,7 @@ def train_func(
 
             # 損失の計算
             loss = criterion(pos_scores, neg_scores, model.parameters())
+            loss = loss + cl_loss
 
             loss.backward()
             optimizer.step()
