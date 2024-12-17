@@ -82,7 +82,8 @@ class MultiModalFusionGAT(nn.Module):
         self.gnn = HGTConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
-            metadata=(self.NODES, self.EDGES)
+            metadata=(self.NODES, self.EDGES),
+            heads=2
         )
 
     def forward(self, x_dict, edge_index_dict):
@@ -108,10 +109,6 @@ class RecommendationModel(nn.Module):
 
         self.user_norm = BatchNorm(hidden_dim)
         self.item_norm = BatchNorm(hidden_dim)
-        self.intention_norm = BatchNorm(hidden_dim)
-        self.image_norm = BatchNorm(hidden_dim)
-        self.taste_norm = BatchNorm(hidden_dim)
-        self.ing_norm = BatchNorm(hidden_dim)
 
         self.nutrient_projection = nn.Sequential(
             nn.Linear(nutrient_dim, hidden_dim),
@@ -149,29 +146,13 @@ class RecommendationModel(nn.Module):
         data.x_dict.update({
             "user": self.user_norm(data["user"].x),
             "item": self.item_norm(data["item"].x),
-            "intention": self.intention_norm(data["intention"].x),
-            "image": self.image_norm(data["image"].x),
-            "taste": self.taste_norm(data["taste"].x),
         })
 
         # Message passing
         data.x_dict.update({
             "taste": self.ing_to_recipe(data.x_dict, data.edge_index_dict)
         })
-        """
-        if not self.training:
-            print("====")
-            for k, v in data.edge_index_dict.items():
-                print("-----")
-                n1 = k[0]
-                n2 = k[2]
-                if not data.x_dict[n1].shape[0] >= v[0].max():
-                    print(n1, data.x_dict[n1].shape[0] >= v[0].max(),
-                          data.x_dict[n1].shape, v[0].max())
-                if not data.x_dict[n2].shape[0] >= v[1].max():
-                    print(n2, data.x_dict[n2].shape[0] >= v[1].max(),
-                          data.x_dict[n2].shape, v[1].max())
-        """
+
         fusion_out = self.fusion_gat(data.x_dict, data.edge_index_dict)
         data.x_dict.update(fusion_out)
 
