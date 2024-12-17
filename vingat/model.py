@@ -3,7 +3,6 @@ import torch.nn.functional as F
 from torch_geometric.nn import BatchNorm, LGConv, HGTConv
 import torch.nn as nn
 import os
-from .loss import BPRLoss
 
 
 class ContrastiveEncoder(nn.Module):
@@ -135,8 +134,6 @@ class RecommendationModel(nn.Module):
             nn.Linear(hidden_dim, 1)
         )
 
-        self.recommendation_losss = BPRLoss()
-
     def forward(self, data):
 
         cl_nutirnent_x, cl_caption_x, cl_loss = self.cl_nutrient_to_caption(
@@ -165,6 +162,3 @@ class RecommendationModel(nn.Module):
         # ユーザーとレシピの埋め込みを連結
         edge_features = torch.cat([user_nodes, recipe_nodes], dim=1)
         return self.link_predictor(edge_features)
-
-    def compute_loss(self, pos_scores, neg_scores):
-        return self.recommendation_losss(pos_scores, neg_scores)
