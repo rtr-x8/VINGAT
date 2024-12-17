@@ -204,7 +204,9 @@ def train_func(
             optimizer.step()
 
             total_loss += loss.item()
-            all_preds.extend((pos_scores > threshold).int().tolist() + (neg_scores <= threshold).int().tolist())
+            all_preds.extend(
+                (pos_scores > threshold).int().tolist() + (neg_scores <= threshold).int().tolist()
+            )
             all_labels.extend([1] * len(pos_scores) + [0] * len(neg_scores))
 
         aveg_loss = total_loss / len(train_loader)
