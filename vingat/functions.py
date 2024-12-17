@@ -77,9 +77,9 @@ def evaluate_model(
 
             # 正例と負例のスコアを計算
             pos_scores, _ = model.predict(pos_user_embed, pos_recipe_embed)
-            pos_scores = pos_scores.squeeze(dim=1)
+            pos_scores = pos_scores.squeeze()
             neg_scores, _ = model.predict(neg_user_embed, neg_recipe_embed)
-            neg_scores = pos_scores.squeeze(dim=1)
+            neg_scores = pos_scores.squeeze()
 
             scores = torch.cat([pos_scores, neg_scores], dim=0).cpu().numpy()
             labels = np.concatenate([np.ones(len(pos_scores)), np.zeros(len(neg_scores))])
