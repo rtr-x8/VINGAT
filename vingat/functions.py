@@ -235,8 +235,9 @@ def train_func(
                 model, val, device, k=k, desc=f"[Valid] Epoch {epoch+1}/{epochs}")
 
             # 結果を表示
-            txt = f'Acc@{k}: {val_accuracy:.4f}, Recall@{k}: {val_recall:.4f}, F1@{k}: {val_f1:.4f},'
-            txt = f"{txt} Pre@{k}: {val_precision:.4f}, NDCG@{k}: {val_ndcg:.4f}, AUC: {val_auc:.4f}"
+            txt = f'Acc@{k}: {val_accuracy:.4f}, Recall@{k}: {val_recall:.4f},'
+            txt = f"{txt} F1@{k}: {val_f1:.4f},　Pre@{k}: {val_precision:.4f},"
+            txt = f"{txt} NDCG@{k}: {val_ndcg:.4f}, AUC: {val_auc:.4f}"
             print(txt)
             print("===")
 
