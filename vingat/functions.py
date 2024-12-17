@@ -230,6 +230,7 @@ def train_func(
 
         # Valid
         if (epoch + 1) % validation_interval == 0:
+            model.eval()
             k = 10
             val_precision, val_recall, val_ndcg, val_accuracy, val_f1, val_auc = evaluate_model(
                 model, val, device, k=k, desc=f"[Valid] Epoch {epoch+1}/{epochs}")
