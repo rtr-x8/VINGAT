@@ -76,8 +76,8 @@ def evaluate_model(
             neg_recipe_embed = recipe_embeddings[user_neg_indices]
 
             # 正例と負例のスコアを計算
-            pos_scores = model.predict(pos_user_embed, pos_recipe_embed).squeeze(dim=1)
-            neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze(dim=1)
+            pos_scores, _ = model.predict(pos_user_embed, pos_recipe_embed).squeeze(dim=1)
+            neg_scores, _ = model.predict(neg_user_embed, neg_recipe_embed).squeeze(dim=1)
 
             scores = torch.cat([pos_scores, neg_scores], dim=0).cpu().numpy()
             labels = np.concatenate([np.ones(len(pos_scores)), np.zeros(len(neg_scores))])
@@ -189,14 +189,12 @@ def train_func(
             # 正例のスコアを計算
             pos_user_embed = user_embed[pos_mask]
             pos_recipe_embed = recipe_embed[pos_mask]
-            pos_scores = model.predict(pos_user_embed, pos_recipe_embed).squeeze()
+            pos_scores, threshold = model.predict(pos_user_embed, pos_recipe_embed).squeeze()
 
             # 負例のスコアを計算
             neg_user_embed = user_embed[neg_mask]
             neg_recipe_embed = recipe_embed[neg_mask]
-            neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
-
-            print(pos_scores[:10], neg_scores[:10])
+            neg_scores, threshold = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
 
             # 損失の計算
             loss = criterion(pos_scores, neg_scores, model.parameters())
@@ -206,7 +204,7 @@ def train_func(
             optimizer.step()
 
             total_loss += loss.item()
-            all_preds.extend((pos_scores > 0.5).int().tolist() + (neg_scores <= 0.5).int().tolist())
+            all_preds.extend((pos_scores > threshold).int().tolist() + (neg_scores <= threshold).int().tolist())
             all_labels.extend([1] * len(pos_scores) + [0] * len(neg_scores))
 
         aveg_loss = total_loss / len(train_loader)
