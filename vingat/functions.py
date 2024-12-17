@@ -30,7 +30,7 @@ def evaluate_model(
 
     with torch.no_grad():
         data = data.to(device)
-        out = model(data)
+        out, cl_loss = model(data)
 
         # 評価用のエッジラベルとエッジインデックスを取得
         edge_label_index = data['user', 'buys', 'item'].edge_label_index
