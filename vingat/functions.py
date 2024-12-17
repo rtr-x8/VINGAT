@@ -215,7 +215,9 @@ def train_func(
         avg_loss = total_loss / len(train_loader)
 
         txt = f"Loss: {avg_loss:.4f}, Accuracy: {epoch_accuracy:.4f},"
-        print(f"{epoch+1}/{epochs}", f"{txt} Recall: {epoch_recall:.4f}, F1: {epoch_f1:.4f}")
+        txt = f"{txt}, Recall: {epoch_recall:.4f}, F1: {epoch_f1:.4f}, "
+        txt = f"{txt}, lr: {scheduler.get_last_lr()}"
+        print(f"{epoch+1}/{epochs}", f"{txt} ")
 
         train_epoch_logger(
             metrics={
@@ -238,7 +240,6 @@ def train_func(
             txt = f'Acc@{k}: {val_accuracy:.4f}, Recall@{k}: {val_recall:.4f},'
             txt = f"{txt} F1@{k}: {val_f1:.4f}, Pre@{k}: {val_precision:.4f},"
             txt = f"{txt} NDCG@{k}: {val_ndcg:.4f}, AUC: {val_auc:.4f}"
-            txt = f"{txt}, {scheduler.get_last_lr()}"
             print(txt)
             print("===")
 
@@ -279,9 +280,5 @@ def train_func(
     #    text=f"学習が終了しました。\nプロジェクト名：{project_name}\n管理番号：{experiment_name}",
     #    level=wandb.AlertLevel.ERROR,
     # )
-
-    if best_model_state is not None:
-        model.load_state_dict(best_model_state)
-        save_model(model, save_dir, "best_model")
 
     return model
