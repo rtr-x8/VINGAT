@@ -150,13 +150,13 @@ def train_func(
 ):
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
     model.to(device)
-    model.train()
     best_val_metric = 0    # 現時点での最良のバリデーションメトリクスを初期化
     patience_counter = 0    # Early Stoppingのカウンターを初期化
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
     for epoch in range(epochs):
+        model.train()
         total_loss = 0
         all_preds = []
         all_labels = []
