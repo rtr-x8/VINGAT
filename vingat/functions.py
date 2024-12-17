@@ -155,15 +155,10 @@ def train_func(
     best_val_metric = 0    # 現時点での最良のバリデーションメトリクスを初期化
     patience_counter = 0    # Early Stoppingのカウンターを初期化
     best_model_state = None
-    es_flag = False
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
     for epoch in range(epochs):
-
-        if es_flag:
-            break
-
         total_loss = 0
         all_preds = []
         all_labels = []
@@ -264,13 +259,28 @@ def train_func(
                 best_val_metric = val_accuracy    # 最良のバリデーションメトリクスを更新
                 patience_counter = 0    # 改善が見られたためカウンターをリセット
                 best_model_state = copy.deepcopy(model.state_dict())
-                save_model(model, save_dir, "best_model")
             else:
                 patience_counter += 1    # 改善がなければカウンターを増やす
 
             # patienceを超えた場合にEarly Stoppingを実行
             if patience_counter >= patience:
                 print(f"エポック{epoch+1}でEarly Stoppingを実行します。")
-                es_flag = True
+                # wandb.alert(
+                #    title="Early Stopped",
+                #    text=f"学習が終了しました。\nプロジェクト名
+                # ：{project_name}\n管理番号：{experiment_name}",
+                #    level=wandb.AlertLevel.ERROR,
+                # )
+                break
+
+    # wandb.alert(
+    #    title="訓練終了",
+    #    text=f"学習が終了しました。\nプロジェクト名：{project_name}\n管理番号：{experiment_name}",
+    #    level=wandb.AlertLevel.ERROR,
+    # )
+
+    if best_model_state is not None:
+        model.load_state_dict(best_model_state)
+        save_model(model, save_dir, "best_model")
 
     return model
