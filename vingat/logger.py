@@ -11,7 +11,7 @@ def get_run_name():
     return f"run-{get_current_time()}"
 
 
-def log_metrics(metrics: dict, prefix: str, suffix: str):
+def log_metrics(metrics: dict, prefix: str = "", suffix: str = ""):
     txt = ""
     for key, value in metrics.items():
         txt += f"{key}: {value:.4f}, "
