@@ -137,6 +137,7 @@ def train_func(
     val,
     model,
     optimizer,
+    scheduler,
     criterion,
     epochs,
     device,
@@ -160,6 +161,8 @@ def train_func(
         total_loss = 0
         all_preds = []
         all_labels = []
+
+        scheduler.step()
 
         for batch_data in tqdm(train_loader, desc=f"[Train] Epoch {epoch+1}/{epochs}"):
             optimizer.zero_grad()
@@ -211,7 +214,7 @@ def train_func(
         avg_loss = total_loss / len(train_loader)
 
         txt = f"Loss: {avg_loss:.4f}, Accuracy: {epoch_accuracy:.4f},"
-        print(f"{txt} Recall: {epoch_recall:.4f}, F1: {epoch_f1:.4f}")
+        print(f"{epoch+1}/{epochs}", f"{txt} Recall: {epoch_recall:.4f}, F1: {epoch_f1:.4f}")
 
         train_epoch_logger(
             metrics={

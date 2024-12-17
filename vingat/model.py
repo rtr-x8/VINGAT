@@ -106,7 +106,18 @@ class RecommendationModel(nn.Module):
         self.device = device
         self.hidden_dim = hidden_dim
 
-        self.nutrient_projection = nn.Linear(nutrient_dim, hidden_dim)
+        self.user_norm = BatchNorm(hidden_dim)
+        self.item_norm = BatchNorm(hidden_dim)
+        self.intention_norm = BatchNorm(hidden_dim)
+        self.image_norm = BatchNorm(hidden_dim)
+        self.taste_norm = BatchNorm(hidden_dim)
+        self.ing_norm = BatchNorm(hidden_dim)
+
+        self.nutrient_projection = nn.Sequential(
+            nn.Linear(nutrient_dim, hidden_dim),
+            nn.ReLU(),
+            nn.BatchNorm1d(hidden_dim)
+        )
 
         # Contrastive caption and nutrient
         self.cl_nutrient_to_caption = ContrastiveLearning(hidden_dim, hidden_dim)
@@ -124,7 +135,7 @@ class RecommendationModel(nn.Module):
         self.link_predictor = nn.Sequential(
             nn.Linear(hidden_dim + hidden_dim, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Dropout(dropout_rate),
             nn.Linear(hidden_dim, 1)
         )
@@ -137,6 +148,13 @@ class RecommendationModel(nn.Module):
         )
         data.x_dict.update({
             "intention": cl_caption_x,
+        })
+        data.x_dict.update({
+            "user": self.user_norm(data["user"].x),
+            "item": self.item_norm(data["item"].x),
+            "intention": self.intention_norm(data["intention"].x),
+            "image": self.image_norm(data["image"].x),
+            "taste": self.taste_norm(data["taste"].x),
         })
 
         # Message passing
