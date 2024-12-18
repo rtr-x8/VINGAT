@@ -258,7 +258,7 @@ def train_func(
 
             # 損失の計算
             loss = criterion(pos_scores, neg_scores, model.parameters())
-            loss = loss + cl_loss
+            loss = loss  # + cl_loss
 
             loss.backward()
             optimizer.step()

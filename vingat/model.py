@@ -79,13 +79,16 @@ class MultiModalFusionGAT(nn.Module):
 
 
 class RecommendationModel(nn.Module):
+
+    NODES = ['user', 'item', 'taste', 'intention', 'image']
+
     def __init__(
         self,
-        dropout_rate,
-        device,
         hidden_dim,
         multi_head,
-        nutrient_dim=20
+        sencing_layers=3,
+        fusion_layers=3,
+        intention_layers = 3
     ):
         super().__init__()
 
@@ -94,38 +97,52 @@ class RecommendationModel(nn.Module):
         self.device = device
         self.hidden_dim = hidden_dim
 
-        self.nutrient_projection = nn.Sequential(
-            nn.Linear(nutrient_dim, hidden_dim),
-            nn.ReLU(),
-            nn.BatchNorm1d(hidden_dim)
-        )
+        self.linear_dict = nn.ModuleDict()
+        for node in self.NODES:
+            self.linear_dict[node] = nn.Linear(-1, hidden_dim)
 
         # Contrastive caption and nutrient
-        self.cl_nutrient_to_caption = ContrastiveLearning(hidden_dim, hidden_dim)
+        # self.cl_nutrient_to_caption = ContrastiveLearning(hidden_dim, hidden_dim)
 
-        # Fusion of ingredient and recipe
-        self.ing_to_recipe = TasteGNN(hidden_dim)
+        self.sensing_gnn = nn.ModuleList()
+        for _ in range(sencing_layers):
+            conv = TasteGNN(hidden_dim)
+            self.sensing_gnn.append(conv)
 
         # HANConv layers
-        self.fusion_gat = MultiModalFusionGAT(hidden_dim, multi_head)
+        self.fusion_gnn = nn.ModuleList()
+        for _ in range(fusion_layers):
+            conv = MultiModalFusionGAT(hidden_dim, multi_head)
+            self.fusion_gnn.append(conv)
 
     def forward(self, data):
+
+        # Linear projection
+        data.x_dict = {
+            node: self.linear_dict[node](x.to(self.device)).relu()
+            for node, x in data.x_dict.items()
+        }
 
         cl_nutirnent_x, cl_caption_x, cl_loss = self.cl_nutrient_to_caption(
             self.nutrient_projection(data["intention"].nutrient),
             data["intention"].x
         )
-        data.x_dict.update({
-            "intention": cl_caption_x,
-        })
+        # data.x_dict.update({
+        #     "intention": cl_caption_x,
+        # })
 
         # Message passing
         data.x_dict.update({
             "taste": self.ing_to_recipe(data.x_dict, data.edge_index_dict)
         })
 
-        fusion_out = self.fusion_gat(data.x_dict, data.edge_index_dict)
-        data.x_dict.update(fusion_out)
+        # sensing
+        for gnn in self.sensing_gnn:
+            data.x_dict.update(gnn(data.x_dict, data.edge_index_dict))
+
+        # fusion
+        for gnn in self.fusion_gnn:
+            data.x_dict.update(gnn(data.x_dict, data.edge_index_dict))
 
         return data, cl_loss
 
