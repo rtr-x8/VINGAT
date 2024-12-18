@@ -136,10 +136,6 @@ class RecommendationModel(nn.Module):
         # })
 
         # Message passing
-        data.x_dict.update({
-            "taste": self.ing_to_recipe(data.x_dict, data.edge_index_dict)
-        })
-
         # sensing
         for gnn in self.sensing_gnn:
             data.x_dict.update(gnn(data.x_dict, data.edge_index_dict))
