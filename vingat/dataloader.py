@@ -279,7 +279,7 @@ def nodeFeatureNormalize(x_dict):
         max_val = torch.max(x, dim=0).values
         denom = max_val - min_val
         denom[denom == 0] = 1  # Prevent division by zero
-        x_dict.update(key, (x - min_val) / denom)
+        x_dict[key] = (x - min_val) / denom
     return x_dict
 
 
