@@ -394,12 +394,12 @@ def add_edge(
 
     # edge
     pos_edge_user_recipe = torch.tensor([
-        user_lencoder.transform(pos_data["user_id"]),
-        item_lencoder.transform(pos_data["recipe_id"])
+        user_lencoder.transform(pos_data["user_id"].values),
+        item_lencoder.transform(pos_data["recipe_id"].values)
     ], dtype=torch.long)
     neg_edge_user_recipe = torch.tensor([
-        user_lencoder.transform(neg_data["user_id"]),
-        item_lencoder.transform(neg_data["recipe_id"])
+        user_lencoder.transform(neg_data["user_id"].values),
+        item_lencoder.transform(neg_data["recipe_id"].values)
     ], dtype=torch.long)
     edge_index_user_recipe = torch.cat([
         pos_edge_user_recipe,
@@ -410,10 +410,10 @@ def add_edge(
         torch.zeros(neg_edge_user_recipe.shape[1], dtype=torch.long)
     ], dim=0)
 
-    data["user", "buys", "item"].edge_index = edge_index_user_recipe
+    data["user", "buys", "item"].edge_index = edge_index_user_recipe.detach().clone()
     data["item", "bought_by", "user"].edge_index = edge_index_user_recipe.detach().clone().flip(0)
-    data['user', 'buys', 'item'].edge_label = edge_label_user_recipe
-    data["user", "buys", "item"].edge_label_index = edge_label_user_recipe.detach().clone()
+    data['user', 'buys', 'item'].edge_label = edge_label_user_recipe.detach().clone()
+    data["user", "buys", "item"].edge_label_index = edge_index_user_recipe.detach().clone()
 
     ei_ing_item = torch.tensor([
         ing_lencoder.transform(ing_item["ingredient_id"].values),
