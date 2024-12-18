@@ -50,13 +50,25 @@ class DictActivate(nn.Module):
         }
 
 
+class DictDropout(nn.Module):
+    def __init__(self, dropout_rate):
+        super().__init__()
+        self.dropout = nn.Dropout(dropout_rate)
+
+    def forward(self, x_dict):
+        return {
+            k: self.dropout(v) for k, v in x_dict.items()
+        }
+
+
 class TasteGNN(nn.Module):
     NODES = ['ingredient', 'taste']
     EDGES = [('ingredient', 'part_of', 'taste')]
 
     def __init__(self, hidden_dim):
         super().__init__()
-        self.act = nn.ReLU()
+        self.act = nn.GELU()
+        self.drop = DictDropout(0.4)
         self.gnn = HANConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
@@ -65,13 +77,14 @@ class TasteGNN(nn.Module):
 
     def forward(self, x_dict, edge_index_dict):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
+        x_dict = self.drop(x_dict)
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.gnn(x_dict, edge_index_dict)
 
         # ingredient側はNoneで返却される
         return {
-            # "taste": self.act(out["taste"])
-            "taste": out["taste"]
+            "taste": self.act(out["taste"])
+            # "taste": out["taste"]
         }
 
 
@@ -86,6 +99,7 @@ class MultiModalFusionGAT(nn.Module):
     def __init__(self, hidden_dim, num_heads=2):
         super().__init__()
         self.act = DictActivate()
+        self.drop = DictDropout(0.4)
         self.gnn = HGTConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
@@ -95,10 +109,11 @@ class MultiModalFusionGAT(nn.Module):
 
     def forward(self, x_dict, edge_index_dict):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
+        x_dict = self.drop(x_dict)
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.gnn(x_dict, edge_index_dict)
-        # return self.act(out)
-        return out
+        return self.act(out)
+        # return out
 
 
 class RecommendationModel(nn.Module):
@@ -125,12 +140,13 @@ class RecommendationModel(nn.Module):
 
         self.nutrient_projection = nn.Sequential(
             nn.Linear(nutrient_dim, hidden_dim),
-            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.GELU(),
         )
         self.projection = nn.ModuleDict({
             node: nn.Sequential(
                 nn.Linear(hidden_dim, hidden_dim),
-                nn.ReLU(),
+                nn.GELU(),
                 nn.BatchNorm1d(hidden_dim),
             ) for node in self.NODES
         })

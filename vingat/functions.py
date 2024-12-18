@@ -162,8 +162,6 @@ def train_func(
 
         model.train()
 
-        scheduler.step()
-
         for batch_data in tqdm(train_loader, desc=f"[Train] Epoch {epoch+1}/{epochs}"):
             optimizer.zero_grad()
             batch_data = batch_data.to(device)
@@ -266,5 +264,7 @@ def train_func(
             if patience_counter >= patience:
                 print(f"エポック{epoch+1}でEarly Stoppingを実行します。")
                 break
+
+        scheduler.step()
 
     return model
