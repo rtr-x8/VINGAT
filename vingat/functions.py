@@ -9,7 +9,6 @@ from torch_geometric.utils import negative_sampling
 from sklearn.metrics import roc_auc_score
 from vingat.metrics import ndcg_at_k
 from typing import Callable
-import copy
 
 
 def evaluate_model(
@@ -153,7 +152,6 @@ def train_func(
     model.to(device)
     best_val_metric = 0    # 現時点での最良のバリデーションメトリクスを初期化
     patience_counter = 0    # Early Stoppingのカウンターを初期化
-    best_model_state = None
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
