@@ -1,3 +1,4 @@
+"""
 import torch
 
 
@@ -20,15 +21,16 @@ class BasePreprocess():
     def __init__(self):
         pass
 
-    def fit():
+    def fit(self):
         raise NotImplementedError
 
-    def transform():
+    def transform(self):
         raise NotImplementedError
 
 
 class UserPreprocess(BasePreprocess):
     def __init__(self):
+        super().__init__()
         self.scaler = MinMaxScaler()
 
     def fit(self, x: torch.Tensor):
@@ -46,6 +48,7 @@ def userPreprocess(train, target):
 
 class RecipePreprocess(BasePreprocess):
     def __init__(self):
+        super().__init__()
         self.scaler = MinMaxScaler()
 
     def fit(self, x: torch.Tensor):
@@ -57,6 +60,7 @@ class RecipePreprocess(BasePreprocess):
 
 class IngredientPreprocess(BasePreprocess):
     def __init__(self):
+        super().__init__()
         self.scaler = MinMaxScaler()
 
     def fit(self, x: torch.Tensor):
@@ -68,6 +72,7 @@ class IngredientPreprocess(BasePreprocess):
 
 class IntentionPreprocess(BasePreprocess):
     def __init__(self):
+        super().__init__()
         self.scaler = MinMaxScaler()
 
     def fit(self, x: torch.Tensor):
@@ -79,6 +84,7 @@ class IntentionPreprocess(BasePreprocess):
 
 class ImagePreprocess(BasePreprocess):
     def __init__(self):
+        super().__init__()
         self.scaler = MinMaxScaler()
 
     def fit(self, x: torch.Tensor):
@@ -86,3 +92,4 @@ class ImagePreprocess(BasePreprocess):
 
     def transform(self, x: torch.Tensor):
         return self.scaler.transform(x)
+"""
