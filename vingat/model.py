@@ -82,11 +82,10 @@ class TasteGNN(nn.Module):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
         x_dict = self.drop(x_dict)
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
-        out = self.gnn(x_dict, edge_index_dict)
+        out = self.gnn(x_dict['taste'], edge_index_dict[('ingredient', 'part_of', 'taste')])
 
         return {
-            "taste": self.act(out["taste"])
-            # "taste": out["taste"]
+            "taste": self.act(out)
         }
 
 
