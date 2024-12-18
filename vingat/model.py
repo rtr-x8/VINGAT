@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from torch_geometric.nn import LGConv, HGTConv
+from torch_geometric.nn import HANConv, HGTConv
 import torch.nn as nn
 import os
 
@@ -45,14 +45,11 @@ class TasteGNN(nn.Module):
 
     def __init__(self, hidden_dim):
         super().__init__()
-        """
         self.gnn = HANConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
             metadata=(self.NODES, self.EDGES)
-        )
-        """
-        self.gnn = LGConv().relu()
+        ).relu()
 
     def forward(self, x_dict, edge_index_dict):
         """
@@ -66,9 +63,7 @@ class TasteGNN(nn.Module):
         taste_edge_index = edge_index_dict[('taste', 'contains', 'ingredient')]
 
         # LGConvの適用
-        return {
-            "taste": self.gnn(taste_x, taste_edge_index)
-        }
+        return self.gnn(taste_x, taste_edge_index)
 
 
 class MultiModalFusionGAT(nn.Module):
