@@ -52,7 +52,7 @@ class TasteGNN(nn.Module):
             metadata=(self.NODES, self.EDGES)
         )
         """
-        self.gnn = LGConv()
+        self.gnn = LGConv().relu()
 
     def forward(self, x_dict, edge_index_dict):
         """
@@ -86,7 +86,7 @@ class MultiModalFusionGAT(nn.Module):
             out_channels=hidden_dim,
             metadata=(self.NODES, self.EDGES),
             heads=num_heads
-        )
+        ).relu()
 
     def forward(self, x_dict, edge_index_dict):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
@@ -134,8 +134,8 @@ class RecommendationModel(nn.Module):
         # Sensing GNN layers
         self.sensing_gnn = nn.ModuleList()
         for _ in range(sencing_layers):
-            conv = TasteGNN(hidden_dim)
-            self.sensing_gnn.append(conv)
+            gnn = TasteGNN(hidden_dim)
+            self.sensing_gnn.append(gnn)
 
         # MultiModal Fusion GNN layers
         self.fusion_gnn = nn.ModuleList()
@@ -179,6 +179,8 @@ class RecommendationModel(nn.Module):
         return data
 
     def predict(self, user_nodes, recipe_nodes):
+        # 内積計算は性能上がらないので、GNNの出力を連結してMLPに入力する
+        # もしくは内積計算は出力形式が今と異なるかもしれない
         # return (user_nodes * recipe_nodes).sum(dim=1)
         edge_features = torch.cat([user_nodes, recipe_nodes], dim=1)
         return self.link_predictor(edge_features)
