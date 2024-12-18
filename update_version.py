@@ -1,7 +1,7 @@
 import re
 
 # setup.pyのパス
-setup_file = "_version.py"
+setup_file = "vingat/_version.py"
 
 # setup.pyを読み込む
 with open(setup_file, "r") as file:

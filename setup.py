@@ -5,7 +5,7 @@ import re
 
 
 def find_version():
-    version_file = os.path.join('', '_version.py')
+    version_file = os.path.join('vingat', '_version.py')
     with open(version_file, 'r', encoding='utf-8') as f:
         version_content = f.read()
     version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", version_content, re.M)

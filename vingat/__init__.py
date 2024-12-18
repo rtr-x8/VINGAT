@@ -1,4 +1,4 @@
-from .._version import __version__
+from ._version import __version__
 from .preprocess import *
 from .logger import *
 from .loader import *
