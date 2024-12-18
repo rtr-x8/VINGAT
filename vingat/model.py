@@ -81,7 +81,7 @@ class MultiModalFusionGAT(nn.Module):
             out_channels=hidden_dim,
             metadata=(self.NODES, self.EDGES),
             heads=num_heads
-        ).relu()
+        )
 
     def forward(self, x_dict, edge_index_dict):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
