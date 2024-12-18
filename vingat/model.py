@@ -74,7 +74,6 @@ class DictActivate(nn.Module):
         self.act = nn.ReLU()
 
     def forward(self, x_dict):
-        print([(k, type(v)) for k,v in x_dict.items()])
         return {
             k: self.act(v) for k, v in x_dict.items()
         }
