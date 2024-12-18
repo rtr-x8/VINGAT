@@ -98,9 +98,11 @@ class RecommendationModel(nn.Module):
         self.device = device
         self.hidden_dim = hidden_dim
 
-        self.linear_dict = nn.ModuleDict()
-        for node in self.NODES:
-            self.linear_dict[node] = nn.Linear(-1, hidden_dim)
+        self.nutrient_projection = nn.Linear(20, hidden_dim)
+        self.projection = nn.ModuleDict({
+            node: nn.Linear(hidden_dim, hidden_dim)
+            for node in self.NODES
+        })
 
         # Contrastive caption and nutrient
         # self.cl_nutrient_to_caption = ContrastiveLearning(hidden_dim, hidden_dim)
@@ -119,8 +121,9 @@ class RecommendationModel(nn.Module):
     def forward(self, data):
 
         # Linear projection
+        data.x_dict["intention"].nutrient = self.nutrient_projection(data["intention"].nutrient)
         data.x_dict = {
-            node: self.linear_dict[node](x.to(self.device)).relu()
+            node: self.projection[node](x.to(self.device)).relu()
             for node, x in data.x_dict.items()
         }
 
