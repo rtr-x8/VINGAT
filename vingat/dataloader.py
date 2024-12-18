@@ -245,8 +245,7 @@ def create_dataloader(
     batch_size,
     shuffle=True,
     neg_sampling_ratio=1.0,
-    num_workers=0,
-    train=True
+    num_workers=0
 ):
     return LinkNeighborLoader(
         data=data,
@@ -380,43 +379,24 @@ def add_edge(
 ) -> HeteroData:
 
     # 環境ごとのデータ
+    user_recipe_set = rating[["user_id", "recipe_id"]]
     ing_item = recipe_ingredients.loc[
-        recipe_ingredients["recipe_id"].isin(rating["recipe_id"])
+        recipe_ingredients["recipe_id"].isin(user_recipe_set["recipe_id"])
     ]
 
     data = copy.deepcopy(hetero)
 
-    pos_data = rating.loc[rating["interaction"] == 1]
-    neg_data = rating.loc[rating["interaction"] == 0]
-
-    pos_l, ng_l, r_l = len(pos_data), len(neg_data), len(rating)
-    assert pos_l + ng_l == r_l, f"pos: {pos_l}, ng: {ng_l}, org: {r_l}"
-
-    # ネガティブは削除してしまう
-    neg_data = pd.DataFrame([], columns=neg_data.columns)
-
     # edge
-    pos_edge_user_recipe = torch.tensor([
-        user_lencoder.transform(pos_data["user_id"].values),
-        item_lencoder.transform(pos_data["recipe_id"].values)
+    edge_index_user_recipe = torch.tensor([
+        user_lencoder.transform(rating["user_id"].values),
+        item_lencoder.transform(rating["recipe_id"].values)
     ], dtype=torch.long)
-    neg_edge_user_recipe = torch.tensor([
-        user_lencoder.transform(neg_data["user_id"].values),
-        item_lencoder.transform(neg_data["recipe_id"].values)
-    ], dtype=torch.long)
-    edge_index_user_recipe = torch.cat([
-        pos_edge_user_recipe,
-        neg_edge_user_recipe
-    ], dim=1)
-    edge_label_user_recipe = torch.cat([
-        torch.ones(pos_edge_user_recipe.shape[1], dtype=torch.long),
-        torch.zeros(neg_edge_user_recipe.shape[1], dtype=torch.long)
-    ], dim=0)
-
-    data["user", "buys", "item"].edge_index = edge_index_user_recipe.detach().clone()
+    data["user", "buys", "item"].edge_index = edge_index_user_recipe
     data["item", "bought_by", "user"].edge_index = edge_index_user_recipe.detach().clone().flip(0)
-    data['user', 'buys', 'item'].edge_label = edge_label_user_recipe.detach().clone()
-    data["user", "buys", "item"].edge_label_index = edge_index_user_recipe.detach().clone()
+    data['user', 'buys', 'item'].edge_label = torch.ones(
+        edge_index_user_recipe.shape[1],
+        dtype=torch.long)
+    data["user", "buys", "item"].edge_label_index = edge_index_user_recipe.clone().detach()
 
     ei_ing_item = torch.tensor([
         ing_lencoder.transform(ing_item["ingredient_id"].values),

@@ -9,64 +9,7 @@ from torch_geometric.utils import negative_sampling
 from sklearn.metrics import roc_auc_score
 from vingat.metrics import ndcg_at_k
 from typing import Callable
-
-
-def calculate_scores(
-    model,
-    user_embeddings,
-    recipe_embeddings,
-    edge_label_index,
-    pos_mask,
-    neg_mask
-):
-    """
-    正例と負例のスコアを計算する関数。
-
-    Args:
-        model (nn.Module): モデル。
-        user_embeddings (Tensor): ユーザーの埋め込み。
-        recipe_embeddings (Tensor): レシピの埋め込み。
-        edge_label_index (Tensor): エッジのインデックス。
-        pos_mask (Tensor): 正例のマスク。
-        neg_mask (Tensor): 負例のマスク。
-
-    Returns:
-        pos_scores (Tensor), neg_scores (Tensor), threshold (float): 正例と負例のスコア、閾値。
-    """
-    user_embed = user_embeddings[edge_label_index[0]]
-    recipe_embed = recipe_embeddings[edge_label_index[1]]
-
-    # 正例のスコア
-    pos_user_embed = user_embed[pos_mask]
-    pos_recipe_embed = recipe_embed[pos_mask]
-    pos_scores, threshold = model.predict(pos_user_embed, pos_recipe_embed)
-    pos_scores = pos_scores.squeeze()
-
-    # 負例のスコア
-    neg_user_embed = user_embed[neg_mask]
-    neg_recipe_embed = recipe_embed[neg_mask]
-    neg_scores, threshold = model.predict(neg_user_embed, neg_recipe_embed)
-    neg_scores = neg_scores.squeeze()
-
-    return pos_scores, neg_scores, threshold
-
-
-def get_top_k_recommendations(scores, recipe_indices, k=10):
-    """
-    トップkのレコメンデーションを取得する関数。
-
-    Args:
-        scores (np.ndarray): ユーザーごとのスコア。
-        recipe_indices (np.ndarray): レシピのインデックス。
-        k (int): 上位k個を取得。
-
-    Returns:
-        np.ndarray: トップkのレシピインデックス。
-    """
-    k = min(k, len(scores))
-    sorted_indices = np.argsort(-scores)  # 降順にソート
-    top_k_indices = recipe_indices[sorted_indices[:k]]
-    return top_k_indices
+import copy
 
 
 def evaluate_model(
@@ -134,8 +77,8 @@ def evaluate_model(
             neg_recipe_embed = recipe_embeddings[user_neg_indices]
 
             # 正例と負例のスコアを計算
-            pos_scores, _ = model.predict(pos_user_embed, pos_recipe_embed)
-            neg_scores, _ = model.predict(neg_user_embed, neg_recipe_embed)
+            pos_scores = model.predict(pos_user_embed, pos_recipe_embed).squeeze(dim=1)
+            neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze(dim=1)
 
             scores = torch.cat([pos_scores, neg_scores], dim=0).cpu().numpy()
             labels = np.concatenate([np.ones(len(pos_scores)), np.zeros(len(neg_scores))])
@@ -208,36 +151,25 @@ def train_func(
 ):
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
     model.to(device)
+    model.train()
     best_val_metric = 0    # 現時点での最良のバリデーションメトリクスを初期化
     patience_counter = 0    # Early Stoppingのカウンターを初期化
+    best_model_state = None
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
     for epoch in range(epochs):
-        model.train()
         total_loss = 0
         all_preds = []
         all_labels = []
 
         scheduler.step()
 
-        b = 0
-
         for batch_data in tqdm(train_loader, desc=f"[Train] Epoch {epoch+1}/{epochs}"):
-            if b == 0 and False:
-                print(epoch, "user dict[:10]", batch_data.x_dict["user"][:3, :10])
-                print(epoch, "item dict[:3, :10]", batch_data.x_dict["item"][:3, :10])
-                print(epoch, "intention dict[:3, :10]", batch_data.x_dict["intention"][:3, :10])
-                print(epoch, "image dict[:3, :10]", batch_data.x_dict["image"][:3, :10])
-                print(epoch, "taste dict[:3, :10]", batch_data.x_dict["taste"][:3, :10])
-                print(epoch, "ingredient dict[:3, :10]", batch_data.x_dict["ingredient"][:3, :10])
-            b += 1
             optimizer.zero_grad()
             batch_data = batch_data.to(device)
 
             # モデルのフォワードパス
-            if not model.training:
-                print("1 it is not training", model.training)
             out = model(batch_data)
 
             # エッジのラベルとエッジインデックスを取得
@@ -259,24 +191,21 @@ def train_func(
             # 正例のスコアを計算
             pos_user_embed = user_embed[pos_mask]
             pos_recipe_embed = recipe_embed[pos_mask]
-            pos_scores, threshold = model.predict(pos_user_embed, pos_recipe_embed)
+            pos_scores = model.predict(pos_user_embed, pos_recipe_embed).squeeze()
 
             # 負例のスコアを計算
             neg_user_embed = user_embed[neg_mask]
             neg_recipe_embed = recipe_embed[neg_mask]
-            neg_scores, threshold = model.predict(neg_user_embed, neg_recipe_embed)
+            neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
 
             # 損失の計算
             loss = criterion(pos_scores, neg_scores, model.parameters())
-            loss = loss  # + cl_loss
 
             loss.backward()
             optimizer.step()
 
             total_loss += loss.item()
-            all_preds.extend(
-                (pos_scores > threshold).int().tolist() + (neg_scores <= threshold).int().tolist()
-            )
+            all_preds.extend((pos_scores > 0.5).int().tolist() + (neg_scores <= 0.5).int().tolist())
             all_labels.extend([1] * len(pos_scores) + [0] * len(neg_scores))
 
         aveg_loss = total_loss / len(train_loader)
@@ -286,9 +215,7 @@ def train_func(
         avg_loss = total_loss / len(train_loader)
 
         txt = f"Loss: {avg_loss:.4f}, Accuracy: {epoch_accuracy:.4f},"
-        txt = f"{txt}, Recall: {epoch_recall:.4f}, F1: {epoch_f1:.4f}, "
-        txt = f"{txt}, lr: {scheduler.get_last_lr()}"
-        print(f"{epoch+1}/{epochs}", f"{txt} ")
+        print(f"{epoch+1}/{epochs}", f"{txt} Recall: {epoch_recall:.4f}, F1: {epoch_f1:.4f}")
 
         train_epoch_logger(
             metrics={
@@ -301,14 +228,8 @@ def train_func(
             step=epoch+1
         )
 
-        if not model.training:
-            print("2 it is not training", model.training)
-
         # Valid
         if (epoch + 1) % validation_interval == 0:
-            model.eval()
-            if model.training:
-                print("3 it is training", model.training)
             k = 10
             val_precision, val_recall, val_ndcg, val_accuracy, val_f1, val_auc = evaluate_model(
                 model, val, device, k=k, desc=f"[Valid] Epoch {epoch+1}/{epochs}")
@@ -317,6 +238,7 @@ def train_func(
             txt = f'Acc@{k}: {val_accuracy:.4f}, Recall@{k}: {val_recall:.4f},'
             txt = f"{txt} F1@{k}: {val_f1:.4f}, Pre@{k}: {val_precision:.4f},"
             txt = f"{txt} NDCG@{k}: {val_ndcg:.4f}, AUC: {val_auc:.4f}"
+            txt = f"{txt}, {scheduler.get_last_lr()}"
             print(txt)
             print("===")
 
@@ -331,24 +253,35 @@ def train_func(
                 }
             )
 
-            if model.training:
-                print("4 it is training", model.training)
-
             save_model(model, save_dir, f"model_{epoch+1}")
 
             # Early Stoppingの判定（バリデーションの精度または他のメトリクスで判定）
             if val_accuracy > best_val_metric:
                 best_val_metric = val_accuracy    # 最良のバリデーションメトリクスを更新
                 patience_counter = 0    # 改善が見られたためカウンターをリセット
+                best_model_state = copy.deepcopy(model.state_dict())
             else:
                 patience_counter += 1    # 改善がなければカウンターを増やす
 
             # patienceを超えた場合にEarly Stoppingを実行
             if patience_counter >= patience:
                 print(f"エポック{epoch+1}でEarly Stoppingを実行します。")
+                # wandb.alert(
+                #    title="Early Stopped",
+                #    text=f"学習が終了しました。\nプロジェクト名
+                # ：{project_name}\n管理番号：{experiment_name}",
+                #    level=wandb.AlertLevel.ERROR,
+                # )
                 break
 
-            if model.training:
-                print("5 it is training", model.training)
+    # wandb.alert(
+    #    title="訓練終了",
+    #    text=f"学習が終了しました。\nプロジェクト名：{project_name}\n管理番号：{experiment_name}",
+    #    level=wandb.AlertLevel.ERROR,
+    # )
+
+    if best_model_state is not None:
+        model.load_state_dict(best_model_state)
+        save_model(model, save_dir, "best_model")
 
     return model
