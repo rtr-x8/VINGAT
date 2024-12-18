@@ -107,6 +107,7 @@ class RecommendationModel(nn.Module):
         fusion_layers=3,
         intention_layers=3,
         num_heads=2,
+        dropout_rate=0.4,
     ):
         super().__init__()
 
@@ -123,6 +124,7 @@ class RecommendationModel(nn.Module):
             node: nn.Sequential(
                 nn.Linear(hidden_dim, hidden_dim),
                 nn.ReLU(),
+                nn.BatchNorm1d(hidden_dim),
             ) for node in self.NODES
         })
 
@@ -140,6 +142,14 @@ class RecommendationModel(nn.Module):
         for _ in range(fusion_layers):
             gnn = MultiModalFusionGAT(hidden_dim, num_heads)
             self.fusion_gnn.append(gnn)
+
+        self.link_predictor = nn.Sequential(
+            nn.Linear(hidden_dim + hidden_dim, hidden_dim),
+            nn.BatchNorm1d(hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(hidden_dim, 1)
+        )
 
     def forward(self, data):
 
@@ -169,4 +179,6 @@ class RecommendationModel(nn.Module):
         return data
 
     def predict(self, user_nodes, recipe_nodes):
-        return (user_nodes * recipe_nodes).sum(dim=1)
+        # return (user_nodes * recipe_nodes).sum(dim=1)
+        edge_features = torch.cat([user_nodes, recipe_nodes], dim=1)
+        return self.link_predictor(edge_features)
