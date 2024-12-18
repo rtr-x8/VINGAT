@@ -80,7 +80,7 @@ class MultiModalFusionGAT(nn.Module):
 
 class RecommendationModel(nn.Module):
 
-    NODES = ['user', 'item', 'taste', 'intention', 'image']
+    NODES = ['user', 'item', 'taste', 'intention', 'image', "ingredient"]
 
     def __init__(
         self,
