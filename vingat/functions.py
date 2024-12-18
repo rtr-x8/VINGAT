@@ -208,14 +208,13 @@ def train_func(
 ):
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
     model.to(device)
-    model.train()
     best_val_metric = 0    # 現時点での最良のバリデーションメトリクスを初期化
     patience_counter = 0    # Early Stoppingのカウンターを初期化
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
     for epoch in range(epochs):
-
+        model.train()
         total_loss = 0
         all_preds = []
         all_labels = []
@@ -228,7 +227,7 @@ def train_func(
 
             # モデルのフォワードパス
             if not model.training:
-                print("1 expect training", model.training)
+                print("1 it is not training", model.training)
             out, cl_loss = model(batch_data)
 
             # エッジのラベルとエッジインデックスを取得
@@ -293,13 +292,13 @@ def train_func(
         )
 
         if not model.training:
-            print("2 expect training", model.training)
+            print("2 it is not training", model.training)
 
         # Valid
         if (epoch + 1) % validation_interval == 0:
             model.eval()
             if model.training:
-                print("3 expect evaluating", ~model.training)
+                print("3 it is training", model.training)
             k = 10
             val_precision, val_recall, val_ndcg, val_accuracy, val_f1, val_auc = evaluate_model(
                 model, val, device, k=k, desc=f"[Valid] Epoch {epoch+1}/{epochs}")
@@ -323,7 +322,7 @@ def train_func(
             )
 
             if model.training:
-                print("3 expect evaluating", ~model.training)
+                print("4 it is training", model.training)
 
             save_model(model, save_dir, f"model_{epoch+1}")
 
@@ -340,6 +339,6 @@ def train_func(
                 break
 
             if model.training:
-                print("3 expect evaluating", ~model.training)
+                print("5 it is training", model.training)
 
     return model
