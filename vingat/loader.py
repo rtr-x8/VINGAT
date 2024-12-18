@@ -124,7 +124,7 @@ def core_file_loader(
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     train = pd.read_csv(f"{directory_path}/core-data-train_rating.csv")
     test = pd.read_csv(f"{directory_path}/core-data-test_rating.csv")
-    val = pd.read_csv(f"{directory_path}/core-data-val_rating.csv")
+    val = pd.read_csv(f"{directory_path}/core-data-valid_rating.csv")
     return (
         pd.read_csv(f"{directory_path}/core-data_recipe.csv", index_col=0),
         preprocess_rating_data(train, rating_threshold),
