@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from torch_geometric.nn import HANConv, HGTConv
+from torch_geometric.nn import HANConv, HGTConv, Sequential as GSequential
 import torch.nn as nn
 import os
 
@@ -49,7 +49,7 @@ class TasteGNN(nn.Module):
             in_channels=hidden_dim,
             out_channels=hidden_dim,
             metadata=(self.NODES, self.EDGES)
-        ).relu()
+        )
 
     def forward(self, x_dict, edge_index_dict):
         """
@@ -129,13 +129,19 @@ class RecommendationModel(nn.Module):
         # Sensing GNN layers
         self.sensing_gnn = nn.ModuleList()
         for _ in range(sencing_layers):
-            gnn = TasteGNN(hidden_dim)
+            gnn = GSequential("x, edge_index", [
+                (TasteGNN(hidden_dim), "x, edge_index -> x_dict"),
+                (nn.ReLU(), "x -> x"),
+            ])
             self.sensing_gnn.append(gnn)
 
         # MultiModal Fusion GNN layers
         self.fusion_gnn = nn.ModuleList()
         for _ in range(fusion_layers):
-            gnn = MultiModalFusionGAT(hidden_dim, num_heads)
+            gnn = GSequential("x, edge_index", [
+                (MultiModalFusionGAT(hidden_dim, num_heads), "x, edge_index -> x_dict"),
+                (nn.ReLU(), "x -> x"),
+            ])
             self.fusion_gnn.append(gnn)
 
         self.link_predictor = nn.Sequential(
