@@ -61,12 +61,13 @@ class TasteGNN(nn.Module):
             "taste": out["taste"]
         }
 
-        """ 
+        """
         taste_x = x_dict['taste']
         taste_edge_index = edge_index_dict[('taste', 'contains', 'ingredient')]
         # LGConvの適用
         return self.gnn(taste_x, taste_edge_index)
         """
+
 
 class DictActivate(nn.Module):
     def __init__(self):
@@ -162,7 +163,8 @@ class RecommendationModel(nn.Module):
             nn.BatchNorm1d(hidden_dim),
             nn.GELU(),
             nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dim, 1)
+            nn.Linear(hidden_dim, 1),
+            nn.Sigmoid(),
         )
 
     def forward(self, data):
