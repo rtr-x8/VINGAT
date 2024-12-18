@@ -127,10 +127,10 @@ class RecommendationModel(nn.Module):
             for node, x in data.x_dict.items()
         }
 
-        cl_nutirnent_x, cl_caption_x, cl_loss = self.cl_nutrient_to_caption(
-            self.nutrient_projection(data["intention"].nutrient),
-            data["intention"].x
-        )
+        # cl_nutirnent_x, cl_caption_x, cl_loss = self.cl_nutrient_to_caption(
+        #     self.nutrient_projection(data["intention"].nutrient),
+        #     data["intention"].x
+        # )
         # data.x_dict.update({
         #     "intention": cl_caption_x,
         # })
