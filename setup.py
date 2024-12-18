@@ -4,7 +4,7 @@ import pkg_resources
 
 setup(
   name='vingat',  # パッケージ名
-  version='0.0.120',  # バージョン
+  version='0.0.121',  # バージョン
   packages=find_packages(),  # サブディレクトリに含まれるモジュールを自動で探す
   install_requires=[
     str(r)
