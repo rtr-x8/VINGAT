@@ -66,7 +66,9 @@ class TasteGNN(nn.Module):
         taste_edge_index = edge_index_dict[('taste', 'contains', 'ingredient')]
 
         # LGConvの適用
-        return self.gnn(taste_x, taste_edge_index)
+        return {
+            "taste": self.gnn(taste_x, taste_edge_index)
+        }
 
 
 class MultiModalFusionGAT(nn.Module):
@@ -77,13 +79,13 @@ class MultiModalFusionGAT(nn.Module):
              ('user', 'buys', 'item'),
              ('item', 'bought_by', 'user')]
 
-    def __init__(self, hidden_dim):
+    def __init__(self, hidden_dim, num_heads=2):
         super().__init__()
         self.gnn = HGTConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
             metadata=(self.NODES, self.EDGES),
-            heads=2
+            heads=num_heads
         )
 
     def forward(self, x_dict, edge_index_dict):
@@ -93,12 +95,18 @@ class MultiModalFusionGAT(nn.Module):
 
 
 class RecommendationModel(nn.Module):
+
+    NODES = ['user', 'item', 'taste', 'intention', 'image', "ingredient"]
+
     def __init__(
         self,
-        dropout_rate,
         device,
         hidden_dim,
-        nutrient_dim=20
+        nutrient_dim=20,
+        sencing_layers=3,
+        fusion_layers=3,
+        intention_layers=3,
+        num_heads=2,
     ):
         super().__init__()
 
@@ -107,58 +115,53 @@ class RecommendationModel(nn.Module):
         self.device = device
         self.hidden_dim = hidden_dim
 
-        self.user_norm = BatchNorm(hidden_dim)
-        self.item_norm = BatchNorm(hidden_dim)
-
-        self.nutrient_projection = nn.Sequential(
-            nn.Linear(nutrient_dim, hidden_dim),
-            nn.ReLU(),
-            nn.BatchNorm1d(hidden_dim)
-        )
+        self.nutrient_projection = nn.Linear(nutrient_dim, hidden_dim).relu()
+        self.projection = nn.ModuleDict({
+            node: nn.Linear(hidden_dim, hidden_dim).relu()
+            for node in self.NODES
+        })
 
         # Contrastive caption and nutrient
-        self.cl_nutrient_to_caption = ContrastiveLearning(hidden_dim, hidden_dim)
+        # self.cl_nutrient_to_caption = ContrastiveLearning(hidden_dim, hidden_dim)
 
-        # Fusion of ingredient and recipe
-        self.ing_to_recipe = TasteGNN(hidden_dim)
+        # Sensing GNN layers
+        self.sensing_gnn = nn.ModuleList()
+        for _ in range(sencing_layers):
+            conv = TasteGNN(hidden_dim)
+            self.sensing_gnn.append(conv)
 
-        # HANConv layers
-        self.fusion_gat = MultiModalFusionGAT(hidden_dim)
-
-        # リンク予測のためのMLP
-        self.link_predictor = nn.Sequential(
-            nn.Linear(hidden_dim + hidden_dim, hidden_dim),
-            nn.BatchNorm1d(hidden_dim),
-            nn.GELU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dim, 1)
-        )
+        # MultiModal Fusion GNN layers
+        self.fusion_gnn = nn.ModuleList()
+        for _ in range(fusion_layers):
+            gnn = MultiModalFusionGAT(hidden_dim, num_heads)
+            self.fusion_gnn.append(gnn)
 
     def forward(self, data):
 
-        cl_nutirnent_x, cl_caption_x, cl_loss = self.cl_nutrient_to_caption(
-            self.nutrient_projection(data["intention"].nutrient),
-            data["intention"].x
-        )
-        data.x_dict.update({
-            "intention": cl_caption_x,
-        })
-        data.x_dict.update({
-            "user": self.user_norm(data["user"].x),
-            "item": self.item_norm(data["item"].x),
-        })
+        # Linear projection
+        data.x_dict["intention"].nutrient = self.nutrient_projection(data["intention"].nutrient)
+        data.x_dict = {
+            node: self.projection[node](x.to(self.device))
+            for node, x in data.x_dict.items()
+        }
 
-        # Message passing
-        data.x_dict.update({
-            "taste": self.ing_to_recipe(data.x_dict, data.edge_index_dict)
-        })
+        # cl_nutirnent_x, cl_caption_x, cl_loss = self.cl_nutrient_to_caption(
+        #     self.nutrient_projection(data["intention"].nutrient),
+        #     data["intention"].x
+        # )
+        # data.x_dict.update({
+        #     "intention": cl_caption_x,
+        # })
 
-        fusion_out = self.fusion_gat(data.x_dict, data.edge_index_dict)
-        data.x_dict.update(fusion_out)
+        # Sensing GNN
+        for gnn in self.sensing_gnn:
+            data.x_dict.update(gnn(data.x_dict, data.edge_index_dict))
+
+        # MultiModal Fusion GNN
+        for gnn in self.fusion_gnn:
+            data.x_dict.update(gnn(data.x_dict, data.edge_index_dict))
 
         return data
 
     def predict(self, user_nodes, recipe_nodes):
-        # ユーザーとレシピの埋め込みを連結
-        edge_features = torch.cat([user_nodes, recipe_nodes], dim=1)
-        return self.link_predictor(edge_features)
+        return (user_nodes * recipe_nodes).sum(dim=1)
