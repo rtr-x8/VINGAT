@@ -398,7 +398,10 @@ def add_edge(
         user_lencoder.transform(neg_data["user_id"]),
         item_lencoder.transform(neg_data["recipe_id"])
     ], dtype=torch.long)
-    edge_index_user_recipe = torch.cat([pos_edge_user_user_recipe, neg_edge_user_user_recipe], dim=1)
+    edge_index_user_recipe = torch.cat([
+        pos_edge_user_user_recipe,
+        neg_edge_user_user_recipe
+    ], dim=1)
     edge_label_user_recipe = torch.cat([
         torch.ones(pos_edge_user_user_recipe.shape[1], dtype=torch.long),
         torch.zeros(neg_edge_user_user_recipe.shape[1], dtype=torch.long)
