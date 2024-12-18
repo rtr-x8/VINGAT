@@ -52,18 +52,32 @@ class TasteGNN(nn.Module):
         )
 
     def forward(self, x_dict, edge_index_dict):
-        """
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.gnn(x_dict, edge_index_dict)
-        return out["taste"]
-        """
 
+        # ingredient側はNoneで返却される
+        return {
+            "taste": out["taste"]
+        }
+
+        """ 
         taste_x = x_dict['taste']
         taste_edge_index = edge_index_dict[('taste', 'contains', 'ingredient')]
-
         # LGConvの適用
         return self.gnn(taste_x, taste_edge_index)
+        """
+
+class DictActivate(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.act = nn.ReLU()
+
+    def forward(self, x_dict):
+        print([(k, type(v)) for k,v in x_dict.items()])
+        return {
+            k: self.act(v) for k, v in x_dict.items()
+        }
 
 
 class MultiModalFusionGAT(nn.Module):
@@ -129,18 +143,18 @@ class RecommendationModel(nn.Module):
         # Sensing GNN layers
         self.sensing_gnn = nn.ModuleList()
         for _ in range(sencing_layers):
-            gnn = GSequential("x, edge_index", [
-                (TasteGNN(hidden_dim), "x, edge_index -> x_dict"),
-                (nn.ReLU(), "x -> x"),
+            gnn = GSequential("x_dict, edge_index_dict", [
+                (TasteGNN(hidden_dim), "x_dict, edge_index_dict -> x_dict"),
+                (DictActivate(), "x_dict -> x_dict"),
             ])
             self.sensing_gnn.append(gnn)
 
         # MultiModal Fusion GNN layers
         self.fusion_gnn = nn.ModuleList()
         for _ in range(fusion_layers):
-            gnn = GSequential("x, edge_index", [
-                (MultiModalFusionGAT(hidden_dim, num_heads), "x, edge_index -> x_dict"),
-                (nn.ReLU(), "x -> x"),
+            gnn = GSequential("x_dict, edge_index_dict", [
+                (MultiModalFusionGAT(hidden_dim, num_heads), "x_dict, edge_index_dict -> x_dict"),
+                (DictActivate(), "x_dict -> x_dict"),
             ])
             self.fusion_gnn.append(gnn)
 
