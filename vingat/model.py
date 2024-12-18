@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from torch_geometric.nn import BatchNorm, LGConv, HGTConv
+from torch_geometric.nn import LGConv, HGTConv
 import torch.nn as nn
 import os
 
@@ -63,13 +63,13 @@ class MultiModalFusionGAT(nn.Module):
              ('user', 'buys', 'item'),
              ('item', 'bought_by', 'user')]
 
-    def __init__(self, hidden_dim):
+    def __init__(self, hidden_dim, num_heads):
         super().__init__()
         self.gnn = HGTConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
             metadata=(self.NODES, self.EDGES),
-            heads=2
+            heads=num_heads
         )
 
     def forward(self, x_dict, edge_index_dict):
@@ -84,6 +84,7 @@ class RecommendationModel(nn.Module):
         dropout_rate,
         device,
         hidden_dim,
+        multi_head,
         nutrient_dim=20
     ):
         super().__init__()
@@ -92,9 +93,6 @@ class RecommendationModel(nn.Module):
 
         self.device = device
         self.hidden_dim = hidden_dim
-
-        self.user_norm = BatchNorm(hidden_dim)
-        self.item_norm = BatchNorm(hidden_dim)
 
         self.nutrient_projection = nn.Sequential(
             nn.Linear(nutrient_dim, hidden_dim),
@@ -109,7 +107,7 @@ class RecommendationModel(nn.Module):
         self.ing_to_recipe = TasteGNN(hidden_dim)
 
         # HANConv layers
-        self.fusion_gat = MultiModalFusionGAT(hidden_dim)
+        self.fusion_gat = MultiModalFusionGAT(hidden_dim, multi_head)
 
     def forward(self, data):
 
@@ -119,10 +117,6 @@ class RecommendationModel(nn.Module):
         )
         data.x_dict.update({
             "intention": cl_caption_x,
-        })
-        data.x_dict.update({
-            "user": self.user_norm(data["user"].x),
-            "item": self.item_norm(data["item"].x),
         })
 
         # Message passing

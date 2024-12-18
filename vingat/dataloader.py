@@ -245,7 +245,8 @@ def create_dataloader(
     batch_size,
     shuffle=True,
     neg_sampling_ratio=1.0,
-    num_workers=0
+    num_workers=0,
+    train=True
 ):
     return LinkNeighborLoader(
         data=data,

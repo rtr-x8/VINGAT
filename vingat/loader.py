@@ -112,14 +112,24 @@ def load_recipe_image_vlm_caption_embeddings(
     return df
 
 
+def preprocess_rating_data(data: pd.DataFrame, rating_threshold: float = 3.5):
+    data = data.loc[data["rating"] >= rating_threshold]
+    data["rating"] = 1
+    return data
+
+
 def core_file_loader(
-    directory_path: str
+    directory_path: str,
+    rating_threshold: float = 3.5
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    train = pd.read_csv(f"{directory_path}/core-data-train_rating.csv")
+    test = pd.read_csv(f"{directory_path}/core-data-test_rating.csv")
+    val = pd.read_csv(f"{directory_path}/core-data-val_rating.csv")
     return (
         pd.read_csv(f"{directory_path}/core-data_recipe.csv", index_col=0),
-        pd.read_csv(f"{directory_path}/core-data-train_rating.csv"),
-        pd.read_csv(f"{directory_path}/core-data-test_rating.csv"),
-        pd.read_csv(f"{directory_path}/core-data-valid_rating.csv")
+        preprocess_rating_data(train, rating_threshold),
+        preprocess_rating_data(test, rating_threshold),
+        preprocess_rating_data(val, rating_threshold),
     )
 
 
