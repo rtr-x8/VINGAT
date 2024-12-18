@@ -224,13 +224,13 @@ def train_func(
         b = 0
 
         for batch_data in tqdm(train_loader, desc=f"[Train] Epoch {epoch+1}/{epochs}"):
-            if b == 0:
-                print(epoch, "user dict[:10]", batch_data.x_dict["user"][:10])
-                print(epoch, "item dict[:10]", batch_data.x_dict["item"][:10])
-                print(epoch, "intention dict[:10]", batch_data.x_dict["intention"][:10])
-                print(epoch, "image dict[:10]", batch_data.x_dict["image"][:10])
-                print(epoch, "taste dict[:10]", batch_data.x_dict["taste"][:10])
-                print(epoch, "ingredient dict[:10]", batch_data.x_dict["ingredient"][:10])
+            if b == 0 and False:
+                print(epoch, "user dict[:10]", batch_data.x_dict["user"][:3, :10])
+                print(epoch, "item dict[:3, :10]", batch_data.x_dict["item"][:3, :10])
+                print(epoch, "intention dict[:3, :10]", batch_data.x_dict["intention"][:3, :10])
+                print(epoch, "image dict[:3, :10]", batch_data.x_dict["image"][:3, :10])
+                print(epoch, "taste dict[:3, :10]", batch_data.x_dict["taste"][:3, :10])
+                print(epoch, "ingredient dict[:3, :10]", batch_data.x_dict["ingredient"][:3, :10])
             b += 1
             optimizer.zero_grad()
             batch_data = batch_data.to(device)
