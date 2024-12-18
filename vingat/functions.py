@@ -216,6 +216,7 @@ def train_func(
         avg_loss = total_loss / len(train_loader)
 
         txt = f"Loss: {avg_loss:.4f}, Accuracy: {epoch_accuracy:.4f},"
+        txt = f"{txt}, {scheduler.get_last_lr()}"
         print(f"{epoch+1}/{epochs}", f"{txt} Recall: {epoch_recall:.4f}, F1: {epoch_f1:.4f}")
 
         train_epoch_logger(
@@ -260,29 +261,12 @@ def train_func(
             if val_accuracy > best_val_metric:
                 best_val_metric = val_accuracy    # 最良のバリデーションメトリクスを更新
                 patience_counter = 0    # 改善が見られたためカウンターをリセット
-                best_model_state = copy.deepcopy(model.state_dict())
             else:
                 patience_counter += 1    # 改善がなければカウンターを増やす
 
             # patienceを超えた場合にEarly Stoppingを実行
             if patience_counter >= patience:
                 print(f"エポック{epoch+1}でEarly Stoppingを実行します。")
-                # wandb.alert(
-                #    title="Early Stopped",
-                #    text=f"学習が終了しました。\nプロジェクト名
-                # ：{project_name}\n管理番号：{experiment_name}",
-                #    level=wandb.AlertLevel.ERROR,
-                # )
                 break
-
-    # wandb.alert(
-    #    title="訓練終了",
-    #    text=f"学習が終了しました。\nプロジェクト名：{project_name}\n管理番号：{experiment_name}",
-    #    level=wandb.AlertLevel.ERROR,
-    # )
-
-    if best_model_state is not None:
-        model.load_state_dict(best_model_state)
-        save_model(model, save_dir, "best_model")
 
     return model
