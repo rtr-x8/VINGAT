@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from torch_geometric.nn import HANConv, HGTConv
+from torch_geometric.nn import LGConv, HGTConv
 import torch.nn as nn
 import os
 
@@ -69,11 +69,14 @@ class TasteGNN(nn.Module):
         super().__init__()
         self.act = nn.GELU()
         self.drop = DictDropout(0.4)
+        """
         self.gnn = HANConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
             metadata=(self.NODES, self.EDGES)
         )
+        """
+        self.gnn = LGConv()
 
     def forward(self, x_dict, edge_index_dict):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
@@ -81,7 +84,6 @@ class TasteGNN(nn.Module):
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.gnn(x_dict, edge_index_dict)
 
-        # ingredient側はNoneで返却される
         return {
             "taste": self.act(out["taste"])
             # "taste": out["taste"]
