@@ -140,6 +140,7 @@ class RecommendationModel(nn.Module):
 
         self.nutrient_projection = nn.Sequential(
             nn.Linear(nutrient_dim, hidden_dim),
+            nn.Dropout(dropout_rate),
             nn.GELU(),
         )
         self.projection = nn.ModuleDict({
