@@ -126,9 +126,9 @@ def core_file_loader(
     val = pd.read_csv(f"{directory_path}/core-data-valid_rating.csv")
     return (
         pd.read_csv(f"{directory_path}/core-data_recipe.csv", index_col=0),
-        train,  # preprocess_rating_data(train, rating_threshold),
-        test,  # preprocess_rating_data(test, rating_threshold),
-        val,  # preprocess_rating_data(val, rating_threshold),
+        preprocess_rating_data(train, rating_threshold),
+        preprocess_rating_data(test, rating_threshold),
+        preprocess_rating_data(val, rating_threshold),
     )
 
 
