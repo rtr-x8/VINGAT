@@ -208,13 +208,14 @@ def train_func(
 ):
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
     model.to(device)
+    model.train()
     best_val_metric = 0    # 現時点での最良のバリデーションメトリクスを初期化
     patience_counter = 0    # Early Stoppingのカウンターを初期化
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
     for epoch in range(epochs):
-        model.train()
+
         total_loss = 0
         all_preds = []
         all_labels = []
@@ -226,6 +227,7 @@ def train_func(
             batch_data = batch_data.to(device)
 
             # モデルのフォワードパス
+            print("1 expect training", model.training)
             out, cl_loss = model(batch_data)
 
             # エッジのラベルとエッジインデックスを取得
@@ -289,9 +291,12 @@ def train_func(
             step=epoch+1
         )
 
+        print("2 expect training", model.training)
+
         # Valid
         if (epoch + 1) % validation_interval == 0:
             model.eval()
+            print("3 expect evaluating", ~model.training)
             k = 10
             val_precision, val_recall, val_ndcg, val_accuracy, val_f1, val_auc = evaluate_model(
                 model, val, device, k=k, desc=f"[Valid] Epoch {epoch+1}/{epochs}")
@@ -314,6 +319,8 @@ def train_func(
                 }
             )
 
+            print("3 expect evaluating", ~model.training)
+
             save_model(model, save_dir, f"model_{epoch+1}")
 
             # Early Stoppingの判定（バリデーションの精度または他のメトリクスで判定）
@@ -327,5 +334,7 @@ def train_func(
             if patience_counter >= patience:
                 print(f"エポック{epoch+1}でEarly Stoppingを実行します。")
                 break
+
+            print("3 expect evaluating", ~model.training)
 
     return model
