@@ -389,22 +389,24 @@ def add_edge(
     pos_data = rating.loc[rating["interaction"] == 1]
     neg_data = rating.loc[rating["interaction"] == 0]
 
+    assert len(pos_data) + len(neg_data) == len(rating)
+
     # edge
-    pos_edge_user_user_recipe = torch.tensor([
+    pos_edge_user_recipe = torch.tensor([
         user_lencoder.transform(pos_data["user_id"]),
         item_lencoder.transform(pos_data["recipe_id"])
     ], dtype=torch.long)
-    neg_edge_user_user_recipe = torch.tensor([
+    neg_edge_user_recipe = torch.tensor([
         user_lencoder.transform(neg_data["user_id"]),
         item_lencoder.transform(neg_data["recipe_id"])
     ], dtype=torch.long)
     edge_index_user_recipe = torch.cat([
-        pos_edge_user_user_recipe,
-        neg_edge_user_user_recipe
+        pos_edge_user_recipe,
+        neg_edge_user_recipe
     ], dim=1)
     edge_label_user_recipe = torch.cat([
-        torch.ones(pos_edge_user_user_recipe.shape[1], dtype=torch.long),
-        torch.zeros(neg_edge_user_user_recipe.shape[1], dtype=torch.long)
+        torch.ones(pos_edge_user_recipe.shape[1], dtype=torch.long),
+        torch.zeros(neg_edge_user_recipe.shape[1], dtype=torch.long)
     ], dim=0)
 
     data["user", "buys", "item"].edge_index = edge_index_user_recipe
