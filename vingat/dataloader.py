@@ -389,6 +389,9 @@ def add_edge(
     pos_data = rating.loc[rating["interaction"] == 1]
     neg_data = rating.loc[rating["interaction"] == 0]
 
+    # ネガティブは削除してしまう
+    neg_data = pd.DataFrame([], columns=neg_data.columns)
+
     pos_l, ng_l, r_l = len(pos_data), len(neg_data), len(rating)
     assert pos_l + ng_l == r_l, f"pos: {pos_l}, ng: {ng_l}, org: {r_l}"
 
