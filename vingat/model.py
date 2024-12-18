@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from torch_geometric.nn import HANConv, HGTConv, Sequential as GSequential
+from torch_geometric.nn import HANConv, HGTConv
 import torch.nn as nn
 import os
 

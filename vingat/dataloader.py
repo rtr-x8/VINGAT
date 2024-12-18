@@ -273,6 +273,16 @@ def create_dataloader(
     )
 
 
+def nodeFeatureNormalize(x_dict):
+    for key, x in x_dict.items():
+        min_val = torch.min(x, dim=0).values
+        max_val = torch.max(x, dim=0).values
+        denom = max_val - min_val
+        denom[denom == 0] = 1  # Prevent division by zero
+        x_dict.update(key, (x - min_val) / denom)
+    return x_dict
+
+
 def create_base_hetero(
     core_train_rating: pd.DataFrame,
     core_test_rating: pd.DataFrame,
@@ -364,6 +374,7 @@ def create_base_hetero(
     data["taste", "associated_with", "item"].edge_index = ei_attr_item.detach().clone()
     data["item", "has_taste", "taste"].edge_index = ei_attr_item.detach().clone().flip(0)
 
+    data.x_dict = nodeFeatureNormalize(data.x_dict)
     data.to(device=device)
 
     return data, user_lencoder, item_lencoder, ing_lencoder
