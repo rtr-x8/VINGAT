@@ -380,24 +380,34 @@ def add_edge(
 ) -> HeteroData:
 
     # 環境ごとのデータ
-    user_recipe_set = rating[["user_id", "recipe_id"]]
     ing_item = recipe_ingredients.loc[
-        recipe_ingredients["recipe_id"].isin(user_recipe_set["recipe_id"])
+        recipe_ingredients["recipe_id"].isin(rating["recipe_id"])
     ]
 
     data = copy.deepcopy(hetero)
 
+    pos_data = rating.loc[rating["rating"] == 1]
+    neg_data = rating.loc[rating["rating"] == 0]
+
     # edge
-    edge_index_user_recipe = torch.tensor([
-        user_lencoder.transform(rating["user_id"].values),
-        item_lencoder.transform(rating["recipe_id"].values)
+    pos_edge_user_user_recipe = torch.tensor([
+        user_lencoder.transform(pos_data["user_id"]),
+        item_lencoder.transform(pos_data["recipe_id"])
     ], dtype=torch.long)
+    neg_edge_user_user_recipe = torch.tensor([
+        user_lencoder.transform(neg_data["user_id"]),
+        item_lencoder.transform(neg_data["recipe_id"])
+    ], dtype=torch.long)
+    edge_index_user_recipe = torch.cat([pos_edge_user_user_recipe, neg_edge_user_user_recipe], dim=1)
+    edge_label_user_recipe = torch.cat([
+        torch.ones(pos_edge_user_user_recipe.shape[1], dtype=torch.long),
+        torch.zeros(neg_edge_user_user_recipe.shape[1], dtype=torch.long)
+    ], dim=0)
+
     data["user", "buys", "item"].edge_index = edge_index_user_recipe
     data["item", "bought_by", "user"].edge_index = edge_index_user_recipe.detach().clone().flip(0)
-    data['user', 'buys', 'item'].edge_label = torch.ones(
-        edge_index_user_recipe.shape[1],
-        dtype=torch.long)
-    data["user", "buys", "item"].edge_label_index = edge_index_user_recipe.clone().detach()
+    data['user', 'buys', 'item'].edge_label = edge_label_user_recipe
+    data["user", "buys", "item"].edge_label_index = edge_label_user_recipe.clone().detach()
 
     ei_ing_item = torch.tensor([
         ing_lencoder.transform(ing_item["ingredient_id"].values),
