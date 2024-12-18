@@ -386,8 +386,8 @@ def add_edge(
 
     data = copy.deepcopy(hetero)
 
-    pos_data = rating.loc[rating["rating"] == 1]
-    neg_data = rating.loc[rating["rating"] == 0]
+    pos_data = rating.loc[rating["interaction"] == 1]
+    neg_data = rating.loc[rating["interaction"] == 0]
 
     # edge
     pos_edge_user_user_recipe = torch.tensor([
@@ -410,7 +410,7 @@ def add_edge(
     data["user", "buys", "item"].edge_index = edge_index_user_recipe
     data["item", "bought_by", "user"].edge_index = edge_index_user_recipe.detach().clone().flip(0)
     data['user', 'buys', 'item'].edge_label = edge_label_user_recipe
-    data["user", "buys", "item"].edge_label_index = edge_label_user_recipe.clone().detach()
+    data["user", "buys", "item"].edge_label_index = edge_label_user_recipe.detach().clone()
 
     ei_ing_item = torch.tensor([
         ing_lencoder.transform(ing_item["ingredient_id"].values),
