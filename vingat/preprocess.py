@@ -86,4 +86,3 @@ class ImagePreprocess(BasePreprocess):
 
     def transform(self, x: torch.Tensor):
         return self.scaler.transform(x)
-
