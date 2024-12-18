@@ -168,8 +168,7 @@ class RecommendationModel(nn.Module):
             gnn = MultiModalFusionGAT(
                 hidden_dim=hidden_dim,
                 num_heads=num_heads,
-                dropout_rate=dropout_rate,
-                num_heads=num_heads
+                dropout_rate=dropout_rate
             )
             self.fusion_gnn.append(gnn)
 
