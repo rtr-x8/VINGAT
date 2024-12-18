@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from torch_geometric.nn import LGConv, HGTConv, Sequential as GSequential
+from torch_geometric.nn import LGConv, HGTConv
 import torch.nn as nn
 import os
 
@@ -140,10 +140,7 @@ class RecommendationModel(nn.Module):
         # MultiModal Fusion GNN layers
         self.fusion_gnn = nn.ModuleList()
         for _ in range(fusion_layers):
-            gnn = GSequential(
-                "x, edge_index, batch",
-                MultiModalFusionGAT(hidden_dim, num_heads),
-            )
+            gnn = MultiModalFusionGAT(hidden_dim, num_heads)
             self.fusion_gnn.append(gnn)
 
         self.link_predictor = nn.Sequential(
