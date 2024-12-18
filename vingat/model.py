@@ -179,6 +179,8 @@ class RecommendationModel(nn.Module):
         return data
 
     def predict(self, user_nodes, recipe_nodes):
+        # 内積計算は性能上がらないので、GNNの出力を連結してMLPに入力する
+        # もしくは内積計算は出力形式が今と異なるかもしれない
         # return (user_nodes * recipe_nodes).sum(dim=1)
         edge_features = torch.cat([user_nodes, recipe_nodes], dim=1)
         return self.link_predictor(edge_features)
