@@ -86,9 +86,10 @@ class RecommendationModel(nn.Module):
         self,
         hidden_dim,
         multi_head,
+        device,
         sencing_layers=3,
         fusion_layers=3,
-        intention_layers = 3
+        intention_layers=3,
     ):
         super().__init__()
 
