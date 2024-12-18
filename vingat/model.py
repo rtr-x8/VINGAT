@@ -125,12 +125,12 @@ class RecommendationModel(nn.Module):
 
         self.nutrient_projection = nn.Sequential(
             nn.Linear(nutrient_dim, hidden_dim),
-            nn.ReLU(),
+            nn.GELU(),
         )
         self.projection = nn.ModuleDict({
             node: nn.Sequential(
                 nn.Linear(hidden_dim, hidden_dim),
-                nn.ReLU(),
+                nn.GELU(),
                 nn.BatchNorm1d(hidden_dim),
             ) for node in self.NODES
         })
