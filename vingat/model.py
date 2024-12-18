@@ -52,7 +52,9 @@ class TasteGNN(nn.Module):
         taste_edge_index = edge_index_dict[('taste', 'contains', 'ingredient')]
 
         # LGConvの適用
-        return self.gnn(taste_x, taste_edge_index)
+        return {
+            "taste": self.gnn(taste_x, taste_edge_index)
+        }
 
 
 class MultiModalFusionGAT(nn.Module):
