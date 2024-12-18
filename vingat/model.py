@@ -115,10 +115,15 @@ class RecommendationModel(nn.Module):
         self.device = device
         self.hidden_dim = hidden_dim
 
-        self.nutrient_projection = nn.Linear(nutrient_dim, hidden_dim).relu()
+        self.nutrient_projection = nn.Sequential(
+            nn.Linear(nutrient_dim, hidden_dim),
+            nn.ReLU(),
+        )
         self.projection = nn.ModuleDict({
-            node: nn.Linear(hidden_dim, hidden_dim).relu()
-            for node in self.NODES
+            node: nn.Sequential(
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.ReLU(),
+            ) for node in self.NODES
         })
 
         # Contrastive caption and nutrient
