@@ -113,8 +113,7 @@ def load_recipe_image_vlm_caption_embeddings(
 
 
 def preprocess_rating_data(data: pd.DataFrame, rating_threshold: float = 3.5):
-    # data = data.loc[data["rating"] >= rating_threshold]
-    data["rating"] = data["rating"].apply(lambda x: 1 if x > rating_threshold else 0)
+    data["interaction"] = data["rating"].apply(lambda x: 1 if x > rating_threshold else 0)
     return data
 
 
