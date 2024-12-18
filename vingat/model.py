@@ -39,12 +39,24 @@ class ContrastiveLearning(nn.Module):
         return z1, z2, loss
 
 
+class DictActivate(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.act = nn.ReLU()
+
+    def forward(self, x_dict):
+        return {
+            k: self.act(v) for k, v in x_dict.items()
+        }
+
+
 class TasteGNN(nn.Module):
     NODES = ['ingredient', 'taste']
     EDGES = [('ingredient', 'part_of', 'taste')]
 
     def __init__(self, hidden_dim):
         super().__init__()
+        self.act = nn.ReLU()
         self.gnn = HANConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
@@ -58,25 +70,8 @@ class TasteGNN(nn.Module):
 
         # ingredient側はNoneで返却される
         return {
+            # "taste": self.act(out["taste"])
             "taste": out["taste"]
-        }
-
-        """ 
-        taste_x = x_dict['taste']
-        taste_edge_index = edge_index_dict[('taste', 'contains', 'ingredient')]
-        # LGConvの適用
-        return self.gnn(taste_x, taste_edge_index)
-        """
-
-class DictActivate(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.act = nn.ReLU()
-
-    def forward(self, x_dict):
-        print([(k, type(v)) for k,v in x_dict.items()])
-        return {
-            k: self.act(v) for k, v in x_dict.items()
         }
 
 
@@ -90,6 +85,7 @@ class MultiModalFusionGAT(nn.Module):
 
     def __init__(self, hidden_dim, num_heads=2):
         super().__init__()
+        self.act = DictActivate()
         self.gnn = HGTConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
@@ -100,7 +96,9 @@ class MultiModalFusionGAT(nn.Module):
     def forward(self, x_dict, edge_index_dict):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
-        return self.gnn(x_dict, edge_index_dict)
+        out = self.gnn(x_dict, edge_index_dict)
+        # return self.act(out)
+        return out
 
 
 class RecommendationModel(nn.Module):
@@ -143,19 +141,13 @@ class RecommendationModel(nn.Module):
         # Sensing GNN layers
         self.sensing_gnn = nn.ModuleList()
         for _ in range(sencing_layers):
-            gnn = GSequential("x_dict, edge_index_dict", [
-                (TasteGNN(hidden_dim), "x_dict, edge_index_dict -> x_dict"),
-                (DictActivate(), "x_dict -> x_dict"),
-            ])
+            gnn = TasteGNN(hidden_dim)
             self.sensing_gnn.append(gnn)
 
         # MultiModal Fusion GNN layers
         self.fusion_gnn = nn.ModuleList()
         for _ in range(fusion_layers):
-            gnn = GSequential("x_dict, edge_index_dict", [
-                (MultiModalFusionGAT(hidden_dim, num_heads), "x_dict, edge_index_dict -> x_dict"),
-                (DictActivate(), "x_dict -> x_dict"),
-            ])
+            gnn = MultiModalFusionGAT(hidden_dim, num_heads)
             self.fusion_gnn.append(gnn)
 
         self.link_predictor = nn.Sequential(
@@ -163,7 +155,8 @@ class RecommendationModel(nn.Module):
             nn.BatchNorm1d(hidden_dim),
             nn.GELU(),
             nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dim, 1)
+            nn.Linear(hidden_dim, 1),
+            nn.Sigmoid(),
         )
 
     def forward(self, data):
