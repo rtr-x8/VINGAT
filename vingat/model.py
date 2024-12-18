@@ -148,7 +148,7 @@ class RecommendationModel(nn.Module):
         for gnn in self.fusion_gnn:
             data.x_dict.update(gnn(data.x_dict, data.edge_index_dict))
 
-        return data, cl_loss
+        return data
 
     def predict(self, user_nodes, recipe_nodes):
         threshold = 0

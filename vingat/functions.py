@@ -88,7 +88,7 @@ def evaluate_model(
 
     with torch.no_grad():
         data = data.to(device)
-        out, cl_loss = model(data)
+        out = model(data)
 
         # 評価用のエッジラベルとエッジインデックスを取得
         edge_label_index = data['user', 'buys', 'item'].edge_label_index
@@ -228,7 +228,7 @@ def train_func(
             # モデルのフォワードパス
             if not model.training:
                 print("1 it is not training", model.training)
-            out, cl_loss = model(batch_data)
+            out = model(batch_data)
 
             # エッジのラベルとエッジインデックスを取得
             # edge_label = batch_data['user', 'buys', 'item'].edge_label
