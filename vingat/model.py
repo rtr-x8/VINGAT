@@ -65,10 +65,10 @@ class TasteGNN(nn.Module):
     NODES = ['ingredient', 'taste']
     EDGES = [('ingredient', 'part_of', 'taste')]
 
-    def __init__(self, hidden_dim):
+    def __init__(self, hidden_dim, dropout_rate):
         super().__init__()
         self.act = nn.GELU()
-        self.drop = DictDropout(0.4)
+        self.drop = DictDropout(dropout_rate)
         """
         self.gnn = HANConv(
             in_channels=hidden_dim,
@@ -98,10 +98,10 @@ class MultiModalFusionGAT(nn.Module):
              ('user', 'buys', 'item'),
              ('item', 'bought_by', 'user')]
 
-    def __init__(self, hidden_dim, num_heads=2):
+    def __init__(self, hidden_dim, dropout_rate, num_heads=2):
         super().__init__()
         self.act = DictActivate()
-        self.drop = DictDropout(0.4)
+        self.drop = DictDropout(dropout_rate)
         self.gnn = HGTConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
@@ -159,13 +159,18 @@ class RecommendationModel(nn.Module):
         # Sensing GNN layers
         self.sensing_gnn = nn.ModuleList()
         for _ in range(sencing_layers):
-            gnn = TasteGNN(hidden_dim)
+            gnn = TasteGNN(hidden_dim=hidden_dim, dropout_rate=dropout_rate)
             self.sensing_gnn.append(gnn)
 
         # MultiModal Fusion GNN layers
         self.fusion_gnn = nn.ModuleList()
         for _ in range(fusion_layers):
-            gnn = MultiModalFusionGAT(hidden_dim, num_heads)
+            gnn = MultiModalFusionGAT(
+                hidden_dim=hidden_dim,
+                num_heads=num_heads,
+                dropout_rate=dropout_rate,
+                num_heads=num_heads
+            )
             self.fusion_gnn.append(gnn)
 
         self.link_predictor = nn.Sequential(
