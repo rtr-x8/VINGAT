@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch_geometric.data import HeteroData
 from tqdm.notebook import tqdm
-from sklearn.metrics import accuracy_score, recall_score, f1_score
+from sklearn.metrics import accuracy_score, recall_score, f1_score, precision_score
 import os
 import numpy as np
 from torch_geometric.utils import negative_sampling
@@ -253,6 +253,7 @@ def train_func(
         epoch_accuracy = accuracy_score(all_labels, all_preds)
         epoch_recall = recall_score(all_labels, all_preds)
         epoch_f1 = f1_score(all_labels, all_preds)
+        epoch_pre = precision_score(all_labels, all_preds)
         avg_loss = total_loss / len(train_loader)
 
         txt = f"Loss: {avg_loss:.4f}, Accuracy: {epoch_accuracy:.4f},"
@@ -265,6 +266,7 @@ def train_func(
                 "train/aveg_loss": aveg_loss,
                 "train/accuracy": epoch_accuracy,
                 "train/recall": epoch_recall,
+                "train/precision": epoch_pre,
                 "train/f1": epoch_f1,
             },
             step=epoch+1
