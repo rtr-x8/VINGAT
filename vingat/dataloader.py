@@ -7,7 +7,7 @@ from vingat.loader import use_nutritions
 import pandas as pd
 from torch_geometric.loader import LinkNeighborLoader
 from vingat.encoder import StaticEmbeddingLoader
-from typing import Tuple
+from typing import Tuple, Optional
 from torch.nn import init
 import copy
 import math
@@ -390,7 +390,7 @@ def mask_hetero(
     item_lencoder: LabelEncoder,
     ing_lencoder: LabelEncoder,
     is_train: bool,
-    scalar_preprocess: ScalarPreprocess = None,
+    scalar_preprocess: Optional[ScalarPreprocess] = None,
 ) -> Tuple[HeteroData, ScalarPreprocess]:
 
     # 環境ごとのデータ
