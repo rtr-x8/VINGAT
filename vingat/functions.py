@@ -11,6 +11,7 @@ from vingat.metrics import ndcg_at_k
 from typing import Callable
 import pandas as pd
 from .visualizer import visualize_node_pca
+from torch_geometric.data import Batch
 
 
 def evaluate_model(
@@ -195,7 +196,9 @@ def train_func(
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
-    visualize_node_pca(train_loader.dataset, ["user", "item", "intention", "taste"], "before")
+    full_batch = Batch.from_data_list(train_loader.dataset)
+    pca_cols = ["user", "item", "intent", "taste", "image"]
+    visualize_node_pca(full_batch, pca_cols, "before_training", sample_size=2000)
 
     for epoch in range(epochs):
         total_loss = 0
@@ -323,5 +326,7 @@ def train_func(
 
         scheduler.step()
 
-    visualize_node_pca(train_loader.dataset, ["user", "item", "intention", "taste"], "after")
+    full_batch = Batch.from_data_list(train_loader.dataset)
+    visualize_node_pca(full_batch, pca_cols, "after_training")
+
     return model
