@@ -144,6 +144,7 @@ class RecommendationModel(nn.Module):
         # self.ing_to_recipe = TasteGNN(hidden_dim)
 
         # HANConv layers
+        """一旦コメントアウト
         self.fusion_gnn = nn.ModuleList()
         for _ in range(fusion_layers):
             gnn = MultiModalFusionGAT(
@@ -152,6 +153,7 @@ class RecommendationModel(nn.Module):
                 dropout_rate=dropout_rate
             )
             self.fusion_gnn.append(gnn)
+        """
 
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
@@ -192,8 +194,10 @@ class RecommendationModel(nn.Module):
         #     "taste": self.ing_to_recipe(data.x_dict, data.edge_index_dict)
         # })
 
+        """一旦コメントアウト
         for gnn in self.fusion_gnn:
             data.x_dict.update(gnn(data.x_dict, data.edge_index_dict))
+        """
 
         return data, cl_loss
 
