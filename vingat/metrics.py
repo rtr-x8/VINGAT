@@ -8,5 +8,3 @@ def ndcg_at_k(r: np.ndarray, k: int):
         idcg = np.sum(np.ones_like(r) / np.log2(np.arange(2, r.size + 2)))
         return dcg / idcg
     return 0.
-
-
