@@ -67,7 +67,7 @@ class TasteGNN(nn.Module):
 
     def __init__(self, hidden_dim, dropout_rate):
         super().__init__()
-        self.act = nn.GELU()
+        # self.act = nn.GELU()
         self.drop = DictDropout(dropout_rate)
         """
         self.gnn = HANConv(
@@ -85,7 +85,8 @@ class TasteGNN(nn.Module):
         out = self.gnn(x_dict['taste'], edge_index_dict[('ingredient', 'part_of', 'taste')])
 
         return {
-            "taste": self.act(out)
+            # "taste": self.act(out)
+            "taste": out
         }
 
 
@@ -99,7 +100,7 @@ class MultiModalFusionGAT(nn.Module):
 
     def __init__(self, hidden_dim, dropout_rate, num_heads=2):
         super().__init__()
-        self.act = DictActivate()
+        # self.act = DictActivate()
         self.drop = DictDropout(dropout_rate)
         self.gnn = HGTConv(
             in_channels=hidden_dim,
@@ -113,8 +114,8 @@ class MultiModalFusionGAT(nn.Module):
         x_dict = self.drop(x_dict)
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.gnn(x_dict, edge_index_dict)
-        return self.act(out)
-        # return out
+        # return self.act(out)
+        return out
 
 
 class RecommendationModel(nn.Module):
@@ -148,7 +149,7 @@ class RecommendationModel(nn.Module):
             node: nn.Sequential(
                 nn.Linear(hidden_dim, hidden_dim),
                 nn.GELU(),
-                nn.BatchNorm1d(hidden_dim),
+                #nn.BatchNorm1d(hidden_dim),
             ) for node in self.NODES
         })
 
