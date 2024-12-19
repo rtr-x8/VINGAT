@@ -131,6 +131,37 @@ def save_model(model: nn.Module,  save_directory: str, filename: str):
     torch.save(model.state_dict(), f"{save_directory}/{filename}.pth")
 
 
+def calculate_statistics(data):
+    """
+    与えられた形式のデータを、項目ごとに最小、最大、平均、標準偏差を出算したDataFrameに変換する関数
+
+    Args:
+        data (list): 辞書のリスト形式のデータ
+
+    Returns:
+        pandas.DataFrame: 統計量をまとめたDataFrame
+    """
+
+    # 項目名を取得
+    items = list(data[0].keys())
+
+    # 統計量を格納する辞書
+    statistics = {}
+    for item in items:
+        values = [d[item] for d in data]
+        statistics[item] = {
+            'min': np.min(values),
+            'max': np.max(values),
+            'mean': np.mean(values),
+            'std': np.std(values),
+        }
+
+    # DataFrameに変換
+    df = pd.DataFrame(statistics).T
+
+    return df
+
+
 def train_func(
     train_loader,
     val,
@@ -215,7 +246,8 @@ def train_func(
                 for key, val in out.x_dict.items()
             })
 
-        print(node_mean)
+        df = calculate_statistics(node_mean)
+        print(df)
 
         aveg_loss = total_loss / len(train_loader)
         epoch_accuracy = accuracy_score(all_labels, all_preds)
