@@ -151,6 +151,23 @@ class MultiModalFusionGAT(nn.Module):
         return out
 
 
+def print_layer_outputs(model, input_data, max_elements=10, prefix = ""):
+    """
+    モデルの各層の出力を表示する関数
+
+    Args:
+        model: モデル
+        input_data: モデルへの入力データ
+        max_elements: 表示する要素数の上限
+    """
+    for i, layer in enumerate(model.children()):
+        input_data = layer(input_data)
+        print(f"{prefix} Layer {i}: {layer.__class__.__name__}")
+        # 出力の一部を表示 (最大 max_elements 個)
+        print(input_data[:max_elements])
+        print("-" * 20)
+
+
 class RecommendationModel(nn.Module):
     def __init__(
         self,
@@ -205,13 +222,10 @@ class RecommendationModel(nn.Module):
         self.link_predictor = nn.Sequential(
             nn.Linear(hidden_dim + hidden_dim, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
-            nn.GELU(),
-            nn.Dropout(dropout_rate),
+            nn.ReLU(),
             nn.Linear(hidden_dim, 1),
             nn.Sigmoid()
         )
-
-        self.end_norm = DictBatchNorm(hidden_dim)
 
     def forward(self, data):
         data.x_dict.update(self.start_norm(data.x_dict))
@@ -235,8 +249,6 @@ class RecommendationModel(nn.Module):
             data.x_dict.update(gnn(data.x_dict, data.edge_index_dict))
         data.x_dict.update(self.fusion_dropout(data.x_dict))
 
-        data.x_dict.update(self.end_norm(data.x_dict))
-
         return data, cl_loss
 
     def predict(self, user_nodes, recipe_nodes):
@@ -244,4 +256,5 @@ class RecommendationModel(nn.Module):
         user_nodes = F.normalize(user_nodes, p=2, dim=1)
         recipe_nodes = F.normalize(recipe_nodes, p=2, dim=1)
         edge_features = torch.cat([user_nodes, recipe_nodes], dim=1)
+        # print_layer_outputs(self.link_predictor, edge_features)
         return self.link_predictor(edge_features)
