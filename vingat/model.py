@@ -138,7 +138,7 @@ class RecommendationModel(nn.Module):
         # Contrastive caption and nutrient
         self.cl_with_caption_and_nutrient = nn.ModuleList()
         for _ in range(intention_layers):
-            cl = ContrastiveLearning(hidden_dim, hidden_dim, temperature)
+            cl = ContrastiveLearning(nutrient_dim, hidden_dim, temperature)
             self.cl_with_caption_and_nutrient.append(cl)
 
         # Fusion of ingredient and recipe
