@@ -374,7 +374,7 @@ def create_base_hetero(
     data["taste", "associated_with", "item"].edge_index = ei_attr_item.detach().clone()
     data["item", "has_taste", "taste"].edge_index = ei_attr_item.detach().clone().flip(0)
 
-    data.x_dict = nodeFeatureNormalize(data.x_dict)
+    # data.x_dict = nodeFeatureNormalize(data.x_dict)
     data.to(device=device)
 
     return data, user_lencoder, item_lencoder, ing_lencoder
