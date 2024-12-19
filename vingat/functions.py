@@ -2,13 +2,14 @@ import torch
 import torch.nn as nn
 from torch_geometric.data import HeteroData
 from tqdm.notebook import tqdm
-from sklearn.metrics import accuracy_score, recall_score, f1_score
+from sklearn.metrics import accuracy_score, recall_score, f1_score, precision_score
 import os
 import numpy as np
 from torch_geometric.utils import negative_sampling
 from sklearn.metrics import roc_auc_score
 from vingat.metrics import ndcg_at_k
 from typing import Callable
+import pandas as pd
 
 
 def evaluate_model(
@@ -64,6 +65,11 @@ def evaluate_model(
                 num_neg_samples=num_neg_samples,
                 force_undirected=False
             )
+
+            if user_id in [16,  32,  39, 268, 338, 521, 604, 651, 814, 935]:
+                print("Neg", user_id, negative_edge_index)
+                print("Pos", user_id, user_edge_label_index)
+                print("pos len", num_pos_samples, "neg len", num_neg_samples)
 
             # 負例のインデックスを取得
             user_neg_indices = negative_edge_index[1]
@@ -129,6 +135,37 @@ def evaluate_model(
 def save_model(model: nn.Module,  save_directory: str, filename: str):
     os.makedirs(save_directory, exist_ok=True)
     torch.save(model.state_dict(), f"{save_directory}/{filename}.pth")
+
+
+def calculate_statistics(data):
+    """
+    与えられた形式のデータを、項目ごとに最小、最大、平均、標準偏差を出算したDataFrameに変換する関数
+
+    Args:
+        data (list): 辞書のリスト形式のデータ
+
+    Returns:
+        pandas.DataFrame: 統計量をまとめたDataFrame
+    """
+
+    # 項目名を取得
+    items = list(data[0].keys())
+
+    # 統計量を格納する辞書
+    statistics = {}
+    for item in items:
+        values = [d[item] for d in data]
+        statistics[item] = {
+            'min': np.min(values),
+            'max': np.max(values),
+            'mean': np.mean(values),
+            'std': np.std(values),
+        }
+
+    # DataFrameに変換
+    df = pd.DataFrame(statistics).T
+
+    return df
 
 
 def train_func(
@@ -215,12 +252,14 @@ def train_func(
                 for key, val in out.x_dict.items()
             })
 
-        print(node_mean)
+        df = calculate_statistics(node_mean)
+        print(df)
 
         aveg_loss = total_loss / len(train_loader)
         epoch_accuracy = accuracy_score(all_labels, all_preds)
         epoch_recall = recall_score(all_labels, all_preds)
         epoch_f1 = f1_score(all_labels, all_preds)
+        epoch_pre = precision_score(all_labels, all_preds)
         avg_loss = total_loss / len(train_loader)
 
         txt = f"Loss: {avg_loss:.4f}, Accuracy: {epoch_accuracy:.4f},"
@@ -233,6 +272,7 @@ def train_func(
                 "train/aveg_loss": aveg_loss,
                 "train/accuracy": epoch_accuracy,
                 "train/recall": epoch_recall,
+                "train/precision": epoch_pre,
                 "train/f1": epoch_f1,
             },
             step=epoch+1
