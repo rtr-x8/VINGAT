@@ -39,7 +39,7 @@ class TasteGNN(nn.Module):
         ('taste', 'contains', 'ingredient')
     ]
 
-    def __init__(self, hidden_dim, drop_rate):
+    def __init__(self, hidden_dim, dropout_rate):
         super().__init__()
         self.drop = DictDropout(dropout_rate)
         self.act = DictActivate()
