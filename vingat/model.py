@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
-from torch_geometric.nn import BatchNorm, LGConv, HGTConv
+from torch_geometric.nn import LGConv, HGTConv
+from torch_geometric.nn.norm import BatchNorm
 import torch.nn as nn
 import os
 
@@ -97,7 +98,10 @@ class MultiModalFusionGAT(nn.Module):
              ('intention', 'associated_with', 'item'),
              ('image', 'associated_with', 'item'),
              ('user', 'buys', 'item'),
-             ('item', 'bought_by', 'user')]
+             ('item', 'bought_by', 'user'),
+             ('item', 'has_image', 'image'),
+             ('item', 'has_intention', 'intention'),
+             ('item', 'has_taste', 'taste')]
 
     def __init__(self, hidden_dim, num_heads, dropout_rate):
         super().__init__()
@@ -184,8 +188,8 @@ class RecommendationModel(nn.Module):
         #     "intention": cl_caption_x,
         # })
         data.x_dict.update({
-            "user": self.user_norm(data["user"].x),
-            "item": self.item_norm(data["item"].x),
+            "user": self.user_norm(data.x_dict.get("user")),
+            "item": self.item_norm(data.x_dict.get("item")),
         })
 
         # Message passing
