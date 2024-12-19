@@ -259,9 +259,9 @@ def train_func(
                 key: val.mean().mean().item()
                 for key, val in out.x_dict.items()
             })
-        print(bpr_loss)
-        print(cl_loss, loss)
-        print(rated_bpr_loss, rated_cl_loss)
+        print("bpr_loss: ", bpr_loss)
+        print("cl_loss: ", cl_loss, ", loss: ", loss)
+        print("rated_bpr_loss: ", rated_bpr_loss, ", rated_cl_loss: ", rated_cl_loss)
 
         df = calculate_statistics(node_mean)
         print(df)
