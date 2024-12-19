@@ -299,7 +299,6 @@ def create_base_hetero(
     hidden_dim: int
 ) -> Tuple[HeteroData, LabelEncoder, LabelEncoder, LabelEncoder]:
 
-
     # 全データ
     all_user_ids = pd.concat([
         core_train_rating["user_id"],
