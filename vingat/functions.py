@@ -31,7 +31,7 @@ def evaluate_model(
 
     with torch.no_grad():
         data = data.to(device)
-        out = model(data)
+        out, _ = model(data)
 
         # 評価用のエッジラベルとエッジインデックスを取得
         edge_label_index = data['user', 'buys', 'item'].edge_label_index
@@ -208,7 +208,7 @@ def train_func(
             batch_data = batch_data.to(device)
 
             # モデルのフォワードパス
-            out = model(batch_data)
+            out, cl_loss = model(batch_data)
 
             # エッジのラベルとエッジインデックスを取得
             # edge_label = batch_data['user', 'buys', 'item'].edge_label
@@ -238,7 +238,7 @@ def train_func(
 
             # 損失の計算
             loss = criterion(pos_scores, neg_scores, model.parameters())
-
+            loss += cl_loss
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             optimizer.step()
