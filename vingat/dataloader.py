@@ -1,7 +1,6 @@
 from torch_geometric.data import HeteroData
 from sklearn.preprocessing import LabelEncoder
 import torch
-from enum import Enum
 import numpy as np
 from vingat.loader import use_nutritions
 import pandas as pd
