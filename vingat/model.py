@@ -6,13 +6,30 @@ import torch.nn as nn
 import os
 
 
+class RepeatTensor(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, tensor, output_dim):
+        input_dim = tensor.size(1)
+        if input_dim > output_dim:
+            raise ValueError("input_dim が output_dim を超えることはできません。")
+
+        # 必要な繰り返し回数を計算
+        repeat_count = (output_dim + input_dim - 1) // input_dim  # 切り上げ
+        # 自身を繰り返し結合して次元を増加
+        repeated_tensor = tensor.repeat(1, repeat_count)
+        # 必要な次元数にトリム
+        return repeated_tensor[:, :output_dim]
+
+
 # 栄養素情報によって強化された、選択理由テキスト
 # 選択理由によって強化された栄養素情報
 class ContrastiveLearning(nn.Module):
-    def __init__(self, input_dim, output_dim, temperature):
+    def __init__(self, output_dim, temperature):
         super().__init__()
         self.temperature = temperature
-        self.nutrient_encoder = nn.Linear(input_dim, output_dim)
+        self.nutrient_encoder = RepeatTensor()
         self.caption_encoder = nn.Linear(output_dim, output_dim)
 
     def info_nce_loss(self, text_emb, nut_emb):
@@ -26,7 +43,7 @@ class ContrastiveLearning(nn.Module):
         return loss
 
     def forward(self, text_emb, nut_emb):
-        updated_nut = self.nutrient_encoder(nut_emb)
+        updated_nut = self.nutrient_encoder(nut_emb, self.output_dim)
         updated_cap = self.caption_encoder(text_emb)
         loss = self.info_nce_loss(updated_cap, updated_nut)
         return updated_cap, updated_nut, loss
@@ -43,6 +60,7 @@ class TasteGNN(nn.Module):
         super().__init__()
         self.drop = DictDropout(dropout_rate)
         self.act = DictActivate()
+        self.norm = DictBatchNorm(hidden_dim)
         self.gnn = HANConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
@@ -56,6 +74,7 @@ class TasteGNN(nn.Module):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.drop(x_dict)
+        out = self.norm(out)
         out = self.gnn(x_dict, edge_index_dict)
         out = self.act(out)
         return out
@@ -90,6 +109,17 @@ class DictDropout(nn.Module):
         }
 
 
+class DictBatchNorm(nn.Module):
+    def __init__(self, hidden_dim):
+        super().__init__()
+        self.norm = nn.BatchNorm(hidden_dim)
+
+    def forward(self, x_dict):
+        return {
+            k: self.norm(v) for k, v in x_dict.items()
+        }
+
+
 class MultiModalFusionGAT(nn.Module):
     NODES = ['user', 'item', 'taste', 'intention', 'image']
     EDGES = [('taste', 'associated_with', 'item'),
@@ -102,6 +132,7 @@ class MultiModalFusionGAT(nn.Module):
         super().__init__()
         self.drop = DictDropout(dropout_rate)
         self.act = DictActivate()
+        self.norm = DictBatchNorm(hidden_dim)
         self.gnn = HGTConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
@@ -113,6 +144,7 @@ class MultiModalFusionGAT(nn.Module):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.drop(x_dict)
+        out = self.norm(out)
         out = self.gnn(x_dict, edge_index_dict)
         out = self.act(out)
         return out
@@ -138,8 +170,7 @@ class RecommendationModel(nn.Module):
         self.device = device
         self.hidden_dim = hidden_dim
 
-        self.user_norm = BatchNorm(hidden_dim)
-        self.item_norm = BatchNorm(hidden_dim)
+        self.start_norm = DictBatchNorm(hidden_dim)
 
         # Contrastive caption and nutrient
         self.cl_with_caption_and_nutrient = nn.ModuleList()
@@ -147,11 +178,15 @@ class RecommendationModel(nn.Module):
             cl = ContrastiveLearning(nutrient_dim, hidden_dim, temperature)
             self.cl_with_caption_and_nutrient.append(cl)
 
+        self.cl_dropout = DictDropout(dropout_rate)
+
         # Fusion of ingredient and recipe
         self.ing_to_recipe = nn.ModuleList()
         for _ in range(sencing_layers):
             gnn = TasteGNN(hidden_dim, dropout_rate=dropout_rate)
             self.ing_to_recipe.append(gnn)
+
+        self.taste_dropout = DictDropout(dropout_rate)
 
         # HANConv layers
         self.fusion_gnn = nn.ModuleList()
@@ -163,22 +198,22 @@ class RecommendationModel(nn.Module):
             )
             self.fusion_gnn.append(gnn)
 
+        self.fusion_dropout = DictDropout(dropout_rate)
+
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
             nn.Linear(hidden_dim + hidden_dim, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
-            nn.Linear(hidden_dim, hidden_dim),
             nn.GELU(),
             nn.Dropout(dropout_rate),
             nn.Linear(hidden_dim, 1),
             nn.Sigmoid()
         )
 
+        self.end_norm = BatchNorm(hidden_dim)
+
     def forward(self, data):
-        data.x_dict.update({
-            "user": self.user_norm(data.x_dict.get("user")),
-            "item": self.item_norm(data.x_dict.get("item")),
-        })
+        data.x_dict.update(self.start_norm(data.x_dict))
 
         cl_losses = []
         for cl in self.cl_with_caption_and_nutrient:
@@ -188,18 +223,18 @@ class RecommendationModel(nn.Module):
                 "intention": caption_x,
             })
         cl_loss = torch.stack(cl_losses).mean()
+        data.x_dict.update(self.cl_dropout(data.x_dict))
 
         # Message passing
         for gnn in self.ing_to_recipe:
             data.x_dict.update(gnn(data.x_dict, data.edge_index_dict))
+        data.x_dict.update(self.taste_dropout(data.x_dict))
 
         for gnn in self.fusion_gnn:
             data.x_dict.update(gnn(data.x_dict, data.edge_index_dict))
+        data.x_dict.update(self.fusion_dropout(data.x_dict))
 
-        data.x_dict.update({
-            "user": self.user_norm(data.x_dict.get("user")),
-            "item": self.item_norm(data.x_dict.get("item")),
-        })
+        data.x_dict.update(self.end_norm(data.x_dict))
 
         return data, cl_loss
 

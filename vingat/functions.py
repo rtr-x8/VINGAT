@@ -186,7 +186,9 @@ def train_func(
     experiment_name: str,
     patience=4,
     validation_interval=5,
-    max_grad_norm=1.0
+    max_grad_norm=1.0,
+    pca_cols=["user", "item", "intention", "taste", "image"],
+    cl_loss_rate=0.3
 ):
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
     model.to(device)
@@ -194,8 +196,6 @@ def train_func(
     patience_counter = 0    # Early Stoppingのカウンターを初期化
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
-
-    pca_cols = ["user", "item", "intention", "taste", "image"]
 
     for epoch in range(epochs):
         total_loss = 0
@@ -241,7 +241,9 @@ def train_func(
 
             # 損失の計算
             loss = criterion(pos_scores, neg_scores, model.parameters())
-            loss += cl_loss
+
+            loss = (1 - cl_loss_rate) * loss + cl_loss_rate * cl_loss
+
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             optimizer.step()
