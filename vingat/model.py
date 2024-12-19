@@ -211,7 +211,7 @@ class RecommendationModel(nn.Module):
             nn.Sigmoid()
         )
 
-        self.end_norm = BatchNorm(hidden_dim)
+        self.end_norm = DictBatchNorm(hidden_dim)
 
     def forward(self, data):
         data.x_dict.update(self.start_norm(data.x_dict))
