@@ -9,7 +9,7 @@ import os
 # 栄養素情報によって強化された、選択理由テキスト
 # 選択理由によって強化された栄養素情報
 class ContrastiveLearning(nn.Module):
-    def __init__(self, input_dim, output_dim, temperature=0.05):
+    def __init__(self, input_dim, output_dim, temperature):
         super().__init__()
         self.temperature = temperature
         self.nutrient_encoder = nn.Linear(input_dim, output_dim)
@@ -123,6 +123,7 @@ class RecommendationModel(nn.Module):
         sencing_layers=10,
         fusion_layers=10,
         intention_layers=10,
+        temperature=0.05,
     ):
         super().__init__()
 
@@ -137,7 +138,7 @@ class RecommendationModel(nn.Module):
         # Contrastive caption and nutrient
         self.cl_with_caption_and_nutrient = nn.ModuleList()
         for _ in range(intention_layers):
-            cl = ContrastiveLearning(hidden_dim, hidden_dim)
+            cl = ContrastiveLearning(hidden_dim, hidden_dim, temperature)
             self.cl_with_caption_and_nutrient.append(cl)
 
         # Fusion of ingredient and recipe
