@@ -139,7 +139,6 @@ def save_model(model: nn.Module,  save_directory: str, filename: str):
     torch.save(model.state_dict(), f"{save_directory}/{filename}.pth")
 
 
-
 def calculate_statistics(data):
     """
     与えられた形式のデータを、項目ごとに最小、最大、平均、標準偏差を出算したDataFrameに変換する関数
@@ -189,7 +188,7 @@ def train_func(
     validation_interval=5,
     max_grad_norm=1.0,
     pca_cols=["user", "item", "intention", "taste", "image"],
-    cl_loss_rate= 0.3
+    cl_loss_rate=0.3
 ):
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
     model.to(device)
