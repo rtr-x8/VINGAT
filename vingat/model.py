@@ -112,7 +112,7 @@ class DictDropout(nn.Module):
 class DictBatchNorm(nn.Module):
     def __init__(self, hidden_dim):
         super().__init__()
-        self.norm = nn.BatchNorm(hidden_dim)
+        self.norm = BatchNorm(hidden_dim)
 
     def forward(self, x_dict):
         return {
