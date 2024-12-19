@@ -7,7 +7,7 @@ from vingat.loader import use_nutritions
 import pandas as pd
 from torch_geometric.loader import LinkNeighborLoader
 from vingat.encoder import StaticEmbeddingLoader
-from typing import Tuple
+from typing import Tuple, Optional
 from torch.nn import init
 import copy
 import math
@@ -299,7 +299,6 @@ def create_base_hetero(
     hidden_dim: int
 ) -> Tuple[HeteroData, LabelEncoder, LabelEncoder, LabelEncoder]:
 
-
     # 全データ
     all_user_ids = pd.concat([
         core_train_rating["user_id"],
@@ -391,7 +390,7 @@ def mask_hetero(
     item_lencoder: LabelEncoder,
     ing_lencoder: LabelEncoder,
     is_train: bool,
-    scalar_preprocess: ScalarPreprocess = None,
+    scalar_preprocess: Optional[ScalarPreprocess] = None,
 ) -> Tuple[HeteroData, ScalarPreprocess]:
 
     # 環境ごとのデータ
@@ -412,12 +411,13 @@ def mask_hetero(
     data.x_dict["item"][no_item_index] = data.x_dict["item"][no_item_index].zero_()
 
     # 標準化
-    if is_train:
-        scalar_preprocess = ScalarPreprocess(data.x_dict)
-        scalar_preprocess.fit()
-        data.x_dict.update(scalar_preprocess.transform(data.x_dict))
-    else:
-        data.x_dict.update(scalar_preprocess.transform(data.x_dict))
+    if scalar_preprocess is None:
+        if is_train:
+            scalar_preprocess = ScalarPreprocess(data.x_dict)
+            scalar_preprocess.fit()
+        else:
+            raise ValueError("scalar_preprocess must be provided when is_train is False.")
+    data.x_dict.update(scalar_preprocess.transform(data.x_dict))
 
     # edge
     edge_index_user_recipe = torch.tensor([
