@@ -151,7 +151,7 @@ class MultiModalFusionGAT(nn.Module):
         return out
 
 
-def print_layer_outputs(model, input_data, max_elements=10, prefix = ""):
+def print_layer_outputs(model, input_data, max_elements=10, prefix=""):
     """
     モデルの各層の出力を表示する関数
 
