@@ -139,6 +139,7 @@ def save_model(model: nn.Module,  save_directory: str, filename: str):
     torch.save(model.state_dict(), f"{save_directory}/{filename}.pth")
 
 
+
 def calculate_statistics(data):
     """
     与えられた形式のデータを、項目ごとに最小、最大、平均、標準偏差を出算したDataFrameに変換する関数
@@ -186,7 +187,8 @@ def train_func(
     experiment_name: str,
     patience=4,
     validation_interval=5,
-    max_grad_norm=1.0
+    max_grad_norm=1.0,
+    pca_cols=["user", "item", "intention", "taste", "image"]
 ):
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
     model.to(device)
@@ -194,8 +196,6 @@ def train_func(
     patience_counter = 0    # Early Stoppingのカウンターを初期化
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
-
-    pca_cols = ["user", "item", "intention", "taste", "image"]
 
     for epoch in range(epochs):
         total_loss = 0

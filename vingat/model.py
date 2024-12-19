@@ -43,6 +43,7 @@ class TasteGNN(nn.Module):
         super().__init__()
         self.drop = DictDropout(dropout_rate)
         self.act = DictActivate()
+        self.norm = DictBatchNorm(hidden_dim)
         self.gnn = HANConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
@@ -56,6 +57,7 @@ class TasteGNN(nn.Module):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.drop(x_dict)
+        out = self.norm(out)
         out = self.gnn(x_dict, edge_index_dict)
         out = self.act(out)
         return out
@@ -90,6 +92,17 @@ class DictDropout(nn.Module):
         }
 
 
+class DictBatchNorm(nn.Module):
+    def __init__(self, hidden_dim):
+        super().__init__()
+        self.norm = nn.BatchNorm(hidden_dim)
+
+    def forward(self, x_dict):
+        return {
+            k: self.norm(v) for k, v in x_dict.items()
+        }
+
+
 class MultiModalFusionGAT(nn.Module):
     NODES = ['user', 'item', 'taste', 'intention', 'image']
     EDGES = [('taste', 'associated_with', 'item'),
@@ -102,6 +115,7 @@ class MultiModalFusionGAT(nn.Module):
         super().__init__()
         self.drop = DictDropout(dropout_rate)
         self.act = DictActivate()
+        self.norm = DictBatchNorm(hidden_dim)
         self.gnn = HGTConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
@@ -113,6 +127,7 @@ class MultiModalFusionGAT(nn.Module):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.drop(x_dict)
+        out = self.norm(out)
         out = self.gnn(x_dict, edge_index_dict)
         out = self.act(out)
         return out
