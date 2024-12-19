@@ -147,6 +147,7 @@ def train_func(
     experiment_name: str,
     patience=4,
     validation_interval=5,
+    max_grad_norm=1.0
 ):
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
     model.to(device)
@@ -201,6 +202,7 @@ def train_func(
             loss = criterion(pos_scores, neg_scores, model.parameters())
 
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             optimizer.step()
 
             total_loss += loss.item()
