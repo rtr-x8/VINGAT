@@ -3,6 +3,7 @@ import seaborn as sns
 from sklearn.decomposition import PCA
 import torch
 import pandas as pd
+import numpy as np
 
 
 def visualize_node_pca(data, node_types, title, sample_size=1000):
@@ -84,14 +85,19 @@ def visualize_node_distribution(train_data, test_data, val_data, n_components=2)
     val_features = get_node_features(val_data)
 
     # 全てのノードタイプを取得
-    all_node_types = set(train_features.keys()) | set(test_features.keys()) | set(val_features.keys())
+    tr_keys, test_keys, val_keys = train_features.keys(), test_features.keys(), val_features.keys()
+    all_node_types = set(tr_keys) | set(test_keys) | set(val_keys)
 
     for node_type in all_node_types:
         # 3列1行のsubplotsを作成
         fig, axes = plt.subplots(1, 3, figsize=(18, 6), sharex=False, sharey=False)
 
         # 各データセットの特徴量をプロット
-        for i, (data, label) in enumerate([(train_features, "train"), (test_features, "test"), (val_features, "val")]):
+        for i, (data, label) in enumerate([
+            (train_features, "train"),
+            (test_features, "test"),
+            (val_features, "val")
+        ]):
             if node_type in data:
                 # PCAで次元削減
                 pca = PCA(n_components=n_components)
