@@ -66,7 +66,6 @@ def evaluate_model(
                 force_undirected=False
             )
 
-
             # 負例のインデックスを取得
             user_neg_indices = negative_edge_index[1]
 
