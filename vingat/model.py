@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from torch_geometric.nn import LGConv, HGTConv
+from torch_geometric.nn import HANConv, HGTConv
 from torch_geometric.nn.norm import BatchNorm
 import torch.nn as nn
 import os
@@ -34,11 +34,15 @@ class ContrastiveLearning(nn.Module):
 
 class TasteGNN(nn.Module):
     NODES = ['ingredient', 'taste']
-    EDGES = [('ingredient', 'part_of', 'taste')]
+    EDGES = [
+        ('ingredient', 'part_of', 'taste'),
+        ('taste', 'contains', 'ingredient')
+    ]
 
-    def __init__(self, hidden_dim):
+    def __init__(self, hidden_dim, dropout_rate):
         super().__init__()
-        """
+        self.drop = DictDropout(dropout_rate)
+        self.act = DictActivate()
         self.gnn = HANConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
@@ -46,20 +50,22 @@ class TasteGNN(nn.Module):
         )
         """
         self.gnn = LGConv()
+        """
 
     def forward(self, x_dict, edge_index_dict):
-        """
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
+        out = self.drop(x_dict)
         out = self.gnn(x_dict, edge_index_dict)
-        return out["taste"]
+        out = self.act(out)
+        return out
         """
-
         taste_x = x_dict['taste']
         taste_edge_index = edge_index_dict[('taste', 'contains', 'ingredient')]
 
         # LGConvの適用
         return self.gnn(taste_x, taste_edge_index)
+        """
 
 
 class DictActivate(nn.Module):
@@ -106,8 +112,8 @@ class MultiModalFusionGAT(nn.Module):
     def forward(self, x_dict, edge_index_dict):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
+        out = self.drop(x_dict)
         out = self.gnn(x_dict, edge_index_dict)
-        out = self.drop(out)
         out = self.act(out)
         return out
 
@@ -142,10 +148,12 @@ class RecommendationModel(nn.Module):
             self.cl_with_caption_and_nutrient.append(cl)
 
         # Fusion of ingredient and recipe
-        # self.ing_to_recipe = TasteGNN(hidden_dim)
+        self.ing_to_recipe = nn.ModuleList()
+        for _ in range(sencing_layers):
+            gnn = TasteGNN(hidden_dim, dropout_rate=dropout_rate)
+            self.ing_to_recipe.append(gnn)
 
         # HANConv layers
-        """一旦コメントアウト
         self.fusion_gnn = nn.ModuleList()
         for _ in range(fusion_layers):
             gnn = MultiModalFusionGAT(
@@ -154,7 +162,6 @@ class RecommendationModel(nn.Module):
                 dropout_rate=dropout_rate
             )
             self.fusion_gnn.append(gnn)
-        """
 
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
@@ -168,14 +175,6 @@ class RecommendationModel(nn.Module):
         )
 
     def forward(self, data):
-
-        # cl_nutirnent_x, cl_caption_x, cl_loss = self.cl_nutrient_to_caption(
-        #     self.nutrient_projection(data["intention"].nutrient),
-        #     data["intention"].x
-        # )
-        # data.x_dict.update({
-        #     "intention": cl_caption_x,
-        # })
         data.x_dict.update({
             "user": self.user_norm(data.x_dict.get("user")),
             "item": self.item_norm(data.x_dict.get("item")),
@@ -191,18 +190,22 @@ class RecommendationModel(nn.Module):
         cl_loss = torch.stack(cl_losses).mean()
 
         # Message passing
-        # data.x_dict.update({
-        #     "taste": self.ing_to_recipe(data.x_dict, data.edge_index_dict)
-        # })
+        for gnn in self.ing_to_recipe:
+            data.x_dict.update(gnn(data.x_dict, data.edge_index_dict))
 
-        """一旦コメントアウト
         for gnn in self.fusion_gnn:
             data.x_dict.update(gnn(data.x_dict, data.edge_index_dict))
-        """
+
+        data.x_dict.update({
+            "user": self.user_norm(data.x_dict.get("user")),
+            "item": self.item_norm(data.x_dict.get("item")),
+        })
 
         return data, cl_loss
 
     def predict(self, user_nodes, recipe_nodes):
         # ユーザーとレシピの埋め込みを連結
+        user_nodes = F.normalize(user_nodes, p=2, dim=1)
+        recipe_nodes = F.normalize(recipe_nodes, p=2, dim=1)
         edge_features = torch.cat([user_nodes, recipe_nodes], dim=1)
         return self.link_predictor(edge_features)
