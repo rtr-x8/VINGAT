@@ -162,6 +162,8 @@ def train_func(
 
         model.train()
 
+        node_mean = []
+
         for batch_data in tqdm(train_loader, desc=f"[Train] Epoch {epoch+1}/{epochs}"):
             optimizer.zero_grad()
             batch_data = batch_data.to(device)
@@ -204,6 +206,14 @@ def train_func(
             total_loss += loss.item()
             all_preds.extend((pos_scores > 0.5).int().tolist() + (neg_scores <= 0.5).int().tolist())
             all_labels.extend([1] * len(pos_scores) + [0] * len(neg_scores))
+
+            # check
+            node_mean.append({
+                key: val.mean().mean().item()
+                for key, val in out.x_dict.items()
+            })
+
+        print(node_mean)
 
         aveg_loss = total_loss / len(train_loader)
         epoch_accuracy = accuracy_score(all_labels, all_preds)
