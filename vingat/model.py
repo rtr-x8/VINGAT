@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from torch_geometric.nn import LGConv, HGTConv
+from torch_geometric.nn import LGConv, HGTConv, BatchNorm
 import torch.nn as nn
 import os
 
@@ -146,11 +146,8 @@ class RecommendationModel(nn.Module):
             nn.GELU(),
         )
         self.projection = nn.ModuleDict({
-            node: nn.Sequential(
-                nn.Linear(hidden_dim, hidden_dim),
-                nn.GELU(),
-                # nn.BatchNorm1d(hidden_dim),
-            ) for node in self.NODES
+            "user": BatchNorm(hidden_dim),
+            "item": BatchNorm(hidden_dim),
         })
 
         # Contrastive caption and nutrient
@@ -182,13 +179,34 @@ class RecommendationModel(nn.Module):
         )
 
     def forward(self, data):
+        """
+        cl_nutirnent_x, cl_caption_x, cl_loss = self.cl_nutrient_to_caption(
+            self.nutrient_projection(data["intention"].nutrient),
+            data["intention"].x
+        )
+        data.x_dict.update({
+            "intention": cl_caption_x,
+        })
+        data.x_dict.update({
+            "user": self.user_norm(data["user"].x),
+            "item": self.item_norm(data["item"].x),
+        })
+        # Message passing
+        data.x_dict.update({
+            "taste": self.ing_to_recipe(data.x_dict, data.edge_index_dict)
+        })
+        fusion_out = self.fusion_gat(data.x_dict, data.edge_index_dict)
+        data.x_dict.update(fusion_out)
+
+        return data
+        """
 
         # Linear projection
         data.x_dict["intention"].nutrient = self.nutrient_projection(data["intention"].nutrient)
-        data.x_dict = {
-            node: self.projection[node](x.to(self.device))
-            for node, x in data.x_dict.items()
-        }
+        data.x_dict.update({
+            node: func(data.x_dict[node])
+            for node, func in self.projection.items()
+        })
 
         # cl_nutirnent_x, cl_caption_x, cl_loss = self.cl_nutrient_to_caption(
         #     self.nutrient_projection(data["intention"].nutrient),
