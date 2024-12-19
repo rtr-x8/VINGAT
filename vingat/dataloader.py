@@ -411,6 +411,7 @@ def mask_hetero(
     data.x_dict["user"][no_user_index] = data.x_dict["user"][no_user_index].zero_()
     data.x_dict["item"][no_item_index] = data.x_dict["item"][no_item_index].zero_()
 
+    # 標準化
     if is_train:
         scalar_preprocess = ScalarPreprocess(data.x_dict)
         scalar_preprocess.fit()
