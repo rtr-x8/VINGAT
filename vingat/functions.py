@@ -88,7 +88,7 @@ def evaluate_model(
                 print("Neg, uid; ", user_id, negative_edge_index.shape)
                 print("Pos, uid; ", user_id, user_edge_label_index.shape)
                 print("pos", pos_scores)
-                print("neg", neg_scores[:50])
+                print("neg", neg_scores[:5])
 
             if len(np.unique(labels)) > 1:    # Check if we have both positive and negative samples
                 auc = roc_auc_score(labels, scores)
