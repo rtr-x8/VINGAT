@@ -83,7 +83,8 @@ class MultiModalFusionGAT(nn.Module):
             in_channels=hidden_dim,
             out_channels=hidden_dim,
             metadata=(self.NODES, self.EDGES),
-            heads=2
+            heads=num_heads,
+            aggr="mean"
         )
 
     def forward(self, x_dict, edge_index_dict):
@@ -133,6 +134,7 @@ class RecommendationModel(nn.Module):
         self.link_predictor = nn.Sequential(
             nn.Linear(hidden_dim + hidden_dim, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
+            nn.Linear(hidden_dim, hidden_dim),
             nn.GELU(),
             nn.Dropout(dropout_rate),
             nn.Linear(hidden_dim, 1),
@@ -141,22 +143,22 @@ class RecommendationModel(nn.Module):
 
     def forward(self, data):
 
-        cl_nutirnent_x, cl_caption_x, cl_loss = self.cl_nutrient_to_caption(
-            self.nutrient_projection(data["intention"].nutrient),
-            data["intention"].x
-        )
-        data.x_dict.update({
-            "intention": cl_caption_x,
-        })
+        # cl_nutirnent_x, cl_caption_x, cl_loss = self.cl_nutrient_to_caption(
+        #     self.nutrient_projection(data["intention"].nutrient),
+        #     data["intention"].x
+        # )
+        # data.x_dict.update({
+        #     "intention": cl_caption_x,
+        # })
         data.x_dict.update({
             "user": self.user_norm(data["user"].x),
             "item": self.item_norm(data["item"].x),
         })
 
         # Message passing
-        data.x_dict.update({
-            "taste": self.ing_to_recipe(data.x_dict, data.edge_index_dict)
-        })
+        # data.x_dict.update({
+        #     "taste": self.ing_to_recipe(data.x_dict, data.edge_index_dict)
+        # })
 
         fusion_out = self.fusion_gat(data.x_dict, data.edge_index_dict)
         data.x_dict.update(fusion_out)
