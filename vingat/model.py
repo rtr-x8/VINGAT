@@ -135,7 +135,8 @@ class RecommendationModel(nn.Module):
             nn.BatchNorm1d(hidden_dim),
             nn.GELU(),
             nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dim, 1)
+            nn.Linear(hidden_dim, 1),
+            nn.Sigmoid()
         )
 
     def forward(self, data):

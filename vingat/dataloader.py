@@ -12,6 +12,7 @@ from torch.nn import init
 import copy
 import math
 from vingat.loader import load_user_embeddings
+from vingat.preprocess import ScalarPreprocess
 
 
 class RecipeFeatureType(Enum):
@@ -297,6 +298,8 @@ def create_base_hetero(
     device: torch.device,
     hidden_dim: int
 ) -> Tuple[HeteroData, LabelEncoder, LabelEncoder, LabelEncoder]:
+
+
     # 全データ
     all_user_ids = pd.concat([
         core_train_rating["user_id"],
@@ -380,14 +383,16 @@ def create_base_hetero(
     return data, user_lencoder, item_lencoder, ing_lencoder
 
 
-def add_edge(
+def mask_hetero(
     hetero: HeteroData,
     rating: pd.DataFrame,
     recipe_ingredients: pd.DataFrame,
     user_lencoder: LabelEncoder,
     item_lencoder: LabelEncoder,
     ing_lencoder: LabelEncoder,
-) -> HeteroData:
+    is_train: bool,
+    scalar_preprocess: ScalarPreprocess = None,
+) -> HeteroData, ScalarPreprocess:
 
     # 環境ごとのデータ
     user_recipe_set = rating[["user_id", "recipe_id"]]
@@ -396,6 +401,22 @@ def add_edge(
     ]
 
     data = copy.deepcopy(hetero)
+
+    # 存在しないノード属性を削除
+    no_user_id = ~user_recipe_set["user_id"].isin(user_lencoder.classes_)
+    no_user_index = user_lencoder.transform(no_user_id)
+    no_item_id = ~user_recipe_set["recipe_id"].isin(item_lencoder.classes_)
+    no_item_index = item_lencoder.transform(no_item_id)
+
+    data.x_dict["user"][no_user_index] = data.x_dict["user"][no_user_index].zero_()
+    data.x_dict["item"][no_item_index] = data.x_dict["item"][no_item_index].zero_()
+
+    if is_train:
+        scalar_preprocess = ScalarPreprocess(data.x_dict)
+        scalar_preprocess.fit()
+        data.x_dict.update(scalar_preprocess.transform(data.x_dict))
+    else:
+        data.x_dict.update(scalar_preprocess.transform(data.x_dict))
 
     # edge
     edge_index_user_recipe = torch.tensor([
@@ -416,4 +437,4 @@ def add_edge(
     data["ingredient", "part_of", "taste"].edge_index = ei_ing_item
     data["taste", "contains", "ingredient"].edge_index = ei_ing_item.detach().clone().flip(0)
 
-    return data
+    return data, scalar_preprocess

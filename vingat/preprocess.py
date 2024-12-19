@@ -1,95 +1,26 @@
-"""
+from sklearn.preprocessing import StandardScaler
 import torch
 
 
-class MinMaxScaler:
-    def __init__(self):
-        self.min = None
-        self.max = None
-
-    def fit(self, x):
-        self.min = torch.min(x, dim=0).values
-        self.max = torch.max(x, dim=0).values
-        self.denom = self.max - self.min
-        self.denom[self.denom == 0] = 1  # Prevent division by zero
-
-    def transform(self, x):
-        return (x - self.min) / self.denom
-
-
-class BasePreprocess():
-    def __init__(self):
-        pass
+class ScalarPreprocess:
+    def __init__(self, x_dict):
+        self.x_dict = x_dict
+        self.standard_scaler_dict = {
+            node: StandardScaler()
+            for node in self.x_dict.keys()
+        }
 
     def fit(self):
-        raise NotImplementedError
+        for node, scaler in self.standard_scaler_dict.items():
+            # 各ノードの属性 (x) に対して fit を適用
+            self.standard_scaler_dict[node].fit(self.x_dict[node].x.numpy())
+        return self
 
-    def transform(self):
-        raise NotImplementedError
-
-
-class UserPreprocess(BasePreprocess):
-    def __init__(self):
-        super().__init__()
-        self.scaler = MinMaxScaler()
-
-    def fit(self, x: torch.Tensor):
-        self.scaler.fit(self.data)
-
-    def transform(self, x: torch.Tensor):
-        return self.scaler.transform(x)
-
-
-def userPreprocess(train, target):
-    userPreprocess = UserPreprocess()
-    userPreprocess.fit(train)
-    return userPreprocess, userPreprocess.transform(target)
-
-
-class RecipePreprocess(BasePreprocess):
-    def __init__(self):
-        super().__init__()
-        self.scaler = MinMaxScaler()
-
-    def fit(self, x: torch.Tensor):
-        self.scaler.fit(self.data)
-
-    def transform(self, x: torch.Tensor):
-        return self.scaler.transform(x)
-
-
-class IngredientPreprocess(BasePreprocess):
-    def __init__(self):
-        super().__init__()
-        self.scaler = MinMaxScaler()
-
-    def fit(self, x: torch.Tensor):
-        self.scaler.fit(self.data)
-
-    def transform(self, x: torch.Tensor):
-        return self.scaler.transform(x)
-
-
-class IntentionPreprocess(BasePreprocess):
-    def __init__(self):
-        super().__init__()
-        self.scaler = MinMaxScaler()
-
-    def fit(self, x: torch.Tensor):
-        self.scaler.fit(self.data)
-
-    def transform(self, x: torch.Tensor):
-        return self.scaler.transform(x)
-
-
-class ImagePreprocess(BasePreprocess):
-    def __init__(self):
-        super().__init__()
-        self.scaler = MinMaxScaler()
-
-    def fit(self, x: torch.Tensor):
-        self.scaler.fit(self.data)
-
-    def transform(self, x: torch.Tensor):
-        return self.scaler.transform(x)
-"""
+    def transform(self, x_dict):
+        for node, val in x_dict.items():
+            # 各ノードの属性 (x) に対して transform を適用
+            x_dict[node].x = torch.tensor(
+                self.standard_scaler_dict[node].transform(val.x.numpy()),
+                dtype=val.x.dtype
+            )
+        return x_dict
