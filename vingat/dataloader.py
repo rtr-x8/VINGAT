@@ -1,7 +1,6 @@
 from torch_geometric.data import HeteroData
 from sklearn.preprocessing import LabelEncoder
 import torch
-from enum import Enum
 import numpy as np
 from vingat.loader import use_nutritions
 import pandas as pd
@@ -13,12 +12,6 @@ import copy
 import math
 from vingat.loader import load_user_embeddings
 from vingat.preprocess import ScalarPreprocess
-
-
-class RecipeFeatureType(Enum):
-    VISUAL = 0
-    INTENTION = 1
-    TASTE = 2
 
 
 def create_hetrodata(
@@ -148,99 +141,6 @@ def create_hetrodata(
     return hetro
 
 
-def create_data(
-    core_train_rating: pd.DataFrame,
-    core_test_rating: pd.DataFrame,
-    core_val_rating: pd.DataFrame,
-    recipe_ingredients: pd.DataFrame,
-    recipe_nutrients: pd.DataFrame,
-    device: torch.device,
-    directory_path: str,
-    hidden_dim: int = 128
-):
-    all_user_id = pd.concat([
-        core_train_rating["user_id"],
-        core_test_rating["user_id"],
-        core_val_rating["user_id"]
-    ]).unique()
-
-    all_recipe_id = pd.concat([
-        core_train_rating["recipe_id"],
-        core_test_rating["recipe_id"],
-        core_val_rating["recipe_id"],
-        recipe_ingredients["recipe_id"]
-    ]).unique()
-
-    user_label_encoder = LabelEncoder().fit(all_user_id)
-    recipe_label_encoder = LabelEncoder().fit(all_recipe_id)
-    ingredient_indices = recipe_ingredients["ingredient_id"].unique()
-    ingredient_label_encoder = LabelEncoder().fit(ingredient_indices)
-
-    train_recipe_ingedient = recipe_ingredients[
-        recipe_ingredients["recipe_id"].isin(core_train_rating["recipe_id"])]
-    test_recipe_ingedient = recipe_ingredients[
-        recipe_ingredients["recipe_id"].isin(core_test_rating["recipe_id"])]
-    val_recipe_ingedient = recipe_ingredients[
-        recipe_ingredients["recipe_id"].isin(core_val_rating["recipe_id"])]
-
-    # データの整合性を確認
-    """
-    def check_data_integrity(df, label_encoder, column_name):
-        encoded_values = label_encoder.transform(df[column_name])
-        if (encoded_values < 0).any():
-            raise ValueError(f"{column_name} に負のインデックスが含まれています。")
-        if encoded_values.max() >= len(label_encoder.classes_):
-            raise ValueError(f"{column_name} のインデックスがノード数を超えています。")
-
-    check_data_integrity(core_train_rating, user_label_encoder, "user_id")
-    check_data_integrity(core_train_rating, recipe_label_encoder, "recipe_id")
-    check_data_integrity(core_test_rating, user_label_encoder, "user_id")
-    check_data_integrity(core_test_rating, recipe_label_encoder, "recipe_id")
-    check_data_integrity(core_val_rating, user_label_encoder, "user_id")
-    check_data_integrity(core_val_rating, recipe_label_encoder, "recipe_id")
-    """
-
-    print("train")
-    train = create_hetrodata(
-        core_train_rating,
-        train_recipe_ingedient.copy(),
-        recipe_nutrients,
-        user_label_encoder,
-        recipe_label_encoder,
-        ingredient_label_encoder,
-        device,
-        hidden_dim)
-    print("test")
-    test = create_hetrodata(
-        core_test_rating,
-        test_recipe_ingedient.copy(),
-        recipe_nutrients,
-        user_label_encoder,
-        recipe_label_encoder,
-        ingredient_label_encoder,
-        device,
-        hidden_dim)
-    print("val")
-    val = create_hetrodata(
-        core_val_rating,
-        val_recipe_ingedient.copy(),
-        recipe_nutrients,
-        user_label_encoder,
-        recipe_label_encoder,
-        ingredient_label_encoder,
-        device,
-        hidden_dim)
-
-    return (
-        train,
-        test,
-        val,
-        user_label_encoder,
-        recipe_label_encoder,
-        ingredient_label_encoder
-    )
-
-
 def create_dataloader(
     data,
     batch_size,
@@ -272,16 +172,6 @@ def create_dataloader(
         neg_sampling_ratio=neg_sampling_ratio,
         num_workers=num_workers
     )
-
-
-def nodeFeatureNormalize(x_dict):
-    for key, x in x_dict.items():
-        min_val = torch.min(x, dim=0).values
-        max_val = torch.max(x, dim=0).values
-        denom = max_val - min_val
-        denom[denom == 0] = 1  # Prevent division by zero
-        x_dict[key] = (x - min_val) / denom
-    return x_dict
 
 
 def create_base_hetero(
@@ -376,7 +266,6 @@ def create_base_hetero(
     data["taste", "associated_with", "item"].edge_index = ei_attr_item.detach().clone()
     data["item", "has_taste", "taste"].edge_index = ei_attr_item.detach().clone().flip(0)
 
-    # data.x_dict = nodeFeatureNormalize(data.x_dict)
     data.to(device=device)
 
     return data, user_lencoder, item_lencoder, ing_lencoder
@@ -401,14 +290,17 @@ def mask_hetero(
 
     data = copy.deepcopy(hetero)
 
-    # 存在しないノード属性を削除
-    no_user_id = ~user_recipe_set["user_id"].isin(user_lencoder.classes_)
-    no_user_index = user_lencoder.transform(no_user_id)
-    no_item_id = ~user_recipe_set["recipe_id"].isin(item_lencoder.classes_)
-    no_item_index = item_lencoder.transform(no_item_id)
+    # ユーザーIDのセット差分を取得（全体のクラスから現在のデータセットに存在するIDを引く）
+    no_user_ids = np.setdiff1d(user_lencoder.classes_, user_recipe_set["user_id"].values)
+    no_item_ids = np.setdiff1d(item_lencoder.classes_, user_recipe_set["recipe_id"].values)
 
-    data.x_dict["user"][no_user_index] = data.x_dict["user"][no_user_index].zero_()
-    data.x_dict["item"][no_item_index] = data.x_dict["item"][no_item_index].zero_()
+    # 存在しないユーザーIDおよびアイテムIDをエンコード（インデックスに変換）
+    # LabelEncoderは既に全体のIDに対してフィットされているため、エラーは発生しない
+    no_user_indices = user_lencoder.transform(no_user_ids)
+    no_item_indices = item_lencoder.transform(no_item_ids)
+
+    data.x_dict["user"][no_user_indices] = data.x_dict["user"][no_user_indices].zero_()
+    data.x_dict["item"][no_item_indices] = data.x_dict["item"][no_item_indices].zero_()
 
     # 標準化
     if scalar_preprocess is None:

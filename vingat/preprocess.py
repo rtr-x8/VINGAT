@@ -13,14 +13,14 @@ class ScalarPreprocess:
     def fit(self):
         for node, scaler in self.standard_scaler_dict.items():
             # 各ノードの属性 (x) に対して fit を適用
-            self.standard_scaler_dict[node].fit(self.x_dict[node].x.numpy())
+            self.standard_scaler_dict[node].fit(self.x_dict[node].numpy())
         return self
 
     def transform(self, x_dict):
         for node, val in x_dict.items():
             # 各ノードの属性 (x) に対して transform を適用
             x_dict[node].x = torch.tensor(
-                self.standard_scaler_dict[node].transform(val.x.numpy()),
+                self.standard_scaler_dict[node].transform(val.numpy()),
                 dtype=val.x.dtype
             )
         return x_dict
