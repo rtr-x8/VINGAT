@@ -69,6 +69,28 @@ class TasteGNN(nn.Module):
         return self.gnn(taste_x, taste_edge_index)
 
 
+class DictActivate(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.act = nn.ReLU()
+
+    def forward(self, x_dict):
+        return {
+            k: self.act(v) for k, v in x_dict.items()
+        }
+
+
+class DictDropout(nn.Module):
+    def __init__(self, dropout_rate):
+        super().__init__()
+        self.dropout = nn.Dropout(dropout_rate)
+
+    def forward(self, x_dict):
+        return {
+            k: self.dropout(v) for k, v in x_dict.items()
+        }
+
+
 class MultiModalFusionGAT(nn.Module):
     NODES = ['user', 'item', 'taste', 'intention', 'image']
     EDGES = [('taste', 'associated_with', 'item'),
@@ -77,8 +99,9 @@ class MultiModalFusionGAT(nn.Module):
              ('user', 'buys', 'item'),
              ('item', 'bought_by', 'user')]
 
-    def __init__(self, hidden_dim, num_heads):
+    def __init__(self, hidden_dim, num_heads, dropout_rate):
         super().__init__()
+        # self.drop = DictDropout(dropout_rate)
         self.gnn = HGTConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
@@ -89,6 +112,7 @@ class MultiModalFusionGAT(nn.Module):
     def forward(self, x_dict, edge_index_dict):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
+        # x_dict = self.drop(x_dict)
         return self.gnn(x_dict, edge_index_dict)
 
 
@@ -127,7 +151,14 @@ class RecommendationModel(nn.Module):
         self.ing_to_recipe = TasteGNN(hidden_dim)
 
         # HANConv layers
-        self.fusion_gat = MultiModalFusionGAT(hidden_dim, num_heads)
+        self.fusion_gnn = nn.ModuleList()
+        for _ in range(fusion_layers):
+            gnn = MultiModalFusionGAT(
+                hidden_dim=hidden_dim,
+                num_heads=num_heads,
+                dropout_rate=dropout_rate
+            )
+            self.fusion_gnn.append(gnn)
 
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
@@ -159,8 +190,8 @@ class RecommendationModel(nn.Module):
         #     "taste": self.ing_to_recipe(data.x_dict, data.edge_index_dict)
         # })
 
-        fusion_out = self.fusion_gat(data.x_dict, data.edge_index_dict)
-        data.x_dict.update(fusion_out)
+        for gnn in self.fusion_gnn:
+            data.x_dict.update(gnn(data.x_dict, data.edge_index_dict))
 
         return data
 
