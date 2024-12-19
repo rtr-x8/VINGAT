@@ -98,10 +98,7 @@ class MultiModalFusionGAT(nn.Module):
              ('intention', 'associated_with', 'item'),
              ('image', 'associated_with', 'item'),
              ('user', 'buys', 'item'),
-             ('item', 'bought_by', 'user'),
-             ('item', 'has_image', 'image'),
-             ('item', 'has_intention', 'intention'),
-             ('item', 'has_taste', 'taste')]
+             ('item', 'bought_by', 'user')]
 
     def __init__(self, hidden_dim, num_heads, dropout_rate):
         super().__init__()
