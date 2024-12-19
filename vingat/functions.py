@@ -195,8 +195,6 @@ def train_func(
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
-    visualize_node_pca(train_loader.dataset, ["user", "item", "intention", "taste"], "before")
-
     for epoch in range(epochs):
         total_loss = 0
         all_preds = []
@@ -323,5 +321,4 @@ def train_func(
 
         scheduler.step()
 
-    visualize_node_pca(train_loader.dataset, ["user", "item", "intention", "taste"], "after")
     return model
