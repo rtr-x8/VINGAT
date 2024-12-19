@@ -99,7 +99,10 @@ class RecommendationModel(nn.Module):
         device,
         hidden_dim,
         nutrient_dim=20,
-        num_heads=2
+        num_heads=2,
+        sencing_layers=10,
+        fusion_layers=10,
+        intention_layers=10,
     ):
         super().__init__()
 
