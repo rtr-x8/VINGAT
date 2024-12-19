@@ -66,7 +66,7 @@ def evaluate_model(
                 force_undirected=False
             )
 
-            if user_id in [ 16,  32,  39, 268, 338, 521, 604, 651, 814, 935]:
+            if user_id in [16,  32,  39, 268, 338, 521, 604, 651, 814, 935]:
                 print("Neg", user_id, negative_edge_index)
                 print("Pos", user_id, user_edge_label_index)
                 print("pos len", num_pos_samples, "neg len", num_neg_samples)
