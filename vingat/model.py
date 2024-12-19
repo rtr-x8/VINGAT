@@ -149,7 +149,7 @@ class RecommendationModel(nn.Module):
             node: nn.Sequential(
                 nn.Linear(hidden_dim, hidden_dim),
                 nn.GELU(),
-                nn.BatchNorm1d(hidden_dim),
+                #nn.BatchNorm1d(hidden_dim),
             ) for node in self.NODES
         })
 
