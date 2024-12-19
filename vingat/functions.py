@@ -14,7 +14,6 @@ from .visualizer import visualize_node_pca
 from torch_geometric.data import Batch
 
 
-
 def evaluate_model(
     model: nn.Module,
     data: HeteroData,
