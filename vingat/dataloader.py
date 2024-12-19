@@ -12,6 +12,7 @@ import copy
 import math
 from vingat.loader import load_user_embeddings
 from vingat.preprocess import ScalarPreprocess
+import torch.nn as nn
 
 
 def create_hetrodata(
@@ -39,7 +40,9 @@ def create_hetrodata(
 
     # Recipe nodes
     num_recipes = len(recipe_label_encoder.classes_)
-    recipe_x = torch.zeros((num_recipes, hidden_dim), dtype=torch.float32)
+    recipe_emb = nn.Embedding(np.max(recipe_label_encoder.classes_), hidden_dim, max_norm=1.0)
+    recipe_x = recipe_emb(recipe_label_encoder.classes_)
+    # torch.zeros((num_recipes, hidden_dim), dtype=torch.float32)
     recipe_id = torch.tensor(recipe_label_encoder.classes_, dtype=torch.long)
     hetro["item"].x = recipe_x
     hetro["item"].recipe_id = recipe_id
@@ -151,16 +154,16 @@ def create_dataloader(
     return LinkNeighborLoader(
         data=data,
         num_neighbors={
-            ('user', 'buys', 'item'): [10, 10],
-            ('item', 'bought_by', 'user'): [10, 10],
-            ('image', 'associated_with', 'item'): [10, 10],
-            ('intention', 'associated_with', 'item'): [10, 10],
-            ('taste', 'associated_with', 'item'): [10, 10],
-            ('taste', 'contains', 'ingredient'): [10, 10],
-            ('ingredient', 'part_of', 'taste'): [10, 10],
-            ('item', 'has_image', 'image'): [10, 10],
-            ('item', 'has_intention', 'intention'): [10, 10],
-            ('item', 'has_taste', 'taste'): [10, 10],
+            ('user', 'buys', 'item'): [20, 10],
+            ('item', 'bought_by', 'user'): [20, 10],
+            ('image', 'associated_with', 'item'): [20, 10],
+            ('intention', 'associated_with', 'item'): [20, 10],
+            ('taste', 'associated_with', 'item'): [20, 10],
+            ('taste', 'contains', 'ingredient'): [20, 10],
+            ('ingredient', 'part_of', 'taste'): [20, 10],
+            ('item', 'has_image', 'image'): [20, 10],
+            ('item', 'has_intention', 'intention'): [20, 10],
+            ('item', 'has_taste', 'taste'): [20, 10],
         },
         edge_label_index=(
             ('user', 'buys', 'item'),

@@ -240,9 +240,11 @@ def train_func(
             neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
 
             # 損失の計算
-            loss = criterion(pos_scores, neg_scores, model.parameters())
+            bpr_loss = criterion(pos_scores, neg_scores, model.parameters())
+            rated_bpr_loss = (1 - cl_loss_rate) * bpr_loss
+            rated_cl_loss = cl_loss_rate * cl_loss
 
-            loss = (1 - cl_loss_rate) * loss + cl_loss_rate * cl_loss
+            loss = rated_bpr_loss + cl_loss_rate * rated_cl_loss
 
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
@@ -257,6 +259,9 @@ def train_func(
                 key: val.mean().mean().item()
                 for key, val in out.x_dict.items()
             })
+        print("bpr_loss: ", bpr_loss)
+        print("cl_loss: ", cl_loss, ", loss: ", loss)
+        print("rated_bpr_loss: ", rated_bpr_loss, ", rated_cl_loss: ", rated_cl_loss)
 
         df = calculate_statistics(node_mean)
         print(df)
