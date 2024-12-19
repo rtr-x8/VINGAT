@@ -8,3 +8,4 @@ from .model import *
 from .loss import *
 from .metrics import *
 from .encoder import *
+from .visualizer import *

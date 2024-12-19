@@ -6,38 +6,30 @@ import torch.nn as nn
 import os
 
 
-class ContrastiveEncoder(nn.Module):
-    def __init__(self, input_dim, output_dim):
-        super().__init__()
-        self.fc1 = nn.Linear(input_dim, 128)
-        self.fc2 = nn.Linear(128, output_dim)
-
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.normalize(self.fc2(x), dim=1)  # 出力を正規化して、意味空間に投影
-        return x
-
-
-def contrastive_loss(z1, z2, temperature=0.5):
-    # Cosine Similarityを計算
-    similarity_matrix = torch.matmul(z1, z2.T) / temperature
-    labels = torch.arange(z1.size(0)).to(z1.device)
-    loss_fn = nn.CrossEntropyLoss()
-    loss = loss_fn(similarity_matrix, labels)
-    return loss
-
-
+# 栄養素情報によって強化された、選択理由テキスト
+# 選択理由によって強化された栄養素情報
 class ContrastiveLearning(nn.Module):
-    def __init__(self, input_dim, output_dim, temperature=0.5):
+    def __init__(self, input_dim, output_dim, temperature):
         super().__init__()
-        self.encoder = ContrastiveEncoder(input_dim, output_dim)
         self.temperature = temperature
+        self.nutrient_encoder = nn.Linear(input_dim, output_dim)
+        self.caption_encoder = nn.Linear(output_dim, output_dim)
 
-    def forward(self, x1, x2):
-        z1 = self.encoder(x1)
-        z2 = self.encoder(x2)
-        loss = contrastive_loss(z1, z2, self.temperature)
-        return z1, z2, loss
+    def info_nce_loss(self, text_emb, nut_emb):
+        batch_size = text_emb.size(0)
+        text_emb_norm = F.normalize(text_emb, p=2, dim=1)
+        nut_emb_norm = F.normalize(nut_emb, p=2, dim=1)
+        # (B, B)の類似度行列
+        logits = torch.matmul(text_emb_norm, nut_emb_norm.t()) / self.temperature
+        labels = torch.arange(batch_size).long().to(text_emb.device)
+        loss = F.cross_entropy(logits, labels)
+        return loss
+
+    def forward(self, text_emb, nut_emb):
+        updated_nut = self.nutrient_encoder(nut_emb)
+        updated_cap = self.caption_encoder(text_emb)
+        loss = self.info_nce_loss(updated_cap, updated_nut)
+        return updated_cap, updated_nut, loss
 
 
 class TasteGNN(nn.Module):
@@ -131,6 +123,7 @@ class RecommendationModel(nn.Module):
         sencing_layers=10,
         fusion_layers=10,
         intention_layers=10,
+        temperature=0.05,
     ):
         super().__init__()
 
@@ -142,19 +135,17 @@ class RecommendationModel(nn.Module):
         self.user_norm = BatchNorm(hidden_dim)
         self.item_norm = BatchNorm(hidden_dim)
 
-        self.nutrient_projection = nn.Sequential(
-            nn.Linear(nutrient_dim, hidden_dim),
-            nn.ReLU(),
-            nn.BatchNorm1d(hidden_dim)
-        )
-
         # Contrastive caption and nutrient
-        # self.cl_nutrient_to_caption = ContrastiveLearning(hidden_dim, hidden_dim)
+        self.cl_with_caption_and_nutrient = nn.ModuleList()
+        for _ in range(intention_layers):
+            cl = ContrastiveLearning(nutrient_dim, hidden_dim, temperature)
+            self.cl_with_caption_and_nutrient.append(cl)
 
         # Fusion of ingredient and recipe
         # self.ing_to_recipe = TasteGNN(hidden_dim)
 
         # HANConv layers
+        """一旦コメントアウト
         self.fusion_gnn = nn.ModuleList()
         for _ in range(fusion_layers):
             gnn = MultiModalFusionGAT(
@@ -163,6 +154,7 @@ class RecommendationModel(nn.Module):
                 dropout_rate=dropout_rate
             )
             self.fusion_gnn.append(gnn)
+        """
 
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
@@ -189,15 +181,26 @@ class RecommendationModel(nn.Module):
             "item": self.item_norm(data.x_dict.get("item")),
         })
 
+        cl_losses = []
+        for cl in self.cl_with_caption_and_nutrient:
+            caption_x, _, cl_loss = cl(data["intention"].x, data["intention"].nutrient)
+            cl_losses.append(cl_loss)
+            data.x_dict.update({
+                "intention": caption_x,
+            })
+        cl_loss = torch.stack(cl_losses).mean()
+
         # Message passing
         # data.x_dict.update({
         #     "taste": self.ing_to_recipe(data.x_dict, data.edge_index_dict)
         # })
 
+        """一旦コメントアウト
         for gnn in self.fusion_gnn:
             data.x_dict.update(gnn(data.x_dict, data.edge_index_dict))
+        """
 
-        return data
+        return data, cl_loss
 
     def predict(self, user_nodes, recipe_nodes):
         # ユーザーとレシピの埋め込みを連結
