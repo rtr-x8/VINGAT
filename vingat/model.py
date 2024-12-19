@@ -77,7 +77,7 @@ class MultiModalFusionGAT(nn.Module):
              ('user', 'buys', 'item'),
              ('item', 'bought_by', 'user')]
 
-    def __init__(self, hidden_dim):
+    def __init__(self, hidden_dim, num_heads):
         super().__init__()
         self.gnn = HGTConv(
             in_channels=hidden_dim,
@@ -98,7 +98,8 @@ class RecommendationModel(nn.Module):
         dropout_rate,
         device,
         hidden_dim,
-        nutrient_dim=20
+        nutrient_dim=20,
+        num_heads=2
     ):
         super().__init__()
 
@@ -123,7 +124,7 @@ class RecommendationModel(nn.Module):
         self.ing_to_recipe = TasteGNN(hidden_dim)
 
         # HANConv layers
-        self.fusion_gat = MultiModalFusionGAT(hidden_dim)
+        self.fusion_gat = MultiModalFusionGAT(hidden_dim, num_heads)
 
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
