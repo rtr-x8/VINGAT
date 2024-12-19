@@ -401,14 +401,17 @@ def mask_hetero(
 
     data = copy.deepcopy(hetero)
 
-    # 存在しないノード属性を削除
-    no_user_id = ~user_recipe_set["user_id"].isin(user_lencoder.classes_)
-    no_user_index = user_lencoder.transform(no_user_id)
-    no_item_id = ~user_recipe_set["recipe_id"].isin(item_lencoder.classes_)
-    no_item_index = item_lencoder.transform(no_item_id)
+    # ユーザーIDのセット差分を取得（全体のクラスから現在のデータセットに存在するIDを引く）
+    no_user_ids = np.setdiff1d(user_lencoder.classes_, user_recipe_set["user_id"].values)
+    no_item_ids = np.setdiff1d(item_lencoder.classes_, user_recipe_set["recipe_id"].values)
 
-    data.x_dict["user"][no_user_index] = data.x_dict["user"][no_user_index].zero_()
-    data.x_dict["item"][no_item_index] = data.x_dict["item"][no_item_index].zero_()
+    # 存在しないユーザーIDおよびアイテムIDをエンコード（インデックスに変換）
+    # LabelEncoderは既に全体のIDに対してフィットされているため、エラーは発生しない
+    no_user_indices = user_lencoder.transform(no_user_ids)
+    no_item_indices = item_lencoder.transform(no_item_ids)
+
+    data.x_dict["user"][no_user_indices] = data.x_dict["user"][no_user_indices].zero_()
+    data.x_dict["item"][no_item_indices] = data.x_dict["item"][no_item_indices].zero_()
 
     # 標準化
     if scalar_preprocess is None:
