@@ -84,11 +84,10 @@ def evaluate_model(
             labels = np.concatenate([np.ones(len(pos_scores)), np.zeros(len(neg_scores))])
 
             if user_id in [338, 521, 604, 651, 814, 935]:
-                print("Neg", user_id, negative_edge_index.shape)
-                print("Pos", user_id, user_edge_label_index.shape)
-                print("pos len", num_pos_samples, ", neg len", num_neg_samples)
+                print("Neg, uid; ", user_id, negative_edge_index.shape)
+                print("Pos, uid; ", user_id, user_edge_label_index.shape)
                 print("pos", pos_scores)
-                print("neg", neg_scores[:100])
+                print("neg", neg_scores[:50])
 
             if len(np.unique(labels)) > 1:    # Check if we have both positive and negative samples
                 auc = roc_auc_score(labels, scores)

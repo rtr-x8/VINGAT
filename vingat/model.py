@@ -101,7 +101,8 @@ class MultiModalFusionGAT(nn.Module):
 
     def __init__(self, hidden_dim, num_heads, dropout_rate):
         super().__init__()
-        # self.drop = DictDropout(dropout_rate)
+        self.drop = DictDropout(dropout_rate)
+        self.act = DictActivate()
         self.gnn = HGTConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
@@ -112,8 +113,10 @@ class MultiModalFusionGAT(nn.Module):
     def forward(self, x_dict, edge_index_dict):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
-        # x_dict = self.drop(x_dict)
-        return self.gnn(x_dict, edge_index_dict)
+        out = self.gnn(x_dict, edge_index_dict)
+        out = self.drop(out)
+        out = self.act(out)
+        return out
 
 
 class RecommendationModel(nn.Module):
