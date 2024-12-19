@@ -28,6 +28,7 @@ class RepeatTensor(nn.Module):
 class ContrastiveLearning(nn.Module):
     def __init__(self, output_dim, temperature):
         super().__init__()
+        self.output_dim = output_dim
         self.temperature = temperature
         self.nutrient_encoder = RepeatTensor()
         self.caption_encoder = nn.Linear(output_dim, output_dim)
