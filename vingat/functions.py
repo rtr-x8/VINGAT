@@ -10,6 +10,7 @@ from sklearn.metrics import roc_auc_score
 from vingat.metrics import ndcg_at_k
 from typing import Callable
 import pandas as pd
+from .visualizer import visualize_node_pca
 
 
 def evaluate_model(
@@ -194,6 +195,8 @@ def train_func(
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
+    visualize_node_pca(train_loader.dataset, ["user", "item", "intention", "taste"], "before")
+
     for epoch in range(epochs):
         total_loss = 0
         all_preds = []
@@ -320,4 +323,5 @@ def train_func(
 
         scheduler.step()
 
+    visualize_node_pca(train_loader.dataset, ["user", "item", "intention", "taste"], "after")
     return model
