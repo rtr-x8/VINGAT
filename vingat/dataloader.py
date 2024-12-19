@@ -411,12 +411,13 @@ def mask_hetero(
     data.x_dict["item"][no_item_index] = data.x_dict["item"][no_item_index].zero_()
 
     # 標準化
-    if is_train and scalar_preprocess is None:
-        scalar_preprocess = ScalarPreprocess(data.x_dict)
-        scalar_preprocess.fit()
-        data.x_dict.update(scalar_preprocess.transform(data.x_dict))
-    else:
-        data.x_dict.update(scalar_preprocess.transform(data.x_dict))
+    if scalar_preprocess is None:
+        if is_train:
+            scalar_preprocess = ScalarPreprocess(data.x_dict)
+            scalar_preprocess.fit()
+        else:
+            raise ValueError("scalar_preprocess must be provided when is_train is False.")
+    data.x_dict.update(scalar_preprocess.transform(data.x_dict))
 
     # edge
     edge_index_user_recipe = torch.tensor([
