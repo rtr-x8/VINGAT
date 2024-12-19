@@ -322,6 +322,8 @@ def train_func(
                 break
 
         scheduler.step()
-        visualize_node_pca(batch_data, pca_cols, "after_training")
+
+        if (epoch + 1) % 20 == 0:
+            visualize_node_pca(batch_data, pca_cols, "after_training")
 
     return model
