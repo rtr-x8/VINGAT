@@ -190,8 +190,8 @@ class RecommendationModel(nn.Module):
         #     "taste": self.ing_to_recipe(data.x_dict, data.edge_index_dict)
         # })
 
-        fusion_out = self.fusion_gat(data.x_dict, data.edge_index_dict)
-        data.x_dict.update(fusion_out)
+        for gnn in self.fusion_gnn:
+            data.x_dict.update(gnn(data.x_dict, data.edge_index_dict))
 
         return data
 
