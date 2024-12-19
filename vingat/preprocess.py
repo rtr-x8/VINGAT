@@ -21,6 +21,6 @@ class ScalarPreprocess:
             # 各ノードの属性 (x) に対して transform を適用
             x_dict[node].x = torch.tensor(
                 self.standard_scaler_dict[node].transform(val.cpu().numpy()),
-                dtype=val.x.dtype
+                dtype=val.dtype
             )
         return x_dict
