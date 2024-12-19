@@ -148,10 +148,10 @@ class RecommendationModel(nn.Module):
         )
 
         # Contrastive caption and nutrient
-        self.cl_nutrient_to_caption = ContrastiveLearning(hidden_dim, hidden_dim)
+        # self.cl_nutrient_to_caption = ContrastiveLearning(hidden_dim, hidden_dim)
 
         # Fusion of ingredient and recipe
-        self.ing_to_recipe = TasteGNN(hidden_dim)
+        # self.ing_to_recipe = TasteGNN(hidden_dim)
 
         # HANConv layers
         self.fusion_gnn = nn.ModuleList()
