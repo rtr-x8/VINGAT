@@ -11,7 +11,6 @@ from vingat.metrics import ndcg_at_k
 from typing import Callable
 import pandas as pd
 from vingat.visualizer import visualize_node_pca
-from torch_geometric.data import Batch
 
 
 def evaluate_model(
