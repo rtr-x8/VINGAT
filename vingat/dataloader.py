@@ -392,7 +392,7 @@ def mask_hetero(
     ing_lencoder: LabelEncoder,
     is_train: bool,
     scalar_preprocess: ScalarPreprocess = None,
-) -> HeteroData, ScalarPreprocess:
+) -> Tuple[HeteroData, ScalarPreprocess]:
 
     # 環境ごとのデータ
     user_recipe_set = rating[["user_id", "recipe_id"]]
