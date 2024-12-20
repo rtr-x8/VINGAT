@@ -30,7 +30,7 @@ def visualize_node_pca(data, node_types, title, sample_size=1000):
         features = data.x_dict[node_type]  # data.x_dict[node_type]から特徴量を取得
 
         if isinstance(features, torch.Tensor):
-            features = features.cpu().numpy()
+            features = features.detach().cpu().numpy()
 
         num_nodes = features.shape[0]
         if num_nodes > sample_size:

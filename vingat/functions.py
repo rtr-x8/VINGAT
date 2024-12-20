@@ -27,6 +27,7 @@ def evaluate_model(
     all_accuracies = []
     all_f1_scores = []
     all_aucs = []
+    score_means = []
 
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
 
@@ -85,11 +86,7 @@ def evaluate_model(
             scores = torch.cat([pos_scores, neg_scores], dim=0).cpu().numpy()
             labels = np.concatenate([np.ones(len(pos_scores)), np.zeros(len(neg_scores))])
 
-            if user_id in [338, 521, 604, 651, 814, 935]:
-                print("Neg, uid; ", user_id, negative_edge_index.shape)
-                print("Pos, uid; ", user_id, user_edge_label_index.shape)
-                print("pos", pos_scores)
-                print("neg", neg_scores[:5])
+            score_means.append(scores.mean())
 
             if len(np.unique(labels)) > 1:    # Check if we have both positive and negative samples
                 auc = roc_auc_score(labels, scores)
@@ -131,8 +128,9 @@ def evaluate_model(
     avg_accuracy = np.mean(all_accuracies)
     avg_f1 = np.mean(all_f1_scores)
     avg_auc = np.mean(all_aucs) if all_aucs else 0.0
+    score_mean = np.mean(score_means)
 
-    return avg_precision, avg_recall, avg_ndcg, avg_accuracy, avg_f1, avg_auc
+    return avg_precision, avg_recall, avg_ndcg, avg_accuracy, avg_f1, avg_auc, score_mean
 
 
 def save_model(model: nn.Module,  save_directory: str, filename: str):
@@ -180,8 +178,8 @@ def train_func(
     criterion,
     epochs,
     device,
-    train_epoch_logger: Callable,
-    valid_epoch_logger: Callable,
+    wbLogger: Callable,
+    wbTagger: Callable,
     directory_path: str,
     project_name: str,
     experiment_name: str,
@@ -195,6 +193,7 @@ def train_func(
     model.to(device)
     best_val_metric = 0    # 現時点での最良のバリデーションメトリクスを初期化
     patience_counter = 0    # Early Stoppingのカウンターを初期化
+    # score_means = []
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
@@ -279,8 +278,8 @@ def train_func(
         txt = f"{txt}, {scheduler.get_last_lr()}"
         print(f"{epoch+1}/{epochs}", f"{txt} Recall: {epoch_recall:.4f}, F1: {epoch_f1:.4f}")
 
-        train_epoch_logger(
-            metrics={
+        wbLogger(
+            data={
                 "train/total_loss": total_loss,
                 "train/aveg_loss": aveg_loss,
                 "train/accuracy": epoch_accuracy,
@@ -294,33 +293,35 @@ def train_func(
         # Valid
         if (epoch + 1) % validation_interval == 0:
             k = 10
-            val_precision, val_recall, val_ndcg, val_accuracy, val_f1, val_auc = evaluate_model(
+            v_precision, v_recall, v_ndcg, v_accuracy, v_f1, v_auc, n_s_m = evaluate_model(
                 model, val, device, k=k, desc=f"[Valid] Epoch {epoch+1}/{epochs}")
 
+            # score_means.append(n_s_m)
+
             # 結果を表示
-            txt = f'Acc@{k}: {val_accuracy:.4f}, Recall@{k}: {val_recall:.4f},'
-            txt = f"{txt} F1@{k}: {val_f1:.4f}, Pre@{k}: {val_precision:.4f},"
-            txt = f"{txt} NDCG@{k}: {val_ndcg:.4f}, AUC: {val_auc:.4f}"
-            txt = f"{txt}, {scheduler.get_last_lr()}"
+            txt = f'Acc@{k}: {v_accuracy:.4f}, Recall@{k}: {v_recall:.4f},'
+            txt = f"{txt} F1@{k}: {v_f1:.4f}, Pre@{k}: {v_precision:.4f},"
+            txt = f"{txt} NDCG@{k}: {v_ndcg:.4f}, AUC: {v_auc:.4f}"
+            txt = f"{txt}, {scheduler.get_last_lr()}, n_s_m: {n_s_m}"
             print(txt)
             print("===")
 
-            valid_epoch_logger(
-                metrics={
-                    f"val/Precision@{k}": val_precision,
-                    f"val/Recall@{k}": val_recall,
-                    f"val/NDCG@{k}": val_ndcg,
-                    f"val/Accuracy@{k}": val_accuracy,
-                    f"val/F1@{k}": val_f1,
-                    "val/AUC": val_auc,
+            wbLogger(
+                data={
+                    f"val/Precision@{k}": v_precision,
+                    f"val/Recall@{k}": v_recall,
+                    f"val/NDCG@{k}": v_ndcg,
+                    f"val/Accuracy@{k}": v_accuracy,
+                    f"val/F1@{k}": v_f1,
+                    "val/AUC": v_auc,
                 }
             )
 
             save_model(model, save_dir, f"model_{epoch+1}")
 
             # Early Stoppingの判定（バリデーションの精度または他のメトリクスで判定）
-            if val_accuracy > best_val_metric:
-                best_val_metric = val_accuracy    # 最良のバリデーションメトリクスを更新
+            if v_accuracy > best_val_metric:
+                best_val_metric = v_accuracy    # 最良のバリデーションメトリクスを更新
                 patience_counter = 0    # 改善が見られたためカウンターをリセット
             else:
                 patience_counter += 1    # 改善がなければカウンターを増やす
@@ -328,11 +329,17 @@ def train_func(
             # patienceを超えた場合にEarly Stoppingを実行
             if patience_counter >= patience:
                 print(f"エポック{epoch+1}でEarly Stoppingを実行します。")
+                wbTagger("early_stopped")
                 break
 
         scheduler.step()
 
         if (epoch + 1) % 20 == 0:
             visualize_node_pca(batch_data, pca_cols, "after_training")
+
+    if epochs == epoch + 1:
+        wbTagger("epoch_completed")
+    else:
+        wbTagger(f"under_{(epoch // 10 + 1) * 10}_epochs")
 
     return model
