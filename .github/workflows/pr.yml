@@ -1,0 +1,38 @@
+name: Python Syntax Check
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint:
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      # リポジトリをチェックアウト
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      # Pythonをセットアップ
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'  # 必要なPythonバージョンを指定
+
+      # 必要なパッケージをインストール
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 mypy pyflakes
+          pip install types-setuptools types-pytz
+
+      # flake8で文法チェック
+      - name: Run flake8
+        run: flake8 .
+
+      # mypyで型チェック
+      - name: Run mypy
+        run: |
+          mypy .
