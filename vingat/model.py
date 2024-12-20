@@ -244,6 +244,7 @@ class RecommendationModel(nn.Module):
             "user": self.user_encoder(data["user"].id),
             "item": self.item_encoder(data["item"].id),
         })
+        print(data.x_dict["user"].shape, data.x_dict["user"].shape[:10])
 
         """
         cl_losses = []
