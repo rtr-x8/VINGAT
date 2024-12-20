@@ -181,6 +181,8 @@ class RecommendationModel(nn.Module):
         dropout_rate,
         device,
         hidden_dim,
+        user_label_encoder,
+        item_label_encoder,
         nutrient_dim=20,
         num_heads=2,
         sencing_layers=10,
@@ -195,7 +197,8 @@ class RecommendationModel(nn.Module):
         self.device = device
         self.hidden_dim = hidden_dim
 
-        self.start_norm = DictBatchNorm(hidden_dim)
+        self.user_encoder = nn.Embedding(len(user_label_encoder), hidden_dim, max_norm=1)
+        self.item_encoder = nn.Embedding(len(item_label_encoder), hidden_dim, max_norm=1)
 
         # Contrastive caption and nutrient
         """
@@ -236,7 +239,11 @@ class RecommendationModel(nn.Module):
         )
 
     def forward(self, data):
-        data.x_dict.update(self.start_norm(data.x_dict))
+
+        data.x_dict.update({
+            "user": self.user_encoder(data["user"].id),
+            "item": self.item_encoder(data["item"].id),
+        })
 
         """
         cl_losses = []
