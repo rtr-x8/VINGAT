@@ -59,7 +59,7 @@ class TasteGNN(nn.Module):
 
     def __init__(self, hidden_dim, dropout_rate):
         super().__init__()
-        self.drop = DictDropout(dropout_rate)
+        self.drop = DictDropout(dropout_rate, self.NODES)
         self.act = DictActivate()
         self.norm = DictBatchNorm(hidden_dim)
         self.gnn = HANConv(
