@@ -239,8 +239,10 @@ class RecommendationModel(nn.Module):
 
     def forward(self, data):
 
-        data["user"].x = self.user_encoder(data["user"].id)
-        data["item"].x = self.item_encoder(data["item"].id)
+        data.set_x_dict("x", {
+            "user": self.user_encoder(data["user"].id),
+            "item": self.item_encoder(data["item"].id)
+        })
 
         """
         cl_losses = []
