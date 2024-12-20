@@ -228,6 +228,8 @@ class RecommendationModel(nn.Module):
             )
             self.fusion_gnn.append(gnn)
 
+        self.fusion_dropout = DictDropout(dropout_rate, ["user", "item", "taste", "image"])
+
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
             nn.Linear(hidden_dim + hidden_dim, hidden_dim),
@@ -253,18 +255,16 @@ class RecommendationModel(nn.Module):
                 "intention": caption_x
             })
         cl_loss = torch.stack(cl_losses).mean()
-        data.x_dict = self.cl_dropout(data.x_dict)
+        data.set_x_dict("x", self.cl_dropout(data.x_dict))
         """
 
         # Message passing
         for gnn in self.ing_to_recipe:
             data.set_x_dict("x", gnn(data.x_dict, data.edge_index_dict))
-
         data.set_x_dict("x", self.taste_dropout(data.x_dict))
 
         for gnn in self.fusion_gnn:
             data.set_x_dict("x", gnn(data.x_dict, data.edge_index_dict))
-
         data.set_x_dict("x", self.fusion_dropout(data.x_dict))
 
         return data   # , cl_loss
