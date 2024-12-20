@@ -100,13 +100,14 @@ class DictActivate(nn.Module):
 
 
 class DictDropout(nn.Module):
-    def __init__(self, dropout_rate):
+    def __init__(self, dropout_rate, keys=[]):
         super().__init__()
         self.dropout = nn.Dropout(dropout_rate)
+        self.keys = keys
 
     def forward(self, x_dict):
         return {
-            k: self.dropout(v) for k, v in x_dict.items()
+            k: self.dropout(x_dict.get(k)) for k in self.keys
         }
 
 
@@ -138,7 +139,7 @@ class MultiModalFusionGAT(nn.Module):
 
     def __init__(self, hidden_dim, num_heads, dropout_rate):
         super().__init__()
-        self.drop = DictDropout(dropout_rate)
+        self.drop = DictDropout(dropout_rate, self.NODES)
         self.act = DictActivate()
         self.norm = DictBatchNorm(hidden_dim)
         self.gnn = HGTConv(
@@ -175,12 +176,6 @@ def print_layer_outputs(model, input_data, max_elements=10, prefix=""):
         print("-" * 20)
 
 
-def x_dict_updater(original, update):
-    for k, v in update.items():
-        original[k] = v
-    return original
-
-
 class RecommendationModel(nn.Module):
     def __init__(
         self,
@@ -212,7 +207,7 @@ class RecommendationModel(nn.Module):
         for _ in range(intention_layers):
             cl = ContrastiveLearning(hidden_dim, temperature)
             self.cl_with_caption_and_nutrient.append(cl)
-        self.cl_dropout = DictDropout(dropout_rate)
+        self.cl_dropout = DictDropout(dropout_rate, ["intention"])
         """
 
         # Fusion of ingredient and recipe
@@ -221,7 +216,7 @@ class RecommendationModel(nn.Module):
             gnn = TasteGNN(hidden_dim, dropout_rate=dropout_rate)
             self.ing_to_recipe.append(gnn)
 
-        self.taste_dropout = DictDropout(dropout_rate)
+        self.taste_dropout = DictDropout(dropout_rate, ["taste"])
 
         # HANConv layers
         self.fusion_gnn = nn.ModuleList()
@@ -233,7 +228,7 @@ class RecommendationModel(nn.Module):
             )
             self.fusion_gnn.append(gnn)
 
-        self.fusion_dropout = DictDropout(dropout_rate)
+        self.fusion_dropout = DictDropout(dropout_rate, ["user", "item", "taste", "image"])
 
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
@@ -246,31 +241,31 @@ class RecommendationModel(nn.Module):
 
     def forward(self, data):
 
-        print("Before", data.x_dict["user"].shape, data["user"].id[:10], data.x_dict["user"][:10])
-        data["user"].x = self.user_encoder(data["user"].id)
-        data["item"].x = self.item_encoder(data["item"].id)
-        print("After", data.x_dict["user"].shape, data["user"].id[:10], data.x_dict["user"][:10])
+        data.set_x_dict("x", {
+            "user": self.user_encoder(data["user"].id),
+            "item": self.item_encoder(data["item"].id)
+        })
 
         """
         cl_losses = []
         for cl in self.cl_with_caption_and_nutrient:
             caption_x, _, cl_loss = cl(data["intention"].x, data["intention"].nutrient)
             cl_losses.append(cl_loss)
-            data.x_dict.update({
-                "intention": caption_x,
+            data.set_x_dict("x", {
+                "intention": caption_x
             })
         cl_loss = torch.stack(cl_losses).mean()
-        data.x_dict.update(self.cl_dropout(data.x_dict))
+        data.set_x_dict("x", self.cl_dropout(data.x_dict))
         """
 
         # Message passing
         for gnn in self.ing_to_recipe:
-            data.x_dict.update(gnn(data.x_dict, data.edge_index_dict))
-        data.x_dict.update(self.taste_dropout(data.x_dict))
+            data.set_x_dict("x", gnn(data.x_dict, data.edge_index_dict))
+        data.set_x_dict("x", self.taste_dropout(data.x_dict))
 
         for gnn in self.fusion_gnn:
-            data.x_dict.update(gnn(data.x_dict, data.edge_index_dict))
-        data.x_dict.update(self.fusion_dropout(data.x_dict))
+            data.set_x_dict("x", gnn(data.x_dict, data.edge_index_dict))
+        data.set_x_dict("x", self.fusion_dropout(data.x_dict))
 
         return data   # , cl_loss
 
