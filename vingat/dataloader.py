@@ -179,7 +179,7 @@ def mask_hetero(
             scalar_preprocess.fit()
         else:
             raise ValueError("scalar_preprocess must be provided when is_train is False.")
-    data.set_x_dict("x", scalar_preprocess.transform(data.x_dict))
+    data.set_value_dict("x", scalar_preprocess.transform(data.x_dict))
 
     # edge
     edge_index_user_recipe = torch.tensor([

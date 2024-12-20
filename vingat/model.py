@@ -241,7 +241,7 @@ class RecommendationModel(nn.Module):
 
     def forward(self, data):
 
-        data.set_x_dict("x", {
+        data.set_value_dict("x", {
             "user": self.user_encoder(data["user"].id),
             "item": self.item_encoder(data["item"].id)
         })
@@ -251,21 +251,21 @@ class RecommendationModel(nn.Module):
         for cl in self.cl_with_caption_and_nutrient:
             caption_x, _, cl_loss = cl(data["intention"].x, data["intention"].nutrient)
             cl_losses.append(cl_loss)
-            data.set_x_dict("x", {
+            data.set_value_dict("x", {
                 "intention": caption_x
             })
         cl_loss = torch.stack(cl_losses).mean()
-        data.set_x_dict("x", self.cl_dropout(data.x_dict))
+        data.set_value_dict("x", self.cl_dropout(data.x_dict))
         """
 
         # Message passing
         for gnn in self.ing_to_recipe:
-            data.set_x_dict("x", gnn(data.x_dict, data.edge_index_dict))
-        data.set_x_dict("x", self.taste_dropout(data.x_dict))
+            data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
+        data.set_value_dict("x", self.taste_dropout(data.x_dict))
 
         for gnn in self.fusion_gnn:
-            data.set_x_dict("x", gnn(data.x_dict, data.edge_index_dict))
-        data.set_x_dict("x", self.fusion_dropout(data.x_dict))
+            data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
+        data.set_value_dict("x", self.fusion_dropout(data.x_dict))
 
         return data   # , cl_loss
 
