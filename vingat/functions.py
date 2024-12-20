@@ -180,8 +180,7 @@ def train_func(
     criterion,
     epochs,
     device,
-    train_epoch_logger: Callable,
-    valid_epoch_logger: Callable,
+    wbLogger: Callable,
     directory_path: str,
     project_name: str,
     experiment_name: str,
@@ -279,8 +278,8 @@ def train_func(
         txt = f"{txt}, {scheduler.get_last_lr()}"
         print(f"{epoch+1}/{epochs}", f"{txt} Recall: {epoch_recall:.4f}, F1: {epoch_f1:.4f}")
 
-        train_epoch_logger(
-            metrics={
+        wbLogger(
+            data={
                 "train/total_loss": total_loss,
                 "train/aveg_loss": aveg_loss,
                 "train/accuracy": epoch_accuracy,
@@ -305,8 +304,8 @@ def train_func(
             print(txt)
             print("===")
 
-            valid_epoch_logger(
-                metrics={
+            wbLogger(
+                data={
                     f"val/Precision@{k}": val_precision,
                     f"val/Recall@{k}": val_recall,
                     f"val/NDCG@{k}": val_ndcg,
