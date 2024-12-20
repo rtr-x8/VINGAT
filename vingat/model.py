@@ -249,7 +249,9 @@ class RecommendationModel(nn.Module):
         for cl in self.cl_with_caption_and_nutrient:
             caption_x, _, cl_loss = cl(data["intention"].x, data["intention"].nutrient)
             cl_losses.append(cl_loss)
-            data["intention"].x = caption_x
+            data.set_x_dict("x", {
+                "intention": caption_x
+            })
         cl_loss = torch.stack(cl_losses).mean()
         data.x_dict = self.cl_dropout(data.x_dict)
         """
