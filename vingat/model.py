@@ -249,7 +249,9 @@ class RecommendationModel(nn.Module):
             cl_losses.append(cl_loss)
             data["intention"].x = caption_x
         cl_loss = torch.stack(cl_losses).mean()
-        data.x_dict.update(self.cl_dropout(data.x_dict))
+        out = self.cl_dropout(data.x_dict)
+        for node, value in out.items():
+            data[node].x = value
         """
 
         # Message passing
