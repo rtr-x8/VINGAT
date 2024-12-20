@@ -10,6 +10,7 @@ on:
 
 jobs:
   lint:
+    if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:
@@ -74,6 +75,20 @@ jobs:
           git commit -m "Auto-increment version"
           git push
 
+      - name: Read version from file
+        id: read_version
+        run: |
+          version=$(python -c "exec(open('vingat/_version.py').read()); print(__version__)")
+          echo "::set-output name=VERSION::$version"
+
+      - name: Create GitHub tag
+        env:
+          VERSION: ${{ steps.read_version.outputs.VERSION }}
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+          git tag -a "v$VERSION" -m "Release version $VERSION"
+          git push origin "v$VERSION"
 
   tag-version:
     needs: update-version
@@ -88,6 +103,9 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
+
+      - name: Pull latest changes
+        run: git pull
 
       - name: Read version from file
         id: read_version
