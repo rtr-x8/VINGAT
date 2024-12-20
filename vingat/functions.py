@@ -181,6 +181,7 @@ def train_func(
     epochs,
     device,
     wbLogger: Callable,
+    wbTagger: Callable,
     directory_path: str,
     project_name: str,
     experiment_name: str,
@@ -327,11 +328,17 @@ def train_func(
             # patienceを超えた場合にEarly Stoppingを実行
             if patience_counter >= patience:
                 print(f"エポック{epoch+1}でEarly Stoppingを実行します。")
+                wbTagger("early_stopped")
                 break
 
         scheduler.step()
 
         if (epoch + 1) % 20 == 0:
             visualize_node_pca(batch_data, pca_cols, "after_training")
+
+    if epochs == epoch + 1:
+        wbTagger("epoch_completed")
+    else:
+        wbTagger(f"under_{(epoch // 10 + 1) * 10}_epochs")
 
     return model
