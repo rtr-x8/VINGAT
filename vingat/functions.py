@@ -88,6 +88,10 @@ def evaluate_model(
 
             score_means.append(scores.mean())
 
+            if user_id in [338, 521, 604, 651, 814, 935]:
+                print("pos_scores", pos_scores[:10])
+                print("neg_scores", neg_scores[:10])
+
             if len(np.unique(labels)) > 1:    # Check if we have both positive and negative samples
                 auc = roc_auc_score(labels, scores)
                 all_aucs.append(auc)
