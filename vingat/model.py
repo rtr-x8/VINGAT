@@ -191,12 +191,13 @@ class RecommendationModel(nn.Module):
         self.start_norm = DictBatchNorm(hidden_dim)
 
         # Contrastive caption and nutrient
+        """
         self.cl_with_caption_and_nutrient = nn.ModuleList()
         for _ in range(intention_layers):
             cl = ContrastiveLearning(hidden_dim, temperature)
             self.cl_with_caption_and_nutrient.append(cl)
-
         self.cl_dropout = DictDropout(dropout_rate)
+        """
 
         # Fusion of ingredient and recipe
         self.ing_to_recipe = nn.ModuleList()
@@ -230,6 +231,7 @@ class RecommendationModel(nn.Module):
     def forward(self, data):
         data.x_dict.update(self.start_norm(data.x_dict))
 
+        """
         cl_losses = []
         for cl in self.cl_with_caption_and_nutrient:
             caption_x, _, cl_loss = cl(data["intention"].x, data["intention"].nutrient)
@@ -239,6 +241,7 @@ class RecommendationModel(nn.Module):
             })
         cl_loss = torch.stack(cl_losses).mean()
         data.x_dict.update(self.cl_dropout(data.x_dict))
+        """
 
         # Message passing
         for gnn in self.ing_to_recipe:
@@ -249,7 +252,7 @@ class RecommendationModel(nn.Module):
             data.x_dict.update(gnn(data.x_dict, data.edge_index_dict))
         data.x_dict.update(self.fusion_dropout(data.x_dict))
 
-        return data, cl_loss
+        return data   # , cl_loss
 
     def predict(self, user_nodes, recipe_nodes):
         # ユーザーとレシピの埋め込みを連結
