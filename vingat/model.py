@@ -240,11 +240,12 @@ class RecommendationModel(nn.Module):
 
     def forward(self, data):
 
+        print("Before", data.x_dict["user"].shape, data["user"].id[:10], data.x_dict["user"][:10])
         data.x_dict.update({
             "user": self.user_encoder(data["user"].id),
             "item": self.item_encoder(data["item"].id),
         })
-        print(data.x_dict["user"].shape, data.x_dict["user"].shape[:10])
+        print("After", data.x_dict["user"].shape, data["user"].id[:10], data.x_dict["user"][:10])
 
         """
         cl_losses = []
