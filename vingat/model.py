@@ -76,7 +76,7 @@ class TasteGNN(nn.Module):
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.drop(x_dict)
         out = self.norm(out)
-        out = self.gnn(x_dict, edge_index_dict)
+        out = self.gnn(out, edge_index_dict)
         out = self.act(out)
         return out
         """
@@ -154,7 +154,7 @@ class MultiModalFusionGAT(nn.Module):
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.drop(x_dict)
         out = self.norm(out)
-        out = self.gnn(x_dict, edge_index_dict)
+        out = self.gnn(out, edge_index_dict)
         out = self.act(out)
         return out
 
@@ -198,8 +198,8 @@ class RecommendationModel(nn.Module):
         self.device = device
         self.hidden_dim = hidden_dim
 
-        self.user_encoder = nn.Embedding(num_user, hidden_dim)
-        self.item_encoder = nn.Embedding(num_item, hidden_dim)
+        self.user_encoder = nn.Embedding(num_user, hidden_dim, max_norm=1)
+        self.item_encoder = nn.Embedding(num_item, hidden_dim, max_norm=1)
 
         # Contrastive caption and nutrient
         """
@@ -217,6 +217,8 @@ class RecommendationModel(nn.Module):
             self.ing_to_recipe.append(gnn)
 
         self.taste_dropout = DictDropout(dropout_rate, ["taste"])
+
+        self.batch_norm = DictBatchNorm(hidden_dim)
 
         # HANConv layers
         self.fusion_gnn = nn.ModuleList()
@@ -262,6 +264,8 @@ class RecommendationModel(nn.Module):
         for gnn in self.ing_to_recipe:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
         data.set_value_dict("x", self.taste_dropout(data.x_dict))
+
+        data.set_value_dict("x", self.batch_norm(data.x_dict))
 
         for gnn in self.fusion_gnn:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
