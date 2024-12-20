@@ -85,13 +85,13 @@ def create_base_hetero(
     data["user"].num_nodes = num_users
     data["user"].user_id = torch.tensor(user_lencoder.classes_)
     data["user"].x = torch.zeros((num_users, hidden_dim), dtype=torch.float32)
-    data["user"].id = torch.range(0, num_users - 1, dtype=torch.long).unsqueeze(1)
+    data["user"].id = torch.arange(0, num_users - 1, dtype=torch.long).unsqueeze(1)
 
     num_items = len(item_lencoder.classes_)
     data["item"].num_nodes = num_items
     data["item"].item_id = torch.tensor(item_lencoder.classes_)
     data['item'].x = torch.zeros((num_items, hidden_dim), dtype=torch.float32)
-    data["item"].id = torch.range(0, num_items - 1, dtype=torch.long).unsqueeze(1)
+    data["item"].id = torch.arange(0, num_items - 1, dtype=torch.long).unsqueeze(1)
 
     data["image"].num_nodes = len(item_lencoder.classes_)
     data["image"].item_id = torch.tensor(item_lencoder.classes_)
