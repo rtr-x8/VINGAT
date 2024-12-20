@@ -12,7 +12,6 @@ import copy
 import math
 from vingat.loader import load_user_embeddings
 from vingat.preprocess import ScalarPreprocess
-import torch.nn as nn
 
 
 def create_hetrodata(
@@ -36,15 +35,15 @@ def create_hetrodata(
     user_id = torch.tensor(user_label_encoder.classes_, dtype=torch.long)
     hetro["user"].x = user_x
     hetro["user"].user_id = user_id
+    hetro["user"].id = torch.range(0, num_users - 1, dtype=torch.long)
     hetro["user"].num_nodes = num_users
 
     # Recipe nodes
     num_recipes = len(recipe_label_encoder.classes_)
-    recipe_emb = nn.Embedding(np.max(recipe_label_encoder.classes_), hidden_dim, max_norm=1.0)
-    recipe_x = recipe_emb(recipe_label_encoder.classes_)
-    # torch.zeros((num_recipes, hidden_dim), dtype=torch.float32)
+    recipe_x = torch.zeros((num_recipes, hidden_dim), dtype=torch.float32)
     recipe_id = torch.tensor(recipe_label_encoder.classes_, dtype=torch.long)
     hetro["item"].x = recipe_x
+    hetro["item"].id = torch.range(0, num_recipes - 1, dtype=torch.long)
     hetro["item"].recipe_id = recipe_id
     hetro["item"].num_nodes = num_recipes
 
