@@ -122,9 +122,16 @@ class DictBatchNorm(nn.Module):
 
 
 class MultiModalFusionGAT(nn.Module):
+    """
     NODES = ['user', 'item', 'taste', 'intention', 'image']
     EDGES = [('taste', 'associated_with', 'item'),
              ('intention', 'associated_with', 'item'),
+             ('image', 'associated_with', 'item'),
+             ('user', 'buys', 'item'),
+             ('item', 'bought_by', 'user')]
+    """
+    NODES = ['user', 'item', 'taste', 'image']
+    EDGES = [('taste', 'associated_with', 'item'),
              ('image', 'associated_with', 'item'),
              ('user', 'buys', 'item'),
              ('item', 'bought_by', 'user')]
