@@ -249,29 +249,19 @@ class RecommendationModel(nn.Module):
             cl_losses.append(cl_loss)
             data["intention"].x = caption_x
         cl_loss = torch.stack(cl_losses).mean()
-        out = self.cl_dropout(data.x_dict)
-        for node, value in out.items():
-            data[node].x = value
+        data.x_dict = self.cl_dropout(data.x_dict)
         """
 
         # Message passing
         for gnn in self.ing_to_recipe:
-            out = gnn(data.x_dict, data.edge_index_dict)
-            for node, value in out.items():
-                data[node].x = value
+            data.set_x_dict("x", gnn(data.x_dict, data.edge_index_dict))
 
-        out = self.taste_dropout(data.x_dict)
-        for node, value in out.items():
-            data[node].x = value
+        data.set_x_dict("x", self.taste_dropout(data.x_dict))
 
         for gnn in self.fusion_gnn:
-            out = gnn(data.x_dict, data.edge_index_dict)
-            for node, value in out.items():
-                data[node].x = value
+            data.set_x_dict("x", gnn(data.x_dict, data.edge_index_dict))
 
-        out = self.fusion_dropout(data.x_dict)
-        for node, value in out.items():
-            data[node].x = value
+        data.set_x_dict("x", self.fusion_dropout(data.x_dict))
 
         return data   # , cl_loss
 
