@@ -175,6 +175,12 @@ def print_layer_outputs(model, input_data, max_elements=10, prefix=""):
         print("-" * 20)
 
 
+def x_dict_updater(original, update):
+    for k, v in update.items():
+        original[k] = v
+    return original
+
+
 class RecommendationModel(nn.Module):
     def __init__(
         self,
@@ -241,10 +247,8 @@ class RecommendationModel(nn.Module):
     def forward(self, data):
 
         print("Before", data.x_dict["user"].shape, data["user"].id[:10], data.x_dict["user"][:10])
-        data.x_dict.update({
-            "user": self.user_encoder(data["user"].id),
-            "item": self.item_encoder(data["item"].id),
-        })
+        data["user"].x = self.user_encoder(data["user"].id)
+        data["item"].x = self.item_encoder(data["item"].id)
         print("After", data.x_dict["user"].shape, data["user"].id[:10], data.x_dict["user"][:10])
 
         """
