@@ -184,6 +184,7 @@ def train_func(
     device,
     wbLogger: Callable,
     wbTagger: Callable,
+    wbScatter: Callable,
     directory_path: str,
     project_name: str,
     experiment_name: str,
@@ -297,7 +298,8 @@ def train_func(
         # Valid
         if (epoch + 1) % validation_interval == 0:
 
-            visualize_node_pca(batch_data, pca_cols, f"after_training. Epoch: {epoch+1}/{epochs}")
+            _df = visualize_node_pca(batch_data, pca_cols, f"after_training. Epoch: {epoch+1}/{epochs}")
+            wbScatter(_df)
 
             k = 10
             v_precision, v_recall, v_ndcg, v_accuracy, v_f1, v_auc, n_s_m = evaluate_model(
