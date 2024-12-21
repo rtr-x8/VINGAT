@@ -33,6 +33,8 @@ def score_stastics(pos_scores: List[torch.Tensor], neg_scores: List[torch.Tensor
     neg_max = np.max(u_neg_scores_np)
     neg_std = np.std(u_neg_scores_np)
 
+    diff_mean = pos_mean - neg_mean
+
     return {
         "data": {
             "score_metrics/pos_mean": pos_mean,
@@ -42,6 +44,7 @@ def score_stastics(pos_scores: List[torch.Tensor], neg_scores: List[torch.Tensor
             "score_metrics/neg_mean": neg_mean,
             "score_metrics/neg_min": neg_min,
             "score_metrics/neg_max": neg_max,
-            "score_metrics/neg_std": neg_std
+            "score_metrics/neg_std": neg_std,
+            "score_metrics/diff_mean": diff_mean,
         },
     }
