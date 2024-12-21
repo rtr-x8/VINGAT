@@ -342,6 +342,8 @@ def train_func(
                 wbTagger("early_stopped")
                 break
 
+            print(f"patience_counter: {patience_counter} / {patience}")
+
         scheduler.step()
 
     if epochs <= epoch:
