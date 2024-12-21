@@ -466,6 +466,6 @@ def load_alternative_ingredients(directory_path: str, originarl_df: pd.DataFrame
                 "alternative_ingredient": i,
                 "score": result_matrix_torch[_i, i].item()
             })
-    alternative_ingredients = pd.DataFrame(alternative_ingredients)
-    alternative_ingredients.to_csv(file_path)
-    return pd.DataFrame(alternative_ingredients)
+    result = pd.DataFrame(alternative_ingredients)
+    result.to_csv(file_path)
+    return result
