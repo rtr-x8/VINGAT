@@ -323,7 +323,7 @@ def train_func(
                     "val/AUC": v_auc,
                 }
             )
-            wbLogger(data=score_statics)
+            wbLogger(**score_statics)
 
             save_model(model, save_dir, f"model_{epoch}")
 
