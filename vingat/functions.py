@@ -200,7 +200,7 @@ def train_func(
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
-    for epoch in range(epochs):
+    for epoch in range(1, epochs+1):
         total_loss = 0
         all_preds = []
         all_labels = []
@@ -209,7 +209,7 @@ def train_func(
 
         node_mean = []
 
-        for batch_data in tqdm(train_loader, desc=f"[Train] Epoch {epoch+1}/{epochs}"):
+        for batch_data in tqdm(train_loader, desc=f"[Train] Epoch {epoch}/{epochs}"):
             optimizer.zero_grad()
             batch_data = batch_data.to(device)
 
@@ -279,7 +279,7 @@ def train_func(
 
         txt = f"Loss: {avg_loss:.4f}, Accuracy: {epoch_accuracy:.4f},"
         txt = f"{txt}, {scheduler.get_last_lr()}"
-        print(f"{epoch+1}/{epochs}", f"{txt} Recall: {epoch_recall:.4f}, F1: {epoch_f1:.4f}")
+        print(f"{epoch}/{epochs}", f"{txt} Recall: {epoch_recall:.4f}, F1: {epoch_f1:.4f}")
 
         wbLogger(
             data={
@@ -290,20 +290,20 @@ def train_func(
                 "train/precision": epoch_pre,
                 "train/f1": epoch_f1,
             },
-            step=epoch+1
+            step=epoch
         )
 
         # Valid
-        if (epoch + 1) % validation_interval == 0:
+        if epoch % validation_interval == 0:
 
             _df = visualize_node_pca(batch_data,
                                      pca_cols,
-                                     f"after_training. Epoch: {epoch+1}/{epochs}")
+                                     f"after_training. Epoch: {epoch}/{epochs}")
             wbScatter(_df, epoch + 1, title=f"after training (epoch: {epoch})")
 
             k = 10
             v_precision, v_recall, v_ndcg, v_accuracy, v_f1, v_auc, score_statics = evaluate_model(
-                model, val, device, k=k, desc=f"[Valid] Epoch {epoch+1}/{epochs}")
+                model, val, device, k=k, desc=f"[Valid] Epoch {epoch}/{epochs}")
 
             # 結果を表示
             txt = f'Acc@{k}: {v_accuracy:.4f}, Recall@{k}: {v_recall:.4f},'
@@ -323,9 +323,10 @@ def train_func(
                     "val/AUC": v_auc,
                 }
             )
-            wbLogger(data=score_statics)
+            print(score_statics)
+            wbLogger(**score_statics)
 
-            save_model(model, save_dir, f"model_{epoch+1}")
+            save_model(model, save_dir, f"model_{epoch}")
 
             # Early Stoppingの判定（バリデーションの精度または他のメトリクスで判定）
             if v_accuracy > best_val_metric:
@@ -336,7 +337,7 @@ def train_func(
 
             # patienceを超えた場合にEarly Stoppingを実行
             if patience_counter >= patience:
-                print(f"エポック{epoch+1}でEarly Stoppingを実行します。")
+                print(f"エポック{epoch}でEarly Stoppingを実行します。")
                 wbTagger("early_stopped")
                 break
 
