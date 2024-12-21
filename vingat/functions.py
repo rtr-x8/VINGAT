@@ -319,13 +319,13 @@ def train_func(
             }
 
             # 結果を表示
-            print(pd.DataFrame(val_metrics, index=[epoch]))
+            display(pd.DataFrame(val_metrics, index=[epoch]))
 
             wbLogger(
                 data=val_metrics,
                 step=epoch
             )
-            print(score_statics)
+            display(score_statics)
             wbLogger(**score_statics, step=epoch)
 
             save_model(model, save_dir, f"model_{epoch}")
