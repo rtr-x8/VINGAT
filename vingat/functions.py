@@ -321,10 +321,11 @@ def train_func(
                     f"val/Accuracy@{k}": v_accuracy,
                     f"val/F1@{k}": v_f1,
                     "val/AUC": v_auc,
-                }
+                },
+                step=epoch
             )
             print(score_statics)
-            wbLogger(**score_statics)
+            wbLogger(**score_statics, step=epoch)
 
             save_model(model, save_dir, f"model_{epoch}")
 
