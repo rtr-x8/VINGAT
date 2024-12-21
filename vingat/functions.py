@@ -344,7 +344,7 @@ def train_func(
 
         scheduler.step()
 
-    if epochs == epoch + 1:
+    if epochs <= epoch:
         wbTagger("epoch_completed")
     else:
         wbTagger(f"under_{(epoch // 10 + 1) * 10}_epochs")
