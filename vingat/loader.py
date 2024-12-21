@@ -353,3 +353,118 @@ def load_recipe_image_vlm_caption(directory_path: str,) -> pd.DataFrame:
     """
     return pd.read_csv(f"{directory_path}/recipe_image_vlm_caption.csv",
                        index_col=0)
+
+
+def batch_cosine_similarity_torch(embeddings: torch.Tensor, batch_size: int = 1000) -> torch.Tensor:
+    device = embeddings.device
+    n, d = embeddings.shape
+
+    # (1) 正規化
+    norms = embeddings.norm(dim=1, keepdim=True) + 1e-12
+    embeddings_normed = embeddings / norms
+
+    # (2) 結果用テンソル作成
+    #     大きいのでGPUで持つとメモリ不足になりやすい点に注意
+    cos_sim_matrix = torch.zeros((n, n), dtype=embeddings.dtype, device=device)
+
+    # (3) バッチ処理
+    for i_start in range(0, n, batch_size):
+        i_end = min(i_start + batch_size, n)
+        batch_i = embeddings_normed[i_start:i_end]  # shape: (bs_i, D)
+
+        for j_start in range(0, n, batch_size):
+            j_end = min(j_start + batch_size, n)
+            batch_j = embeddings_normed[j_start:j_end]  # shape: (bs_j, D)
+
+            sim_block = torch.matmul(batch_i, batch_j.transpose(0, 1))
+            cos_sim_matrix[i_start:i_end, j_start:j_end] = sim_block
+
+    return cos_sim_matrix
+
+
+def get_top50_indices_above_threshold(
+    sim_matrix: torch.Tensor,
+    threshold: float = 0.7,
+    top_k: int = 50
+) -> torch.Tensor:
+    """
+    sim_matrix: (N x N) のコサイン類似度行列 (PyTorch Tensor)
+    threshold : 類似度のしきい値 (0.7)
+    top_k     : しきい値を超えるインデックスを何件抽出するか (50)
+
+    戻り値:
+      shape: (N x top_k)
+      各行 i について、類似度が threshold を超える列インデックスを昇順で格納したテンソル
+      ただし 50件に満たない場合は -1 で埋める
+    """
+    n = sim_matrix.size(0)
+
+    # 返り値用テンソルを -1 で初期化
+    top_indices = torch.full((n, top_k), -1, dtype=torch.long, device=sim_matrix.device)
+
+    for i in tqdm(range(n)):
+        # 行 i に対して、類似度が threshold を超える j を抽出
+        row = sim_matrix[i]  # shape: (N, )
+        indices = torch.where(row > threshold)[0]  # 類似度が0.7超のインデックス
+
+        # indices = indices.sort().values
+        row_values = row[indices]                 # しきい値を超えた要素の「実際の値」を取り出す
+        _, sort_idx = row_values.sort(descending=True)
+        indices = indices[sort_idx]              # 値が大きい順に並び替えたインデックス
+
+        # 先頭 top_k 件を取り出し、残りは無視
+        length = min(top_k, indices.size(0))
+        top_indices[i, :length] = indices[:length]
+
+    return top_indices
+
+
+def load_alternative_ingredients(directory_path: str, originarl_df: pd.DataFrame, device):
+    file_path = f"{directory_path}/alternative_ingredients.csv"
+    if not os.path.isfile(file_path):
+        pd.read_csv(file_path, index_col=0)
+
+    # SBERTモデルのロード
+    model = SentenceTransformer('all-mpnet-base-v2')
+
+    # バッチサイズ
+    batch_size = 300
+
+    ingredients = load_ingredients(directory_path, originarl_df)
+
+    # ingredientsのベクトル化
+    ingredient_embeddings = []
+    for i in tqdm(range(0, len(ingredients), batch_size)):
+        batch_names = ingredients["name"][i:i + batch_size].values
+        embeddings = model.encode(batch_names)
+        ingredient_embeddings.extend(embeddings)
+
+    ingredient_embeddings = np.array(ingredient_embeddings)
+
+    ingredient_embeddings_torch = torch.tensor(ingredient_embeddings, device=device)
+
+    # バッチ計算
+    result_matrix_torch = batch_cosine_similarity_torch(ingredient_embeddings_torch,
+                                                        batch_size=1000)
+
+    # しきい値0.7・上位50件を取得
+    selected_indices = get_top50_indices_above_threshold(result_matrix_torch, 0.5, 50)
+
+    alternative_ingredients = []
+
+    for i in tqdm(ingredients.index):
+        for sim_ing in selected_indices[i]:
+            _i = sim_ing.item()
+            if _i == -1:
+                continue
+            if _i == i:
+                continue
+            if _i < i:
+                continue
+            alternative_ingredients.append({
+                "ingredient_id": _i,
+                "alternative_ingredient": i,
+                "score": result_matrix_torch[_i, i].item()
+            })
+    alternative_ingredients.to_csv(file_path)
+    return pd.DataFrame(alternative_ingredients)
