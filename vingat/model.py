@@ -200,6 +200,7 @@ class RecommendationModel(nn.Module):
         self.hidden_dim = hidden_dim
         self.tiny_hidden_dim = node_embeding_dimmention
 
+        #  TODO: もしか学習するなら直後にDropOut
         self.user_encoder = nn.Embedding(num_user, hidden_dim, max_norm=1)
         self.item_encoder = nn.Embedding(num_item, hidden_dim, max_norm=1)
 
