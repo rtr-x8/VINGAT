@@ -301,7 +301,7 @@ def train_func(
             _df = visualize_node_pca(batch_data,
                                      pca_cols,
                                      f"after_training. Epoch: {epoch+1}/{epochs}")
-            wbScatter(_df)
+            wbScatter(_df, epoch + 1, title=f"after training (epoch: {epoch})")
 
             k = 10
             v_precision, v_recall, v_ndcg, v_accuracy, v_f1, v_auc, n_s_m = evaluate_model(
