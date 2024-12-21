@@ -197,9 +197,16 @@ class RecommendationModel(nn.Module):
 
         self.device = device
         self.hidden_dim = hidden_dim
+        self.tiny_hidden_dim = 32
 
-        self.user_encoder = nn.Embedding(num_user, hidden_dim, max_norm=1)
-        self.item_encoder = nn.Embedding(num_item, hidden_dim, max_norm=1)
+        self.user_encoder = nn.Sequential(
+            nn.Embedding(num_user, self.tiny_hidden_dim, max_norm=1),
+            nn.Linear(self.tiny_hidden_dim, hidden_dim)
+        )
+        self.item_encoder = nn.Sequential(
+            nn.Embedding(num_item, self.tiny_hidden_dim, max_norm=1)
+            nn.Linear(self.tiny_hidden_dim, hidden_dim)
+        )
 
         # Contrastive caption and nutrient
         """
