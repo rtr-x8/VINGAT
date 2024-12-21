@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 
 
-def visualize_node_pca(data, node_types, title, sample_size=1000):
+def visualize_node_pca(data, node_types, title, sample_size=1000, is_show=True):
     """
     HeteroDataを受け取り、指定された複数のnode_typeの特徴量をプロットする関数
 
@@ -50,11 +50,12 @@ def visualize_node_pca(data, node_types, title, sample_size=1000):
     df = pd.DataFrame(data=principal_components, columns=['PC1', 'PC2'])
     df['node_type'] = all_labels
 
-    # Seabornで散布図を作成
-    plt.figure(figsize=(8, 6))
-    sns.scatterplot(x='PC1', y='PC2', hue='node_type', data=df, palette='Set1')  # ノードタイプで色分け
-    # plt.title(f'{title}')
-    plt.show()
+    if is_show:
+        # Seabornで散布図を作成
+        plt.figure(figsize=(8, 6))
+        sns.scatterplot(x='PC1', y='PC2', hue='node_type', data=df, palette='Set1')  # ノードタイプで色分け
+        # plt.title(f'{title}')
+        plt.show()
 
     return df
 
