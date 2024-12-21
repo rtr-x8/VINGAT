@@ -421,8 +421,8 @@ def get_top50_indices_above_threshold(
 
 def load_alternative_ingredients(directory_path: str, originarl_df: pd.DataFrame, device):
     file_path = f"{directory_path}/alternative_ingredients.csv"
-    if not os.path.isfile(file_path):
-        pd.read_csv(file_path, index_col=0)
+    if os.path.isfile(file_path):
+        return pd.read_csv(file_path, index_col=0)
 
     # SBERTモデルのロード
     model = SentenceTransformer('all-mpnet-base-v2')
