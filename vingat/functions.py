@@ -200,7 +200,7 @@ def train_func(
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
-    for epoch in range(start=1, stop=epochs):
+    for epoch in range(1, epochs+1):
         total_loss = 0
         all_preds = []
         all_labels = []
