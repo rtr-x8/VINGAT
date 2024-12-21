@@ -298,7 +298,9 @@ def train_func(
         # Valid
         if (epoch + 1) % validation_interval == 0:
 
-            _df = visualize_node_pca(batch_data, pca_cols, f"after_training. Epoch: {epoch+1}/{epochs}")
+            _df = visualize_node_pca(batch_data,
+                                     pca_cols,
+                                     f"after_training. Epoch: {epoch+1}/{epochs}")
             wbScatter(_df)
 
             k = 10
