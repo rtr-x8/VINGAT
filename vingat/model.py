@@ -182,6 +182,7 @@ class RecommendationModel(nn.Module):
         dropout_rate,
         device,
         hidden_dim,
+        node_embeding_dimmention: int,
         num_user: int,
         num_item: int,
         nutrient_dim=20,
@@ -197,7 +198,7 @@ class RecommendationModel(nn.Module):
 
         self.device = device
         self.hidden_dim = hidden_dim
-        self.tiny_hidden_dim = 32
+        self.tiny_hidden_dim = node_embeding_dimmention
 
         self.user_encoder = nn.Sequential(
             nn.Embedding(num_user, self.tiny_hidden_dim, max_norm=1),
