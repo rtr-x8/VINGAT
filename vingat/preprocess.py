@@ -29,7 +29,7 @@ class ScalarPreprocess:
 
 def filter_recipe_ingredient(
     recip_ing: pd.DataFrame,
-    alternative_ing: pd.Dataframe,
+    alternative_ing: pd.DataFrame,
     threshold: int
 ) -> pd.DataFrame:
     """
