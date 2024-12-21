@@ -88,6 +88,10 @@ def evaluate_model(
 
             score_means.append(scores.mean())
 
+            if user_id in [338, 521, 604, 651, 814, 935]:
+                print("pos_scores", pos_scores[:10])
+                print("neg_scores", neg_scores[:10])
+
             if len(np.unique(labels)) > 1:    # Check if we have both positive and negative samples
                 auc = roc_auc_score(labels, scores)
                 all_aucs.append(auc)
@@ -180,6 +184,7 @@ def train_func(
     device,
     wbLogger: Callable,
     wbTagger: Callable,
+    wbScatter: Callable,
     directory_path: str,
     project_name: str,
     experiment_name: str,
@@ -292,6 +297,12 @@ def train_func(
 
         # Valid
         if (epoch + 1) % validation_interval == 0:
+
+            _df = visualize_node_pca(batch_data,
+                                     pca_cols,
+                                     f"after_training. Epoch: {epoch+1}/{epochs}")
+            wbScatter(_df)
+
             k = 10
             v_precision, v_recall, v_ndcg, v_accuracy, v_f1, v_auc, n_s_m = evaluate_model(
                 model, val, device, k=k, desc=f"[Valid] Epoch {epoch+1}/{epochs}")
@@ -333,9 +344,6 @@ def train_func(
                 break
 
         scheduler.step()
-
-        if (epoch + 1) % 20 == 0:
-            visualize_node_pca(batch_data, pca_cols, "after_training")
 
     if epochs == epoch + 1:
         wbTagger("epoch_completed")
