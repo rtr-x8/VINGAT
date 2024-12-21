@@ -299,7 +299,7 @@ def train_func(
             _df = visualize_node_pca(batch_data,
                                      pca_cols,
                                      f"after_training. Epoch: {epoch}/{epochs}")
-            wbScatter(_df, epoch + 1, title=f"after training (epoch: {epoch})")
+            wbScatter(_df, epoch, title=f"after training (epoch: {epoch})")
 
             k = 10
             v_precision, v_recall, v_ndcg, v_accuracy, v_f1, v_auc, score_statics = evaluate_model(
@@ -344,7 +344,7 @@ def train_func(
 
         scheduler.step()
 
-    if epochs == epoch + 1:
+    if epochs <= epoch:
         wbTagger("epoch_completed")
     else:
         wbTagger(f"under_{(epoch // 10 + 1) * 10}_epochs")
