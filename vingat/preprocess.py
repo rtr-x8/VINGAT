@@ -1,5 +1,6 @@
 from sklearn.preprocessing import StandardScaler
 import torch
+import pandas as pd
 
 
 class ScalarPreprocess:
@@ -24,3 +25,24 @@ class ScalarPreprocess:
                 dtype=val.dtype
             )
         return x_dict
+
+
+def filter_recipe_ingredient(
+    recip_ing: pd.DataFrame,
+    alternative_ing: pd.Dataframe,
+    threshold: int
+) -> pd.DataFrame:
+    """
+    レシピと食材のデータフレームを受け取り、代替食材の数が閾値を超えるレシピを返す
+    """
+    merged = pd.merge(recip_ing, alternative_ing, on='ingredient_id')
+    update_mask = (
+        merged['score'].notna() &
+        (merged['score'] > threshold) &
+        (merged['ingredient_id'] != merged['alternative_ingredient'])
+    )
+
+    merged.loc[update_mask, 'ing_id'] = merged.loc[update_mask, 'alternative_ingredient']
+    merged = merged.drop(columns=['alternative_ing_id', 'score'])
+    merged = merged.drop_duplicates(subset=['recipe_id', 'ing_id']).reset_index(drop=True)
+    return merged
