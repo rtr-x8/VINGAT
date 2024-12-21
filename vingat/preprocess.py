@@ -43,6 +43,6 @@ def filter_recipe_ingredient(
     )
 
     merged.loc[update_mask, 'ing_id'] = merged.loc[update_mask, 'alternative_ingredient']
-    merged = merged.drop(columns=['alternative_ing_id', 'score'])
+    merged = merged.drop(columns=['alternative_ingredient', 'score'])
     merged = merged.drop_duplicates(subset=['recipe_id', 'ing_id']).reset_index(drop=True)
     return merged
