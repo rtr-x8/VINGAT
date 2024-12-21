@@ -198,6 +198,7 @@ def train_func(
     model.to(device)
     best_val_metric = 0    # 現時点での最良のバリデーションメトリクスを初期化
     patience_counter = 0    # Early Stoppingのカウンターを初期化
+    best_model_epoch = 0
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
@@ -333,6 +334,7 @@ def train_func(
             if v_accuracy > best_val_metric:
                 best_val_metric = v_accuracy    # 最良のバリデーションメトリクスを更新
                 patience_counter = 0    # 改善が見られたためカウンターをリセット
+                best_model_epoch = epoch
             else:
                 patience_counter += 1    # 改善がなければカウンターを増やす
 
@@ -340,6 +342,7 @@ def train_func(
             if patience_counter >= patience:
                 print(f"エポック{epoch}でEarly Stoppingを実行します。")
                 wbTagger("early_stopped")
+                model.load_state_dict(torch.load(f"{save_dir}/model_{best_model_epoch}.pth"))
                 break
 
             print(f"patience_counter: {patience_counter} / {patience}")
