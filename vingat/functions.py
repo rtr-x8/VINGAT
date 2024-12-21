@@ -210,6 +210,8 @@ def train_func(
 
         node_mean = []
 
+        print(f"Epoch {epoch}/{epochs} ======================")
+
         for batch_data in tqdm(train_loader, desc=f"[Train] Epoch {epoch}/{epochs}"):
             optimizer.zero_grad()
             batch_data = batch_data.to(device)
