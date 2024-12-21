@@ -296,6 +296,8 @@ def train_func(
         # Valid
         if epoch % validation_interval == 0:
 
+            print("Validation -------------------")
+
             _df = visualize_node_pca(batch_data,
                                      pca_cols,
                                      f"after_training. Epoch: {epoch}/{epochs}")
@@ -317,7 +319,6 @@ def train_func(
 
             # 結果を表示
             print(pd.DataFrame(val_metrics, index=[epoch]))
-            print("===")
 
             wbLogger(
                 data=val_metrics,
