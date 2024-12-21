@@ -59,27 +59,6 @@ def visualize_node_pca(data, node_types, title, sample_size=1000):
     return df
 
 
-def wandb_pca(wdb, df):
-    table = wdb.Table(
-        data=df[['PC1', 'PC2', 'node_type']].values,
-        columns=['PC1', 'PC2', 'node_type']
-    )
-
-    # W&Bに散布図としてログ
-    # - `x`, `y`: 散布図の軸
-    # - `label`: 色分けしたい列の指定
-    # - `title`: タイトルを付けられる
-    wdb.log({
-        "pca_scatter": wdb.plot.scatter(
-            table,
-            x="PC1",
-            y="PC2",
-            label="node_type",
-            title="title"
-        )
-    })
-
-
 def visualize_node_distribution(train_data, test_data, val_data, n_components=2):
     """
     ノードタイプごとに3列1行のsubplotsを作成し、train_data, test_data, val_dataの特徴量をそれぞれ別のsubplotに表示する関数
