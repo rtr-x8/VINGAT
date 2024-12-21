@@ -74,8 +74,8 @@ class TasteGNN(nn.Module):
     def forward(self, x_dict, edge_index_dict):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
-        out = self.drop(x_dict)
-        out = self.norm(out)
+        out = self.norm(x_dict)
+        out = self.drop(out)
         out = self.gnn(out, edge_index_dict)
         out = self.act(out)
         return out
@@ -152,8 +152,8 @@ class MultiModalFusionGAT(nn.Module):
     def forward(self, x_dict, edge_index_dict):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
-        out = self.drop(x_dict)
-        out = self.norm(out)
+        out = self.norm(x_dict)
+        out = self.drop(out)
         out = self.gnn(out, edge_index_dict)
         out = self.act(out)
         return out
