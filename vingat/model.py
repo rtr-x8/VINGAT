@@ -204,7 +204,7 @@ class RecommendationModel(nn.Module):
             nn.Linear(self.tiny_hidden_dim, hidden_dim)
         )
         self.item_encoder = nn.Sequential(
-            nn.Embedding(num_item, self.tiny_hidden_dim, max_norm=1)
+            nn.Embedding(num_item, self.tiny_hidden_dim, max_norm=1),
             nn.Linear(self.tiny_hidden_dim, hidden_dim)
         )
 
