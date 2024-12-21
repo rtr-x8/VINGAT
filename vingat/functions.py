@@ -11,6 +11,7 @@ from vingat.metrics import ndcg_at_k
 from typing import Callable
 import pandas as pd
 from vingat.visualizer import visualize_node_pca
+from vingat.metrics import score_stastics
 
 
 def evaluate_model(
@@ -27,7 +28,8 @@ def evaluate_model(
     all_accuracies = []
     all_f1_scores = []
     all_aucs = []
-    score_means = []
+    user_pos_scores = []
+    user_neg_scores = []
 
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
 
@@ -86,11 +88,8 @@ def evaluate_model(
             scores = torch.cat([pos_scores, neg_scores], dim=0).cpu().numpy()
             labels = np.concatenate([np.ones(len(pos_scores)), np.zeros(len(neg_scores))])
 
-            score_means.append(scores.mean())
-
-            if user_id in [338, 521, 604, 651, 814, 935]:
-                print("pos_scores", pos_scores[:10])
-                print("neg_scores", neg_scores[:10])
+            user_pos_scores.append(pos_scores)
+            user_neg_scores.append(neg_scores)
 
             if len(np.unique(labels)) > 1:    # Check if we have both positive and negative samples
                 auc = roc_auc_score(labels, scores)
@@ -132,9 +131,9 @@ def evaluate_model(
     avg_accuracy = np.mean(all_accuracies)
     avg_f1 = np.mean(all_f1_scores)
     avg_auc = np.mean(all_aucs) if all_aucs else 0.0
-    score_mean = np.mean(score_means)
+    score_statics = score_stastics(user_pos_scores, user_neg_scores)
 
-    return avg_precision, avg_recall, avg_ndcg, avg_accuracy, avg_f1, avg_auc, score_mean
+    return avg_precision, avg_recall, avg_ndcg, avg_accuracy, avg_f1, avg_auc, score_statics
 
 
 def save_model(model: nn.Module,  save_directory: str, filename: str):
@@ -198,7 +197,6 @@ def train_func(
     model.to(device)
     best_val_metric = 0    # 現時点での最良のバリデーションメトリクスを初期化
     patience_counter = 0    # Early Stoppingのカウンターを初期化
-    # score_means = []
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
@@ -304,16 +302,14 @@ def train_func(
             wbScatter(_df, epoch + 1, title=f"after training (epoch: {epoch})")
 
             k = 10
-            v_precision, v_recall, v_ndcg, v_accuracy, v_f1, v_auc, n_s_m = evaluate_model(
+            v_precision, v_recall, v_ndcg, v_accuracy, v_f1, v_auc, score_statics = evaluate_model(
                 model, val, device, k=k, desc=f"[Valid] Epoch {epoch+1}/{epochs}")
-
-            # score_means.append(n_s_m)
 
             # 結果を表示
             txt = f'Acc@{k}: {v_accuracy:.4f}, Recall@{k}: {v_recall:.4f},'
             txt = f"{txt} F1@{k}: {v_f1:.4f}, Pre@{k}: {v_precision:.4f},"
             txt = f"{txt} NDCG@{k}: {v_ndcg:.4f}, AUC: {v_auc:.4f}"
-            txt = f"{txt}, {scheduler.get_last_lr()}, n_s_m: {n_s_m}"
+            txt = f"{txt}, {scheduler.get_last_lr()}"
             print(txt)
             print("===")
 
@@ -327,6 +323,7 @@ def train_func(
                     "val/AUC": v_auc,
                 }
             )
+            wbLogger(data=score_statics)
 
             save_model(model, save_dir, f"model_{epoch+1}")
 
