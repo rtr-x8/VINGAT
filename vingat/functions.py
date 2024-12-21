@@ -12,6 +12,7 @@ from typing import Callable
 import pandas as pd
 from vingat.visualizer import visualize_node_pca
 from vingat.metrics import score_stastics
+from IPython.core.display import display
 
 
 def evaluate_model(
@@ -197,6 +198,7 @@ def train_func(
     model.to(device)
     best_val_metric = 0    # 現時点での最良のバリデーションメトリクスを初期化
     patience_counter = 0    # Early Stoppingのカウンターを初期化
+    best_model_epoch = 0
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
@@ -208,6 +210,8 @@ def train_func(
         model.train()
 
         node_mean = []
+
+        print(f"Epoch {epoch}/{epochs} ======================")
 
         for batch_data in tqdm(train_loader, desc=f"[Train] Epoch {epoch}/{epochs}"):
             optimizer.zero_grad()
@@ -268,33 +272,32 @@ def train_func(
         # print("rated_bpr_loss: ", rated_bpr_loss, ", rated_cl_loss: ", rated_cl_loss)
 
         df = calculate_statistics(node_mean)
-        print(df)
+        display(df)
 
         aveg_loss = total_loss / len(train_loader)
         epoch_accuracy = accuracy_score(all_labels, all_preds)
         epoch_recall = recall_score(all_labels, all_preds)
         epoch_f1 = f1_score(all_labels, all_preds)
         epoch_pre = precision_score(all_labels, all_preds)
-        avg_loss = total_loss / len(train_loader)
 
-        txt = f"Loss: {avg_loss:.4f}, Accuracy: {epoch_accuracy:.4f},"
-        txt = f"{txt}, {scheduler.get_last_lr()}"
-        print(f"{epoch}/{epochs}", f"{txt} Recall: {epoch_recall:.4f}, F1: {epoch_f1:.4f}")
-
+        tr_metrics = {
+            "train/total_loss": total_loss,
+            "train/aveg_loss": aveg_loss,
+            "train/accuracy": epoch_accuracy,
+            "train/recall": epoch_recall,
+            "train/precision": epoch_pre,
+            "train/f1": epoch_f1,
+        }
+        display(pd.DataFrame(tr_metrics, index=[epoch]))
         wbLogger(
-            data={
-                "train/total_loss": total_loss,
-                "train/aveg_loss": aveg_loss,
-                "train/accuracy": epoch_accuracy,
-                "train/recall": epoch_recall,
-                "train/precision": epoch_pre,
-                "train/f1": epoch_f1,
-            },
+            data=tr_metrics,
             step=epoch
         )
 
         # Valid
         if epoch % validation_interval == 0:
+
+            print("Validation -------------------")
 
             _df = visualize_node_pca(batch_data,
                                      pca_cols,
@@ -305,26 +308,24 @@ def train_func(
             v_precision, v_recall, v_ndcg, v_accuracy, v_f1, v_auc, score_statics = evaluate_model(
                 model, val, device, k=k, desc=f"[Valid] Epoch {epoch}/{epochs}")
 
+            val_metrics = {
+                f"val/Precision@{k}": v_precision,
+                f"val/Recall@{k}": v_recall,
+                f"val/NDCG@{k}": v_ndcg,
+                f"val/Accuracy@{k}": v_accuracy,
+                f"val/F1@{k}": v_f1,
+                "val/AUC": v_auc,
+                "val/last_lr": scheduler.get_last_lr()[0]
+            }
+
             # 結果を表示
-            txt = f'Acc@{k}: {v_accuracy:.4f}, Recall@{k}: {v_recall:.4f},'
-            txt = f"{txt} F1@{k}: {v_f1:.4f}, Pre@{k}: {v_precision:.4f},"
-            txt = f"{txt} NDCG@{k}: {v_ndcg:.4f}, AUC: {v_auc:.4f}"
-            txt = f"{txt}, {scheduler.get_last_lr()}"
-            print(txt)
-            print("===")
+            display(pd.DataFrame(val_metrics, index=[epoch]))
 
             wbLogger(
-                data={
-                    f"val/Precision@{k}": v_precision,
-                    f"val/Recall@{k}": v_recall,
-                    f"val/NDCG@{k}": v_ndcg,
-                    f"val/Accuracy@{k}": v_accuracy,
-                    f"val/F1@{k}": v_f1,
-                    "val/AUC": v_auc,
-                },
+                data=val_metrics,
                 step=epoch
             )
-            print(score_statics)
+            display(score_statics)
             wbLogger(**score_statics, step=epoch)
 
             save_model(model, save_dir, f"model_{epoch}")
@@ -333,6 +334,7 @@ def train_func(
             if v_accuracy > best_val_metric:
                 best_val_metric = v_accuracy    # 最良のバリデーションメトリクスを更新
                 patience_counter = 0    # 改善が見られたためカウンターをリセット
+                best_model_epoch = epoch
             else:
                 patience_counter += 1    # 改善がなければカウンターを増やす
 
@@ -340,7 +342,10 @@ def train_func(
             if patience_counter >= patience:
                 print(f"エポック{epoch}でEarly Stoppingを実行します。")
                 wbTagger("early_stopped")
+                model.load_state_dict(torch.load(f"{save_dir}/model_{best_model_epoch}.pth"))
                 break
+
+            print(f"patience_counter: {patience_counter} / {patience}")
 
         scheduler.step()
 

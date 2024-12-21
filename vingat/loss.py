@@ -14,6 +14,10 @@ class BPRLoss(torch.nn.Module):
         # BPRのペアワイズ損失計算
         loss = -torch.mean(torch.log(torch.sigmoid(pos_scores - neg_scores)))
 
+        # SCHGNのペアワイズ損失計算
+        # bpr_loss = torch.log(torch.sigmoid(pos_scores - neg_scores))
+        # bpr_loss = -torch.sum(bpr_loss)
+
         # L2正則化項
         reg_loss = 0
         for param in model_params:
