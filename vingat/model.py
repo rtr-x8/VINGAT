@@ -4,7 +4,7 @@ from torch_geometric.nn import HANConv, HGTConv
 from torch_geometric.nn.norm import BatchNorm
 import torch.nn as nn
 import os
-import vingat.loss import SeparationLoss, LossItem, LossContainer
+from vingat.loss import SeparationLoss
 
 
 class RepeatTensor(nn.Module):
