@@ -37,7 +37,7 @@ def evaluate_model(
     with torch.no_grad():
         data = data.to(device)
         # out, _ = model(data)
-        out = model(data)
+        out, _ = model(data)
 
         # 評価用のエッジラベルとエッジインデックスを取得
         edge_label_index = data['user', 'buys', 'item'].edge_label_index
@@ -296,6 +296,10 @@ def train_func(
             "train/precision": epoch_pre,
             "train/f1": epoch_f1,
         }
+        tr_metrics.update({
+            f"train/{detail.key()}": detail.value().item()
+            for detail in loss_dettails
+        })
         display(pd.DataFrame(tr_metrics, index=[epoch]))
         wbLogger(
             data=tr_metrics,
