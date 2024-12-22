@@ -274,8 +274,6 @@ class RecommendationModel(nn.Module):
         data.set_value_dict("x", self.cl_dropout(data.x_dict))
         """
 
-        sep_loss = self.separation_loss(data["user"].x, data["item"].x)
-
         # Message passing
         for gnn in self.ing_to_recipe:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
