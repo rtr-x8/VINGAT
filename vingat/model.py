@@ -4,6 +4,7 @@ from torch_geometric.nn import HANConv, HGTConv
 from torch_geometric.nn.norm import BatchNorm
 import torch.nn as nn
 import os
+import vingat.loss import SeparationLoss, LossItem, LossContainer
 
 
 class RepeatTensor(nn.Module):
@@ -203,6 +204,10 @@ class RecommendationModel(nn.Module):
         #  TODO: もしか学習するなら直後にDropOut
         self.user_encoder = nn.Embedding(num_user, hidden_dim, max_norm=1)
         self.item_encoder = nn.Embedding(num_item, hidden_dim, max_norm=1)
+        self.image_encoder = nn.Linear(hidden_dim, hidden_dim, max_norm=1)
+
+        # visual
+        self.separation_loss = SeparationLoss(lambda_sep=1.0)
 
         # Contrastive caption and nutrient
         """
@@ -248,8 +253,14 @@ class RecommendationModel(nn.Module):
 
         data.set_value_dict("x", {
             "user": self.user_encoder(data["user"].id),
-            "item": self.item_encoder(data["item"].id)
+            "item": self.item_encoder(data["item"].id),
+            "image": self.image_encoder(data["image"].x)
         })
+
+        image_loss = self.separation_loss(
+            data["image"].x,
+            RepeatTensor()(data["intention"].nutrient, self.hidden_dim)
+        )
 
         """
         cl_losses = []
@@ -263,6 +274,8 @@ class RecommendationModel(nn.Module):
         data.set_value_dict("x", self.cl_dropout(data.x_dict))
         """
 
+        sep_loss = self.separation_loss(data["user"].x, data["item"].x)
+
         # Message passing
         for gnn in self.ing_to_recipe:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
@@ -274,7 +287,9 @@ class RecommendationModel(nn.Module):
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
         data.set_value_dict("x", self.fusion_dropout(data.x_dict))
 
-        return data   # , cl_loss
+        return data, [
+            {"name": "image_loss", "loss": image_loss, "weight": 1.0},
+        ]  # , cl_loss
 
     def predict(self, user_nodes, recipe_nodes):
         # ユーザーとレシピの埋め込みを連結

@@ -1,8 +1,10 @@
 import torch
 import torch.nn.functional as F
+from typing import Dict, List
+import torch.nn as nn
 
 
-class BPRLoss(torch.nn.Module):
+class BPRLoss(nn.Module):
     def __init__(self, reg_lambda=0.01):
         super(BPRLoss, self).__init__()
         self.reg_lambda = reg_lambda  # 正則化パラメータ
@@ -21,7 +23,7 @@ class BPRLoss(torch.nn.Module):
         return loss + self.reg_lambda * reg_loss
 
 
-class BinaryCrossEntropyLoss(torch.nn.Module):
+class BinaryCrossEntropyLoss(nn.Module):
     def __init__(self, reg_lambda=0.01):
         super(BinaryCrossEntropyLoss, self).__init__()
         self.reg_lambda = reg_lambda  # 正則化パラメータ

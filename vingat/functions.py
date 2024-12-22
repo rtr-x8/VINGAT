@@ -204,6 +204,7 @@ def train_func(
 
     for epoch in range(1, epochs+1):
         total_loss = 0
+        loss_dettails = []
         all_preds = []
         all_labels = []
 
@@ -219,7 +220,7 @@ def train_func(
 
             # モデルのフォワードパス
             # out, cl_loss = model(batch_data)
-            out = model(batch_data)
+            out, loss_entories = model(batch_data)
 
             # エッジのラベルとエッジインデックスを取得
             # edge_label = batch_data['user', 'buys', 'item'].edge_label
@@ -248,17 +249,24 @@ def train_func(
             neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
 
             # 損失の計算
-            bpr_loss = criterion(pos_scores, neg_scores, model.parameters())
+            main_loss = criterion(pos_scores, neg_scores, model.parameters())
             # rated_bpr_loss = (1 - cl_loss_rate) * bpr_loss
             # rated_cl_loss = cl_loss_rate * cl_loss
 
             # loss = rated_bpr_loss + cl_loss_rate * rated_cl_loss
+            other_loss = torch.sum(entry["loss"] * entry["weight"] for entry in loss_entories)
+            loss = main_loss + other_loss
 
-            bpr_loss.backward()
+            loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             optimizer.step()
 
-            total_loss += bpr_loss.item()
+            total_loss += loss.item()
+            loss_dettails.append({"main_loss": main_loss.item()})
+            loss_dettails.append(
+                {entry["name"]: entry["loss"] * entry["weight"]}
+                for entry in loss_entories
+            )
             all_preds.extend((pos_scores > 0.5).int().tolist() + (neg_scores <= 0.5).int().tolist())
             all_labels.extend([1] * len(pos_scores) + [0] * len(neg_scores))
 
