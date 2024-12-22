@@ -262,11 +262,9 @@ def train_func(
             optimizer.step()
 
             total_loss += loss.item()
-            loss_dettails.append({"main_loss": main_loss.item()})
-            loss_dettails.append(
-                {entry["name"]: entry["loss"] * entry["weight"]}
-                for entry in loss_entories
-            )
+            loss_dettails.append({"main_loss": main_loss})
+            for entry in loss_entories:
+                loss_dettails.append({entry["name"]: entry["loss"] * entry["weight"]})
             all_preds.extend((pos_scores > 0.5).int().tolist() + (neg_scores <= 0.5).int().tolist())
             all_labels.extend([1] * len(pos_scores) + [0] * len(neg_scores))
 

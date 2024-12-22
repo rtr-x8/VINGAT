@@ -207,7 +207,7 @@ class RecommendationModel(nn.Module):
         self.image_encoder = nn.Linear(hidden_dim, hidden_dim, max_norm=1)
 
         # visual
-        self.separation_loss = SeparationLoss(lambda_sep=1.0)
+        self.separation_loss = SeparationLoss(reg_lambda=0.01)
 
         # Contrastive caption and nutrient
         """
