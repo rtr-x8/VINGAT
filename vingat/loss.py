@@ -50,4 +50,4 @@ class SeparationLoss(nn.Module):
         loss = torch.mean(cosine_similarity)
 
         # 分離損失（類似度を最小化）
-        return self.lambda_sep * loss
+        return self.reg_lambda * loss
