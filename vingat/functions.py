@@ -204,7 +204,7 @@ def train_func(
 
     for epoch in range(1, epochs+1):
         total_loss = 0
-        loss_dettails = []
+        loss_dettails = {}
         all_preds = []
         all_labels = []
 
@@ -262,9 +262,9 @@ def train_func(
             optimizer.step()
 
             total_loss += loss.item()
-            loss_dettails.append({"main_loss": main_loss})
+            loss_dettails.update({"main_loss": main_loss})
             for entry in loss_entories:
-                loss_dettails.append({entry["name"]: entry["loss"] * entry["weight"]})
+                loss_dettails.update({entry["name"]: entry["loss"] * entry["weight"]})
             all_preds.extend((pos_scores > 0.5).int().tolist() + (neg_scores <= 0.5).int().tolist())
             all_labels.extend([1] * len(pos_scores) + [0] * len(neg_scores))
 
@@ -295,8 +295,8 @@ def train_func(
             "train/f1": epoch_f1,
         }
         tr_metrics.update({
-            f"train/{detail.key()}": detail.value().item()
-            for detail in loss_dettails
+            f"train/{k}": v.item()
+            for k, v in loss_dettails.items()
         })
         display(pd.DataFrame(tr_metrics, index=[epoch]))
         wbLogger(
