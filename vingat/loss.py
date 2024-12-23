@@ -12,7 +12,7 @@ class BPRLoss(nn.Module):
         differences = pos_scores - neg_scores
 
         # BPRのペアワイズ損失計算
-        loss = -torch.mean(torch.log(torch.sigmoid(differences)))
+        loss = torch.mean(torch.log(torch.sigmoid(differences)))
 
         # L2正則化項
         reg_loss = 0
