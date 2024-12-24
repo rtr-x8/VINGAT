@@ -210,13 +210,11 @@ class RecommendationModel(nn.Module):
         self.separation_loss = SeparationLoss(reg_lambda=0.01)
 
         # Contrastive caption and nutrient
-        """
         self.cl_with_caption_and_nutrient = nn.ModuleList()
         for _ in range(intention_layers):
             cl = ContrastiveLearning(hidden_dim, temperature)
             self.cl_with_caption_and_nutrient.append(cl)
         self.cl_dropout = DictDropout(dropout_rate, ["intention"])
-        """
 
         # Fusion of ingredient and recipe
         self.ing_to_recipe = nn.ModuleList()
@@ -262,7 +260,6 @@ class RecommendationModel(nn.Module):
             RepeatTensor()(data["intention"].nutrient, self.hidden_dim)
         )
 
-        """
         cl_losses = []
         for cl in self.cl_with_caption_and_nutrient:
             caption_x, _, cl_loss = cl(data["intention"].x, data["intention"].nutrient)
@@ -272,7 +269,6 @@ class RecommendationModel(nn.Module):
             })
         cl_loss = torch.stack(cl_losses).mean()
         data.set_value_dict("x", self.cl_dropout(data.x_dict))
-        """
 
         # Message passing
         for gnn in self.ing_to_recipe:
@@ -287,6 +283,7 @@ class RecommendationModel(nn.Module):
 
         return data, [
             {"name": "image_loss", "loss": image_loss, "weight": 1.0},
+            {"name": "cl_loss", "loss": cl_loss, "weight": 1.0}
         ]  # , cl_loss
 
     def predict(self, user_nodes, recipe_nodes):
