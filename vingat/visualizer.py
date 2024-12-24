@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler  # 追加
 import torch
 import pandas as pd
 import numpy as np
@@ -42,9 +43,12 @@ def visualize_node_pca(data, node_types, title, sample_size=1000, is_show=True):
 
     all_features = np.concatenate(all_features)
 
+    scaler = StandardScaler()
+    scaled_features = scaler.fit_transform(features)
+
     # PCAで2次元に次元削減
     pca = PCA(n_components=2)
-    principal_components = pca.fit_transform(all_features)
+    principal_components = pca.fit_transform(scaled_features)
 
     # DataFrameを作成
     df = pd.DataFrame(data=principal_components, columns=['PC1', 'PC2'])
