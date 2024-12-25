@@ -22,7 +22,7 @@ def evaluate_model(
     model.eval()
     user_pos_scores = []
     user_neg_scores = []
-    metrics_at_k = MetricsAtK(k=k)
+    metrics_at_k = MetricsAtK(k=k, device=device)
 
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
 
@@ -167,7 +167,7 @@ def train_func(
     patience_counter = 0    # Early Stoppingのカウンターを初期化
     best_model_epoch = 0
 
-    metrics_all = MetricsAll()
+    metrics_all = MetricsAll(device=device)
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 

@@ -64,18 +64,22 @@ def score_stastics(pos_scores: List[torch.Tensor], neg_scores: List[torch.Tensor
 
 
 class MetricsAtK():
-    def __init__(self, k: int):
+    def __init__(self, k: int, device: torch.device):
         self.k = k
-        self.recall = RetrievalRecall(top_k=k)
-        self.precision = RetrievalPrecision(top_k=k, adaptive_k=True)
-        self.auroc = RetrievalAUROC(top_k=k)
-        self.ndcg = RetrievalNormalizedDCG(top_k=k)
+        self.device = device
+        self.recall = RetrievalRecall(top_k=k).to(device)
+        self.precision = RetrievalPrecision(top_k=k, adaptive_k=True).to(device)
+        self.auroc = RetrievalAUROC(top_k=k).to(device)
+        self.ndcg = RetrievalNormalizedDCG(top_k=k).to(device)
 
         # One
-        self.accuracy = BinaryAccuracy(threshold=0.5)
-        self.f1 = BinaryF1Score(threshold=0.5)
+        self.accuracy = BinaryAccuracy(threshold=0.5).to(device)
+        self.f1 = BinaryF1Score(threshold=0.5).to(device)
 
     def update(self, preds: torch.Tensor, target: torch.Tensor, indexed: torch.Tensor):
+        preds = preds.to(self.device)
+        target = target.to(self.device)
+        indexed = indexed.to(self.device)
         self.recall.update(preds, target, indexed)
         self.precision.update(preds, target, indexed)
         self.auroc.update(preds, target, indexed)
@@ -96,14 +100,17 @@ class MetricsAtK():
 
 
 class MetricsAll():
-    def __init__(self):
-        self.accuracy = BinaryAccuracy(threshold=0.5)
-        self.precision = BinaryPrecision(threshold=0.5)
-        self.recall = BinaryRecall(threshold=0.5)
-        self.f1 = BinaryF1Score(threshold=0.5)
+    def __init__(self, device: torch.device):
+        self.device = device
+        self.accuracy = BinaryAccuracy(threshold=0.5).to(device)
+        self.precision = BinaryPrecision(threshold=0.5).to(device)
+        self.recall = BinaryRecall(threshold=0.5).to(device)
+        self.f1 = BinaryF1Score(threshold=0.5).to(device)
         self.confusion_matrix = ConfusionMatrix(task="binary", num_classes=2)
 
     def update(self, preds: torch.Tensor, target: torch.Tensor):
+        preds = preds.to(self.device)
+        target = target.to(self.device)
         self.accuracy.update(preds, target)
         self.precision.update(preds, target)
         self.recall.update(preds, target)
