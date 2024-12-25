@@ -44,7 +44,7 @@ def visualize_node_pca(data, node_types, title, sample_size=1000, is_show=True):
     all_features = np.concatenate(all_features)
 
     scaler = StandardScaler()
-    scaled_features = scaler.fit_transform(features)
+    scaled_features = scaler.fit_transform(all_features)
 
     # PCAで2次元に次元削減
     pca = PCA(n_components=2)
