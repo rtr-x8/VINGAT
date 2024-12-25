@@ -8,7 +8,7 @@ from torch_geometric.utils import negative_sampling
 from typing import Callable
 import pandas as pd
 from vingat.visualizer import visualize_node_pca
-from vingat.metrics import score_stastics, MetricsAtK, MetricsAt1
+from vingat.metrics import score_stastics, MetricsAtK, MetricsAll
 from IPython.core.display import display
 
 
@@ -164,7 +164,7 @@ def train_func(
     patience_counter = 0    # Early Stoppingのカウンターを初期化
     best_model_epoch = 0
 
-    metrics_at_1 = MetricsAt1()
+    metrics_all = MetricsAll()
 
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
@@ -232,7 +232,7 @@ def train_func(
             for entry in loss_entories:
                 loss_dettails.update({entry["name"]: entry["loss"] * entry["weight"]})
 
-            metrics_at_1.update(
+            metrics_all.update(
                 preds=torch.cat([pos_scores, neg_scores], dim=0),
                 target=[1] * len(pos_scores) + [0] * len(neg_scores),
             )
@@ -255,7 +255,7 @@ def train_func(
             "train/total_loss": total_loss,
             "train/aveg_loss": aveg_loss,
         }
-        tr_metrics.update(metrics_at_1.compute(prefix="train/"))
+        tr_metrics.update(metrics_all.compute(prefix="train/"))
         tr_metrics.update({
             f"train/{k}": v.item()
             for k, v in loss_dettails.items()

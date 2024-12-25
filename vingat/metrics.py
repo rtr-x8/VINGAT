@@ -95,9 +95,8 @@ class MetricsAtK():
         }
 
 
-class MetricsAt1():
-    def __init__(self, k: int):
-        self.k = k
+class MetricsAll():
+    def __init__(self):
         self.accuracy = BinaryAccuracy(threshold=0.5)
         self.precision = BinaryPrecision(threshold=0.5)
         self.recall = BinaryRecall(threshold=0.5)
