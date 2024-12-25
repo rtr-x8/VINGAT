@@ -83,8 +83,11 @@ def evaluate_model(
 
             metrics_at_k.update(
                 preds=torch.cat([pos_scores, neg_scores], dim=0),
-                target=np.concatenate([np.ones(len(pos_scores)), np.zeros(len(neg_scores))]),
-                indexed=np.repeat(user_id, len(pos_scores) + len(neg_scores))
+                target=torch.tensor([1] * len(pos_scores) + [0] * len(neg_scores),
+                                    dtype=torch.long,
+                                    device=device),
+                indexed=torch.full((len(pos_scores) + len(neg_scores)),
+                                   user_id, dtype=torch.long, device=device)
             )
 
     result = metrics_at_k.compute(prefix="", suffix="")
@@ -234,7 +237,9 @@ def train_func(
 
             metrics_all.update(
                 preds=torch.cat([pos_scores, neg_scores], dim=0),
-                target=[1] * len(pos_scores) + [0] * len(neg_scores),
+                target=torch.tensor([1] * len(pos_scores) + [0] * len(neg_scores),
+                                    dtype=torch.long,
+                                    device=device)
             )
 
             # check

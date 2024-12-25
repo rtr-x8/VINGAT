@@ -75,7 +75,7 @@ class MetricsAtK():
         self.accuracy = BinaryAccuracy(threshold=0.5)
         self.f1 = BinaryF1Score(threshold=0.5)
 
-    def update(self, preds: torch.Tensor, target: np.array, indexed: np.array):
+    def update(self, preds: torch.Tensor, target: torch.Tensor, indexed: torch.Tensor):
         self.recall.update(preds, target, indexed)
         self.precision.update(preds, target, indexed)
         self.auroc.update(preds, target, indexed)
@@ -103,7 +103,7 @@ class MetricsAll():
         self.f1 = BinaryF1Score(threshold=0.5)
         self.confusion_matrix = ConfusionMatrix(task="binary", num_classes=2)
 
-    def update(self, preds: torch.Tensor, target: np.array):
+    def update(self, preds: torch.Tensor, target: torch.Tensor):
         self.accuracy.update(preds, target)
         self.precision.update(preds, target)
         self.recall.update(preds, target)
