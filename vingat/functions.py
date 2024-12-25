@@ -86,7 +86,7 @@ def evaluate_model(
                 target=torch.tensor([1] * len(pos_scores) + [0] * len(neg_scores),
                                     dtype=torch.long,
                                     device=device),
-                indexed=torch.full((len(pos_scores) + len(neg_scores)),
+                indexed=torch.full((len(pos_scores) + len(neg_scores),),
                                    user_id, dtype=torch.long, device=device)
             )
 
