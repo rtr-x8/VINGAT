@@ -2,14 +2,13 @@ import torch
 import torch.nn as nn
 from torch_geometric.data import HeteroData
 from tqdm.notebook import tqdm
-from sklearn.metrics import accuracy_score, recall_score, f1_score, precision_score
 import os
 import numpy as np
 from torch_geometric.utils import negative_sampling
 from typing import Callable
 import pandas as pd
 from vingat.visualizer import visualize_node_pca
-from vingat.metrics import score_stastics, MetricsAtK
+from vingat.metrics import score_stastics, MetricsAtK, MetricsAt1
 from IPython.core.display import display
 
 
@@ -165,13 +164,13 @@ def train_func(
     patience_counter = 0    # Early Stoppingのカウンターを初期化
     best_model_epoch = 0
 
+    metrics_at_1 = MetricsAt1()
+
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
     for epoch in range(1, epochs+1):
         total_loss = 0
         loss_dettails = {}
-        all_preds = []
-        all_labels = []
 
         model.train()
 
@@ -232,8 +231,11 @@ def train_func(
             loss_dettails.update({"main_loss": main_loss})
             for entry in loss_entories:
                 loss_dettails.update({entry["name"]: entry["loss"] * entry["weight"]})
-            all_preds.extend((pos_scores > 0.5).int().tolist() + (neg_scores <= 0.5).int().tolist())
-            all_labels.extend([1] * len(pos_scores) + [0] * len(neg_scores))
+
+            metrics_at_1.update(
+                preds=(pos_scores > 0.5).int().tolist() + (neg_scores <= 0.5).int().tolist(),
+                target=[1] * len(pos_scores) + [0] * len(neg_scores),
+            )
 
             # check
             node_mean.append({
@@ -248,19 +250,12 @@ def train_func(
         display(df)
 
         aveg_loss = total_loss / len(train_loader)
-        epoch_accuracy = accuracy_score(all_labels, all_preds)
-        epoch_recall = recall_score(all_labels, all_preds)
-        epoch_f1 = f1_score(all_labels, all_preds)
-        epoch_pre = precision_score(all_labels, all_preds)
 
         tr_metrics = {
             "train/total_loss": total_loss,
             "train/aveg_loss": aveg_loss,
-            "train/accuracy": epoch_accuracy,
-            "train/recall": epoch_recall,
-            "train/precision": epoch_pre,
-            "train/f1": epoch_f1,
         }
+        tr_metrics.update(metrics_at_1.compute(prefix="train/"))
         tr_metrics.update({
             f"train/{k}": v.item()
             for k, v in loss_dettails.items()
