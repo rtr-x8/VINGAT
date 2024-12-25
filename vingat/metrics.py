@@ -101,7 +101,7 @@ class MetricsAll():
         self.precision = BinaryPrecision(threshold=0.5)
         self.recall = BinaryRecall(threshold=0.5)
         self.f1 = BinaryF1Score(threshold=0.5)
-        self.confusion_matrix = ConfusionMatrix(num_classes=2)
+        self.confusion_matrix = ConfusionMatrix(task="binary", num_classes=2)
 
     def update(self, preds: torch.Tensor, target: np.array):
         self.accuracy.update(preds, target)
