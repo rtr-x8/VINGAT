@@ -233,7 +233,7 @@ def train_func(
                 loss_dettails.update({entry["name"]: entry["loss"] * entry["weight"]})
 
             metrics_at_1.update(
-                preds=(pos_scores > 0.5).int().tolist() + (neg_scores <= 0.5).int().tolist(),
+                preds=torch.cat([pos_scores, neg_scores], dim=0),
                 target=[1] * len(pos_scores) + [0] * len(neg_scores),
             )
 
