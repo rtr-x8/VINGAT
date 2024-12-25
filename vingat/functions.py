@@ -167,8 +167,6 @@ def train_func(
     patience_counter = 0    # Early Stoppingのカウンターを初期化
     best_model_epoch = 0
 
-    metrics_all = MetricsAll(device=device)
-
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
     for epoch in range(1, epochs+1):
@@ -178,6 +176,7 @@ def train_func(
         model.train()
 
         node_mean = []
+        metrics_all = MetricsAll(device=device)
 
         print(f"Epoch {epoch}/{epochs} ======================")
 
