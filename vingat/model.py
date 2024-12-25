@@ -255,14 +255,9 @@ class RecommendationModel(nn.Module):
             "image": self.image_encoder(data["image"].x)
         })
 
-        image_loss = self.separation_loss(
-            data["image"].x,
-            RepeatTensor()(data["intention"].nutrient, self.hidden_dim)
-        )
-
         cl_losses = []
         for cl in self.cl_with_caption_and_nutrient:
-            intention_x, _, cl_loss = cl(data["intention"].x, data["intention"].nutrient)
+            intention_x, _, cl_loss = cl(data["intention"].caption, data["intention"].nutrient)
             cl_losses.append(cl_loss)
             data.set_value_dict("x", {
                 "intention": intention_x
@@ -283,9 +278,8 @@ class RecommendationModel(nn.Module):
         data.set_value_dict("x", self.fusion_dropout(data.x_dict))
 
         return data, [
-            {"name": "image_loss", "loss": image_loss, "weight": 1.0},
             {"name": "cl_loss", "loss": cl_loss, "weight": 1.0}
-        ]  # , cl_loss
+        ]
 
     def predict(self, user_nodes, recipe_nodes):
         # ユーザーとレシピの埋め込みを連結
