@@ -106,7 +106,7 @@ class MetricsAll():
         self.precision = BinaryPrecision(threshold=0.5).to(device)
         self.recall = BinaryRecall(threshold=0.5).to(device)
         self.f1 = BinaryF1Score(threshold=0.5).to(device)
-        self.confusion_matrix = ConfusionMatrix(task="binary", num_classes=2)
+        self.confusion_matrix = ConfusionMatrix(task="binary", num_classes=2).to(device)
 
     def update(self, preds: torch.Tensor, target: torch.Tensor):
         preds = preds.to(self.device)
