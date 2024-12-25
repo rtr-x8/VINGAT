@@ -71,7 +71,7 @@ class MetricsAtK():
         self.auroc = RetrievalAUROC(top_k=k)
         self.ndcg = RetrievalNormalizedDCG(top_k=k)
 
-        # One 
+        # One
         self.accuracy = BinaryAccuracy(threshold=0.5)
         self.f1 = BinaryF1Score(threshold=0.5)
 
