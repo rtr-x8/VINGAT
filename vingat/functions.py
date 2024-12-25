@@ -87,7 +87,7 @@ def evaluate_model(
                                     dtype=torch.long,
                                     device=device)
                 indexed=np.repeat(user_id, len(pos_scores) + len(neg_scores))
-                indexed=torch.full((len(pos_scores) + len(neg_scores),),
+                indexed=torch.full((len(pos_scores) + len(neg_scores)),
                                    user_id, dtype=torch.long, device=device)
             )
 
