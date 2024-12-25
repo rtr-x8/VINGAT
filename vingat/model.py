@@ -24,15 +24,15 @@ class RepeatTensor(nn.Module):
         return repeated_tensor[:, :output_dim]
 
 
-# 栄養素情報によって強化された、選択理由テキスト
-# 選択理由によって強化された栄養素情報
-class ContrastiveLearning(nn.Module):
+class NutCaptionContrastiveLearning(nn.Module):
+    """
+    InfoNCE lossを用いたContrastive Learningのモジュール
+    """
     def __init__(self, output_dim, temperature):
         super().__init__()
         self.output_dim = output_dim
         self.temperature = temperature
-        self.nutrient_encoder = RepeatTensor()
-        self.caption_encoder = nn.Linear(output_dim, output_dim)
+        self.nutrient_encoder = nn.Linear(-1, output_dim)
 
     def info_nce_loss(self, text_emb, nut_emb):
         batch_size = text_emb.size(0)
@@ -45,10 +45,9 @@ class ContrastiveLearning(nn.Module):
         return loss
 
     def forward(self, text_emb, nut_emb):
-        updated_nut = self.nutrient_encoder(nut_emb, self.output_dim)
-        updated_cap = self.caption_encoder(text_emb)
-        loss = self.info_nce_loss(updated_cap, updated_nut)
-        return updated_cap, updated_nut, loss
+        updated_nut = self.nutrient_encoder(nut_emb)
+        loss = self.info_nce_loss(text_emb, updated_nut)
+        return text_emb, updated_nut, loss
 
 
 class TasteGNN(nn.Module):
@@ -212,7 +211,7 @@ class RecommendationModel(nn.Module):
         # Contrastive caption and nutrient
         self.cl_with_caption_and_nutrient = nn.ModuleList()
         for _ in range(intention_layers):
-            cl = ContrastiveLearning(hidden_dim, temperature)
+            cl = NutCaptionContrastiveLearning(hidden_dim, temperature)
             self.cl_with_caption_and_nutrient.append(cl)
         self.cl_dropout = DictDropout(dropout_rate, ["intention"])
         self.cl_norm = DictBatchNorm(hidden_dim)
@@ -256,17 +255,12 @@ class RecommendationModel(nn.Module):
             "image": self.image_encoder(data["image"].x)
         })
 
-        image_loss = self.separation_loss(
-            data["image"].x,
-            RepeatTensor()(data["intention"].nutrient, self.hidden_dim)
-        )
-
         cl_losses = []
         for cl in self.cl_with_caption_and_nutrient:
-            caption_x, _, cl_loss = cl(data["intention"].x, data["intention"].nutrient)
+            intention_x, _, cl_loss = cl(data["intention"].caption, data["intention"].nutrient)
             cl_losses.append(cl_loss)
             data.set_value_dict("x", {
-                "intention": caption_x
+                "intention": intention_x
             })
         cl_loss = torch.stack(cl_losses).mean()
         data.set_value_dict("x", self.cl_dropout(data.x_dict))
@@ -284,9 +278,8 @@ class RecommendationModel(nn.Module):
         data.set_value_dict("x", self.fusion_dropout(data.x_dict))
 
         return data, [
-            {"name": "image_loss", "loss": image_loss, "weight": 1.0},
             {"name": "cl_loss", "loss": cl_loss, "weight": 1.0}
-        ]  # , cl_loss
+        ]
 
     def predict(self, user_nodes, recipe_nodes):
         # ユーザーとレシピの埋め込みを連結

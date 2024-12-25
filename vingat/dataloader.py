@@ -108,7 +108,10 @@ def create_base_hetero(
     caption_encoder = StaticEmbeddingLoader(recipe_image_vlm_caption_embeddings,
                                             dimention=hidden_dim,
                                             device=device)
-    data["intention"].x = caption_encoder(torch.tensor(item_lencoder.classes_, dtype=torch.long))
+    data["intention"].caption = caption_encoder(torch.tensor(item_lencoder.classes_,
+                                                             dtype=torch.long))
+    data["intention"].x = torch.rand(
+        (len(item_lencoder.classes_), hidden_dim), dtype=torch.float32)
 
     data["taste"].num_nodes = len(item_lencoder.classes_)
     data["taste"].item_id = torch.tensor(item_lencoder.classes_)
