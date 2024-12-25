@@ -119,14 +119,14 @@ class MetricsAll():
         return self
 
     def compute(self, prefix: str):
-        cm = self.confusion_matrix.compute().item()
+        cm = self.confusion_matrix.compute().cpu().numpy()
         return {
             f"{prefix}accuracy": self.accuracy.compute().item(),
             f"{prefix}precision": self.precision.compute().item(),
             f"{prefix}recall": self.recall.compute().item(),
             f"{prefix}f1": self.f1.compute().item(),
-            f"{prefix}true_negative": cm[0][0].item(),
-            f"{prefix}false_positive": cm[0][1].item(),
-            f"{prefix}false_negative": cm[1][0].item(),
-            f"{prefix}true_positive": cm[1][1].item()
+            f"{prefix}true_negative": cm[0][0],
+            f"{prefix}false_positive": cm[0][1],
+            f"{prefix}false_negative": cm[1][0],
+            f"{prefix}true_positive": cm[1][1]
         }
