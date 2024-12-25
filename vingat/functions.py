@@ -57,7 +57,7 @@ def evaluate_model(
             ])
 
             # 負例ペアの数 HAFR, HCGAN
-            num_neg_samples = len(num_pos_samples) if is_validation else 500
+            num_neg_samples = num_pos_samples if is_validation else 500
             # PyTorch Geometricのnegative_samplingを使用して負例を取得
             negative_edge_index = negative_sampling(
                 edge_index=user_edge_label_index,
@@ -285,7 +285,7 @@ def train_func(
             k = 10
             v_precision, v_recall, v_ndcg, v_accuracy, v_f1, v_auc, score_statics = evaluate_model(
                 model=model,
-                val=val,
+                data=val,
                 device=device,
                 is_validation=True,
                 k=k,
