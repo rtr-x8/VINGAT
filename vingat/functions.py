@@ -16,6 +16,7 @@ def evaluate_model(
     model: nn.Module,
     data: HeteroData,
     device: torch.device,
+    is_validation,
     k=10,
     desc: str = ""
 ):
@@ -55,7 +56,8 @@ def evaluate_model(
                 user_pos_indices
             ])
 
-            num_neg_samples = 500    # 負例ペアの数 HAFR, HCGAN
+            # 負例ペアの数 HAFR, HCGAN
+            num_neg_samples = len(num_pos_samples) if is_validation else 500
             # PyTorch Geometricのnegative_samplingを使用して負例を取得
             negative_edge_index = negative_sampling(
                 edge_index=user_edge_label_index,
@@ -159,7 +161,7 @@ def train_func(
     validation_interval=5,
     max_grad_norm=1.0,
     pca_cols=["user", "item", "intention", "taste", "image"],
-    cl_loss_rate=0.3
+    cl_loss_rate=0.3,
 ):
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
     model.to(device)
@@ -282,7 +284,12 @@ def train_func(
 
             k = 10
             v_precision, v_recall, v_ndcg, v_accuracy, v_f1, v_auc, score_statics = evaluate_model(
-                model, val, device, k=k, desc=f"[Valid] Epoch {epoch}/{epochs}")
+                model=model,
+                val=val,
+                device=device,
+                is_validation=True,
+                k=k,
+                desc=f"[Valid] Epoch {epoch}/{epochs}")
 
             val_metrics = {
                 f"val/Precision@{k}": v_precision,
