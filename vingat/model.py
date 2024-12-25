@@ -28,11 +28,11 @@ class NutCaptionContrastiveLearning(nn.Module):
     """
     InfoNCE lossを用いたContrastive Learningのモジュール
     """
-    def __init__(self, output_dim, temperature):
+    def __init__(self, nutrient_dim, output_dim, temperature):
         super().__init__()
         self.output_dim = output_dim
         self.temperature = temperature
-        self.nutrient_encoder = nn.Linear(-1, output_dim)
+        self.nutrient_encoder = nn.Linear(nutrient_dim, output_dim)
 
     def info_nce_loss(self, text_emb, nut_emb):
         batch_size = text_emb.size(0)
@@ -211,7 +211,7 @@ class RecommendationModel(nn.Module):
         # Contrastive caption and nutrient
         self.cl_with_caption_and_nutrient = nn.ModuleList()
         for _ in range(intention_layers):
-            cl = NutCaptionContrastiveLearning(hidden_dim, temperature)
+            cl = NutCaptionContrastiveLearning(nutrient_dim, hidden_dim, temperature)
             self.cl_with_caption_and_nutrient.append(cl)
         self.cl_dropout = DictDropout(dropout_rate, ["intention"])
         self.cl_norm = DictBatchNorm(hidden_dim)
