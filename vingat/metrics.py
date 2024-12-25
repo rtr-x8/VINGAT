@@ -90,12 +90,12 @@ class MetricsAtK():
 
     def compute(self, prefix, suffix):
         return {
-            f"{prefix}recall{suffix}": self.recall.compute(),
-            f"{prefix}precision{suffix}": self.precision.compute(),
-            f"{prefix}auroc{suffix}": self.auroc.compute(),
-            f"{prefix}ndcg{suffix}": self.ndcg.compute(),
-            f"{prefix}accuracy{suffix}": self.accuracy.compute(),
-            f"{prefix}f1{suffix}": self.f1.compute()
+            f"{prefix}recall{suffix}": self.recall.compute().item(),
+            f"{prefix}precision{suffix}": self.precision.compute().item(),
+            f"{prefix}auroc{suffix}": self.auroc.compute().item(),
+            f"{prefix}ndcg{suffix}": self.ndcg.compute().item(),
+            f"{prefix}accuracy{suffix}": self.accuracy.compute().item(),
+            f"{prefix}f1{suffix}": self.f1.compute().item()
         }
 
 
@@ -119,12 +119,12 @@ class MetricsAll():
         return self
 
     def compute(self, prefix: str):
-        cm = self.confusion_matrix.compute()
+        cm = self.confusion_matrix.compute().item()
         return {
-            f"{prefix}accuracy": self.accuracy.compute(),
-            f"{prefix}precision": self.precision.compute(),
-            f"{prefix}recall": self.recall.compute(),
-            f"{prefix}f1": self.f1.compute(),
+            f"{prefix}accuracy": self.accuracy.compute().item(),
+            f"{prefix}precision": self.precision.compute().item(),
+            f"{prefix}recall": self.recall.compute().item(),
+            f"{prefix}f1": self.f1.compute().item(),
             f"{prefix}true_negative": cm[0][0],
             f"{prefix}false_positive": cm[0][1],
             f"{prefix}false_negative": cm[1][0],
