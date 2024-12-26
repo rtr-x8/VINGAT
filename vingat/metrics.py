@@ -149,9 +149,13 @@ class BatchMetricsAverager:
         self.batch_precision_sum = 0.0
         self.batch_recall_sum = 0.0
         self.batch_f1_sum = 0.0
-        self.n_batches = 0
-        self.pos_count = 0
-        self.neg_count = 0
+        self.true_positive_sum = 0.0
+        self.true_negative_sum = 0.0
+        self.false_positive_sum = 0.0
+        self.false_negative_sum = 0.0
+        self.n_batches = 0.0
+        self.pos_count = 0.0
+        self.neg_count = 0.0
 
     def update(self, pos_scores: torch.Tensor, neg_scores: torch.Tensor):
         """
@@ -181,6 +185,10 @@ class BatchMetricsAverager:
         self.batch_precision_sum += batch_result["precision"]
         self.batch_recall_sum += batch_result["recall"]
         self.batch_f1_sum += batch_result["f1"]
+        self.true_positive_sum += batch_result["true_positive"]
+        self.true_negative_sum += batch_result["true_negative"]
+        self.false_positive_sum += batch_result["false_positive"]
+        self.false_negative_sum += batch_result["false_negative"]
         self.n_batches += 1
         self.pos_count += len(pos_scores)
         self.neg_count += len(neg_scores)
@@ -198,6 +206,10 @@ class BatchMetricsAverager:
             f"{prefix}recall": self.batch_recall_sum / self.n_batches,
             f"{prefix}f1": self.batch_f1_sum / self.n_batches,
             f"{prefix}pos_count": self.pos_count / self.n_batches,
-            f"{prefix}neg_count": self.neg_count / self.n_batches
+            f"{prefix}neg_count": self.neg_count / self.n_batches,
+            f"{prefix}true_positive": self.true_positive_sum / self.n_batches,
+            f"{prefix}true_negative": self.true_negative_sum / self.n_batches,
+            f"{prefix}false_positive": self.false_positive_sum / self.n_batches,
+            f"{prefix}false_negative": self.false_negative_sum / self.n_batches
         }
         return metrics_dict
