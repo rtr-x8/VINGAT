@@ -130,3 +130,68 @@ class MetricsAll():
             f"{prefix}false_negative": cm[1][0],
             f"{prefix}true_positive": cm[1][1]
         }
+
+
+class BatchMetricsAverager:
+    """
+    バッチごとにMetricsAllを使って混同行列やaccuracy等を計算し、
+    エポックが終わるタイミングでバッチ平均のメトリクスを取得するクラス。
+    """
+    def __init__(self, device: torch.device):
+        self.device = device
+        self.reset()
+
+    def reset(self):
+        """
+        バッチ集計を初期化する
+        """
+        self.batch_accuracy_sum = 0.0
+        self.batch_precision_sum = 0.0
+        self.batch_recall_sum = 0.0
+        self.batch_f1_sum = 0.0
+        self.n_batches = 0
+
+    def update(self, pos_scores: torch.Tensor, neg_scores: torch.Tensor):
+        """
+        バッチ単位で MetricsAll を使い、その結果を足し合わせる。
+        pos_scores, neg_scores はモデルの出力（スコア）。
+        """
+        # このバッチだけのメトリクスオブジェクトを生成
+        metrics_batch = MetricsAll(self.device)
+
+        # Positive + Negative をまとめて update
+        metrics_batch.update(
+            preds=torch.cat([pos_scores, neg_scores], dim=0),
+            target=torch.tensor(
+                [1] * len(pos_scores) + [0] * len(neg_scores),
+                dtype=torch.long,
+                device=self.device
+            )
+        )
+        # バッチごとの結果を計算
+        batch_result = metrics_batch.compute(prefix="")
+
+        # 次のバッチ時に干渉しないようリセット
+        metrics_batch.confusion_matrix.reset()
+
+        # 結果を集計
+        self.batch_accuracy_sum += batch_result["accuracy"]
+        self.batch_precision_sum += batch_result["precision"]
+        self.batch_recall_sum += batch_result["recall"]
+        self.batch_f1_sum += batch_result["f1"]
+        self.n_batches += 1
+
+    def compute_epoch_average(self, prefix="train/"):
+        """
+        バッチごとの集計結果を「バッチ平均」して返す。
+        """
+        if self.n_batches == 0:
+            return {}
+
+        metrics_dict = {
+            f"{prefix}accuracy": self.batch_accuracy_sum / self.n_batches,
+            f"{prefix}precision": self.batch_precision_sum / self.n_batches,
+            f"{prefix}recall": self.batch_recall_sum / self.n_batches,
+            f"{prefix}f1": self.batch_f1_sum / self.n_batches,
+        }
+        return metrics_dict
