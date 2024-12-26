@@ -222,10 +222,13 @@ def train_func(
             # rated_cl_loss = cl_loss_rate * cl_loss
 
             # loss = rated_bpr_loss + cl_loss_rate * rated_cl_loss
-            other_loss = torch.sum(torch.stack(
-                [entry["loss"] * entry["weight"] for entry in loss_entories]
-            ))
-            loss = main_loss + other_loss
+            if len(loss_entories) > 0:
+                other_loss = torch.sum(torch.stack(
+                    [entry["loss"] * entry["weight"] for entry in loss_entories]
+                ))
+                loss = main_loss + other_loss
+            else:
+                loss = main_loss
 
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
