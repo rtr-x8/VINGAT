@@ -300,6 +300,6 @@ class RecommendationModel(nn.Module):
         recipe_nodes = F.normalize(recipe_nodes, p=2, dim=1)
         edge_features = torch.cat([user_nodes, recipe_nodes], dim=1)
         logits = self.link_predictor(edge_features)
-        print("logi mean: ", logits.mean())
+        print("logi mean: ", logits.mean(), logits[:3])
         probs = torch.sigmoid(logits)
         return probs
