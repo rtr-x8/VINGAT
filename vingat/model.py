@@ -288,7 +288,7 @@ class RecommendationModel(nn.Module):
         data.set_value_dict("x", self.fusion_dropout(data.x_dict))
 
         return data, [
-            {"name": "cl_loss", "loss": cl_loss, "weight": 1.0}
+            {"name": "cl_loss", "loss": cl_loss, "weight": 0.3}
         ]
 
     def predict(self, user_nodes, recipe_nodes):
