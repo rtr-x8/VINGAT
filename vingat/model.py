@@ -272,7 +272,7 @@ class RecommendationModel(nn.Module):
         """
         data.set_value_dict("x", {
             "intention": data["intention"].caption
-        }])
+        })
 
         # Message passing
         """
