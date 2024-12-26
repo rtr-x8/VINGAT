@@ -73,8 +73,8 @@ class MetricsAtK():
         self.ndcg = RetrievalNormalizedDCG(top_k=k).to(device)
 
         # One
-        self.accuracy = BinaryAccuracy(threshold=0.5).to(device)
-        self.f1 = BinaryF1Score(threshold=0.5).to(device)
+        self.accuracy = BinaryAccuracy(threshold=0.0).to(device)
+        self.f1 = BinaryF1Score(threshold=0.0).to(device)
 
     def update(self, preds: torch.Tensor, target: torch.Tensor, indexed: torch.Tensor):
         preds = preds.to(self.device)
@@ -102,10 +102,10 @@ class MetricsAtK():
 class MetricsAll():
     def __init__(self, device: torch.device):
         self.device = device
-        self.accuracy = BinaryAccuracy(threshold=0.5).to(device)
-        self.precision = BinaryPrecision(threshold=0.5).to(device)
-        self.recall = BinaryRecall(threshold=0.5).to(device)
-        self.f1 = BinaryF1Score(threshold=0.5).to(device)
+        self.accuracy = BinaryAccuracy(threshold=0.0).to(device)
+        self.precision = BinaryPrecision(threshold=0.0).to(device)
+        self.recall = BinaryRecall(threshold=0.0).to(device)
+        self.f1 = BinaryF1Score(threshold=0.0).to(device)
         self.confusion_matrix = ConfusionMatrix(task="binary", num_classes=2).to(device)
 
     def update(self, preds: torch.Tensor, target: torch.Tensor):
