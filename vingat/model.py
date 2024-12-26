@@ -4,7 +4,7 @@ from torch_geometric.nn import HANConv, HGTConv
 from torch_geometric.nn.norm import BatchNorm
 import torch.nn as nn
 import os
-from vingat.loss import SeparationLoss
+# from vingat.loss import SeparationLoss
 
 
 class RepeatTensor(nn.Module):
@@ -288,7 +288,7 @@ class RecommendationModel(nn.Module):
         data.set_value_dict("x", self.fusion_dropout(data.x_dict))
 
         return data, [
-            {"name": "cl_loss", "loss": cl_loss, "weight": 1.0}
+            # {"name": "cl_loss", "loss": cl_loss, "weight": 1.0}
         ]
 
     def predict(self, user_nodes, recipe_nodes):
