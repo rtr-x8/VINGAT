@@ -150,6 +150,8 @@ class BatchMetricsAverager:
         self.batch_recall_sum = 0.0
         self.batch_f1_sum = 0.0
         self.n_batches = 0
+        self.pos_count = 0
+        self.neg_count = 0
 
     def update(self, pos_scores: torch.Tensor, neg_scores: torch.Tensor):
         """
@@ -180,6 +182,8 @@ class BatchMetricsAverager:
         self.batch_recall_sum += batch_result["recall"]
         self.batch_f1_sum += batch_result["f1"]
         self.n_batches += 1
+        self.pos_count += len(pos_scores)
+        self.neg_count += len(neg_scores)
 
     def compute_epoch_average(self, prefix="train/"):
         """
@@ -193,5 +197,7 @@ class BatchMetricsAverager:
             f"{prefix}precision": self.batch_precision_sum / self.n_batches,
             f"{prefix}recall": self.batch_recall_sum / self.n_batches,
             f"{prefix}f1": self.batch_f1_sum / self.n_batches,
+            f"{prefix}pos_count": self.pos_count / self.n_batches,
+            f"{prefix}neg_count": self.neg_count / self.n_batches
         }
         return metrics_dict
