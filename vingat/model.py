@@ -247,7 +247,7 @@ class RecommendationModel(nn.Module):
             nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()
+            # nn.Sigmoid()
         )
 
     def forward(self, data):

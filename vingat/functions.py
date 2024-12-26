@@ -8,7 +8,7 @@ from torch_geometric.utils import negative_sampling
 from typing import Callable
 import pandas as pd
 from vingat.visualizer import visualize_node_pca
-from vingat.metrics import score_stastics, MetricsAtK, MetricsAll
+from vingat.metrics import score_stastics, MetricsAtK, BatchMetricsAverager
 from IPython.core.display import display
 
 
@@ -178,7 +178,7 @@ def train_func(
         model.train()
 
         node_mean = []
-        metrics_all = MetricsAll(device=device)
+        metrics_averager = BatchMetricsAverager(device=device)
 
         print(f"Epoch {epoch}/{epochs} ======================")
 
@@ -239,12 +239,7 @@ def train_func(
             for entry in loss_entories:
                 loss_dettails.update({entry["name"]: entry["loss"] * entry["weight"]})
 
-            metrics_all.update(
-                preds=torch.cat([pos_scores, neg_scores], dim=0),
-                target=torch.tensor([1] * len(pos_scores) + [0] * len(neg_scores),
-                                    dtype=torch.long,
-                                    device=device)
-            )
+            metrics_averager.update(pos_scores=pos_scores, neg_scores=neg_scores)
 
             # check
             node_mean.append({
@@ -259,12 +254,13 @@ def train_func(
         display(df)
 
         aveg_loss = total_loss / len(train_loader)
+        epoch_metrics = metrics_averager.compute_epoch_average(prefix="train/")
 
         tr_metrics = {
             "train/total_loss": total_loss,
             "train/aveg_loss": aveg_loss,
+            **epoch_metrics
         }
-        tr_metrics.update(metrics_all.compute(prefix="train/"))
         if len(loss_dettails) > 0:
             tr_metrics.update({
                 f"train/{k}": v.item()
