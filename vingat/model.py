@@ -205,17 +205,20 @@ class RecommendationModel(nn.Module):
         self.image_encoder = nn.Linear(hidden_dim, hidden_dim)
 
         # visual
-        self.separation_loss = SeparationLoss(reg_lambda=0.01)
+        # self.separation_loss = SeparationLoss(reg_lambda=0.01)
 
         # Contrastive caption and nutrient
+        """
         self.cl_with_caption_and_nutrient = nn.ModuleList()
         for _ in range(intention_layers):
             cl = NutCaptionContrastiveLearning(nutrient_dim, hidden_dim, temperature)
             self.cl_with_caption_and_nutrient.append(cl)
         self.cl_dropout = DictDropout(dropout_rate, ["intention"])
         self.cl_norm = DictBatchNorm(hidden_dim)
+        """
 
         # Fusion of ingredient and recipe
+        """
         self.ing_to_recipe = nn.ModuleList()
         for _ in range(sencing_layers):
             gnn = TasteGNN(hidden_dim, dropout_rate=dropout_rate)
@@ -224,6 +227,7 @@ class RecommendationModel(nn.Module):
         self.taste_dropout = DictDropout(dropout_rate, ["taste"])
 
         self.batch_norm = DictBatchNorm(hidden_dim)
+        """
 
         # HANConv layers
         self.fusion_gnn = nn.ModuleList()
@@ -254,6 +258,7 @@ class RecommendationModel(nn.Module):
             "image": self.image_encoder(data["image"].x)
         })
 
+        """
         cl_losses = []
         for cl in self.cl_with_caption_and_nutrient:
             intention_x, _, cl_loss = cl(data["intention"].caption, data["intention"].nutrient)
@@ -264,13 +269,19 @@ class RecommendationModel(nn.Module):
         cl_loss = torch.stack(cl_losses).mean()
         data.set_value_dict("x", self.cl_dropout(data.x_dict))
         data.set_value_dict("x", self.cl_norm(data.x_dict))
+        """
+        data.set_value_dict("x", {
+            "intention": data["intention"].caption
+        }])
 
         # Message passing
+        """
         for gnn in self.ing_to_recipe:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
         data.set_value_dict("x", self.taste_dropout(data.x_dict))
 
         data.set_value_dict("x", self.batch_norm(data.x_dict))
+        """
 
         for gnn in self.fusion_gnn:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
