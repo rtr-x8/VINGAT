@@ -173,7 +173,7 @@ def train_func(
 
     for epoch in range(1, epochs+1):
         total_loss = 0
-        loss_dettails = {}
+        # loss_dettails = {}
 
         model.train()
 
