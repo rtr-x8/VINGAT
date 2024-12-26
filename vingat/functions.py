@@ -216,6 +216,9 @@ def train_func(
             neg_recipe_embed = recipe_embed[neg_mask]
             neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
 
+            print("pos_scores: ", pos_scores.mean().item(), pos_scores[:10])
+            print("neg_scores: ", neg_scores.mean().item(), neg_scores[:10])
+
             # 損失の計算
             main_loss = criterion(pos_scores, neg_scores, model.parameters())
             # rated_bpr_loss = (1 - cl_loss_rate) * bpr_loss
