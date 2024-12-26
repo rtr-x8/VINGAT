@@ -237,8 +237,6 @@ class RecommendationModel(nn.Module):
 
         self.fusion_dropout = DictDropout(dropout_rate, ["user", "item", "taste", "image"])
 
-        self.user_recipe_matmul = 
-
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
             nn.Linear(hidden_dim + hidden_dim, hidden_dim),
