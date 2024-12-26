@@ -176,6 +176,14 @@ def print_layer_outputs(model, input_data, max_elements=10, prefix=""):
         print("-" * 20)
 
 
+class VectorProduct(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, user_nodes: torch.Tensor, recipe_nodes: torch.Tensor):
+        return user_nodes * recipe_nodes
+
+
 class RecommendationModel(nn.Module):
     def __init__(
         self,
@@ -238,9 +246,11 @@ class RecommendationModel(nn.Module):
 
         self.fusion_dropout = DictDropout(dropout_rate, ["user", "item", "taste", "image"])
 
+        self.user_recipe_product = VectorProduct()
+
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
-            nn.Linear(hidden_dim + hidden_dim, hidden_dim),
+            nn.Linear(hidden_dim * 3, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, 1),
@@ -278,13 +288,14 @@ class RecommendationModel(nn.Module):
         data.set_value_dict("x", self.fusion_dropout(data.x_dict))
 
         return data, [
-            {"name": "cl_loss", "loss": cl_loss, "weight": 1.0}
+            {"name": "cl_loss", "loss": cl_loss, "weight": 0.3}
         ]
 
     def predict(self, user_nodes, recipe_nodes):
         # ユーザーとレシピの埋め込みを連結
         user_nodes = F.normalize(user_nodes, p=2, dim=1)
         recipe_nodes = F.normalize(recipe_nodes, p=2, dim=1)
-        edge_features = torch.cat([user_nodes, recipe_nodes], dim=1)
+        ur_product = self.user_recipe_product(user_nodes, recipe_nodes)
+        edge_features = torch.cat([user_nodes, recipe_nodes, ur_product], dim=1)
         # print_layer_outputs(self.link_predictor, edge_features)
         return self.link_predictor(edge_features)
