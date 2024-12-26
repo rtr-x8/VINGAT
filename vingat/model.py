@@ -123,9 +123,17 @@ class DictBatchNorm(nn.Module):
 
 
 class MultiModalFusionGAT(nn.Module):
+    """
     NODES = ['user', 'item', 'taste', 'intention', 'image']
     EDGES = [('taste', 'associated_with', 'item'),
              ('intention', 'associated_with', 'item'),
+             ('image', 'associated_with', 'item'),
+             ('user', 'buys', 'item'),
+             ('item', 'bought_by', 'user')]
+    """
+    NODES = ['user', 'item', 'image']
+    EDGES = [  # ('taste', 'associated_with', 'item'),
+               #  ('intention', 'associated_with', 'item'),
              ('image', 'associated_with', 'item'),
              ('user', 'buys', 'item'),
              ('item', 'bought_by', 'user')]
@@ -195,7 +203,7 @@ class RecommendationModel(nn.Module):
         #  TODO: もしか学習するなら直後にDropOut
         self.user_encoder = nn.Embedding(num_user, hidden_dim)
         self.item_encoder = nn.Embedding(num_item, hidden_dim)
-        # self.image_encoder = nn.Linear(hidden_dim, hidden_dim)
+        self.image_encoder = nn.Linear(hidden_dim, hidden_dim)
 
         # visual
         # self.separation_loss = SeparationLoss(reg_lambda=0.01)
@@ -237,11 +245,11 @@ class RecommendationModel(nn.Module):
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
             nn.Linear(hidden_dim + hidden_dim, hidden_dim),
-            nn.BatchNorm1d(hidden_dim),
+            nn.LazyBatchNorm1d(hidden_dim),
             nn.Dropout(dropout_rate),
             nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim),
-            nn.BatchNorm1d(hidden_dim),
+            nn.LazyBatchNorm1d(hidden_dim),
             nn.Linear(hidden_dim, 1)
         )
 
@@ -292,6 +300,6 @@ class RecommendationModel(nn.Module):
         recipe_nodes = F.normalize(recipe_nodes, p=2, dim=1)
         edge_features = torch.cat([user_nodes, recipe_nodes], dim=1)
         logits = self.link_predictor(edge_features)
-        print(logits[:5])
+        print("logi mean: ", logits.mean(), logits[:3])
         probs = torch.sigmoid(logits)
         return probs
