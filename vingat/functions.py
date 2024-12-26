@@ -222,22 +222,21 @@ def train_func(
             # rated_cl_loss = cl_loss_rate * cl_loss
 
             # loss = rated_bpr_loss + cl_loss_rate * rated_cl_loss
-            if len(loss_entories) > 0:
-                other_loss = torch.sum(torch.stack(
-                    [entry["loss"] * entry["weight"] for entry in loss_entories]
-                ))
-                loss = main_loss + other_loss
-            else:
-                loss = main_loss
+            """
+            other_loss = torch.sum(torch.stack(
+                [entry["loss"] * entry["weight"] for entry in loss_entories]
+            ))
+            loss = main_loss + other_loss
+            """
 
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
+            main_loss.backward()
+            # torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             optimizer.step()
 
-            total_loss += loss.item()
-            loss_dettails.update({"main_loss": main_loss})
-            for entry in loss_entories:
-                loss_dettails.update({entry["name"]: entry["loss"] * entry["weight"]})
+            total_loss += main_loss.item()
+            # loss_dettails.update({"main_loss": main_loss})
+            # for entry in loss_entories:
+            #     loss_dettails.update({entry["name"]: entry["loss"] * entry["weight"]})
 
             metrics_averager.update(pos_scores=pos_scores, neg_scores=neg_scores)
 
