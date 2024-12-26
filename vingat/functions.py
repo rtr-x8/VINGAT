@@ -262,10 +262,11 @@ def train_func(
             "train/aveg_loss": aveg_loss,
         }
         tr_metrics.update(metrics_all.compute(prefix="train/"))
-        tr_metrics.update({
-            f"train/{k}": v.item()
-            for k, v in loss_dettails.items()
-        })
+        if len(loss_dettails) > 0:
+            tr_metrics.update({
+                f"train/{k}": v.item()
+                for k, v in loss_dettails.items()
+            })
         display(pd.DataFrame(tr_metrics, index=[epoch]))
         wbLogger(
             data=tr_metrics,
