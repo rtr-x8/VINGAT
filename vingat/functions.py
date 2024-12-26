@@ -230,7 +230,7 @@ def train_func(
             """
 
             main_loss.backward()
-            # torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             optimizer.step()
 
             total_loss += main_loss.item()

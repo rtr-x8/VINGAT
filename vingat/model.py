@@ -193,8 +193,8 @@ class RecommendationModel(nn.Module):
         self.tiny_hidden_dim = node_embeding_dimmention
 
         #  TODO: もしか学習するなら直後にDropOut
-        self.user_encoder = nn.Embedding(num_user, hidden_dim, max_norm=1)
-        self.item_encoder = nn.Embedding(num_item, hidden_dim, max_norm=1)
+        self.user_encoder = nn.Embedding(num_user, hidden_dim)
+        self.item_encoder = nn.Embedding(num_item, hidden_dim)
         # self.image_encoder = nn.Linear(hidden_dim, hidden_dim)
 
         # visual
@@ -239,8 +239,11 @@ class RecommendationModel(nn.Module):
             nn.Linear(hidden_dim + hidden_dim, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.BatchNorm1d(hidden_dim),
+            nn.Dropout(dropout_rate),
             nn.Linear(hidden_dim, 1),
-            # nn.Sigmoid()
+            nn.Sigmoid()
         )
 
     def forward(self, data):
