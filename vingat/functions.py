@@ -217,7 +217,7 @@ def train_func(
             neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
 
             # 損失の計算
-            main_loss = criterion(pos_scores, neg_scores, model.parameters())
+            main_loss = criterion(pos_scores, neg_scores)
             # rated_bpr_loss = (1 - cl_loss_rate) * bpr_loss
             # rated_cl_loss = cl_loss_rate * cl_loss
 
