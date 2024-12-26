@@ -238,12 +238,11 @@ class RecommendationModel(nn.Module):
         self.link_predictor = nn.Sequential(
             nn.Linear(hidden_dim + hidden_dim, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
+            nn.Dropout(dropout_rate),
             nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
-            nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()
+            nn.Linear(hidden_dim, 1)
         )
 
     def forward(self, data):
@@ -292,5 +291,7 @@ class RecommendationModel(nn.Module):
         user_nodes = F.normalize(user_nodes, p=2, dim=1)
         recipe_nodes = F.normalize(recipe_nodes, p=2, dim=1)
         edge_features = torch.cat([user_nodes, recipe_nodes], dim=1)
-        # print_layer_outputs(self.link_predictor, edge_features)
-        return self.link_predictor(edge_features)
+        logits = self.link_predictor(edge_features)
+        print(logits[:5])
+        probs = torch.sigmoid(logits)
+        return probs
