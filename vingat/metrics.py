@@ -68,6 +68,7 @@ class MetricsHandler():
     入力を繰り返し受け取り、最終的な計算を行う。
     """
     def __init__(self, threshold: float = 0.5):
+        self.threshold = threshold
         self.reset()
 
     def reset(self):
