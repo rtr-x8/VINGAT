@@ -135,7 +135,8 @@ def evaluate_model(
                     torch.ones_like(pos_scores),
                     torch.zeros_like(neg_scores)
                 ], device=device),
-                user_indices=torch.full((len(pos_scores) + len(neg_scores),), user_id, device=device)
+                user_indices=torch.full((len(pos_scores) + len(neg_scores),),
+                                        user_id, device=device)
             )
 
     avg_recall = np.mean(all_recalls)
@@ -371,6 +372,7 @@ def train_func(
             )
             display(score_statics)
             wbLogger(**score_statics, step=epoch)
+
             print("handler Result: ")
             print(mhres)
             wbLogger(data=mhres, step=epoch)

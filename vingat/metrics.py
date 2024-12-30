@@ -105,7 +105,6 @@ class MetricsHandler():
             binary_f1 = BinaryF1Score(threshold=self.threshold)
             binary_confusion_matrix = BinaryConfusionMatrix(threshold=self.threshold)
 
-
             self.recall_at_10_result = recall_at_10(all_probas, all_targets, all_user_indices)
             self.recall_at_20_result = recall_at_20(all_probas, all_targets, all_user_indices)
             self.pre_at_10_result = pre_at_10(all_probas, all_targets, all_user_indices)
@@ -145,6 +144,6 @@ class MetricsHandler():
 
     def log(self, prefix: str = "", separator: str = "/", num_round: int = 8):
         return {
-            f"{prefix}{separator}{k}": round(v, num_rount)
+            f"{prefix}{separator}{k}": round(v, num_round)
             for k, v in self.compute().items()
         }
