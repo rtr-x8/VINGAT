@@ -112,7 +112,8 @@ class MetricsHandler():
             binary_accuracy = BinaryAccuracy(threshold=self.threshold).to(self.device)
             binary_recall = BinaryRecall(threshold=self.threshold).to(self.device)
             binary_f1 = BinaryF1Score(threshold=self.threshold).to(self.device)
-            binary_confusion_matrix = BinaryConfusionMatrix(threshold=self.threshold).to(self.device)
+            binary_confusion_matrix = BinaryConfusionMatrix(threshold=self.threshold)
+            binary_confusion_matrix.to(self.device)
 
             self.recall_at_10_result = recall_at_10(all_probas, all_targets, all_user_indices)
             self.recall_at_20_result = recall_at_20(all_probas, all_targets, all_user_indices)
