@@ -130,11 +130,11 @@ def evaluate_model(
                 all_f1_scores.append(f1)
 
             mhandler.update(
-                probas=torch.cat([pos_scores, neg_scores], device=device),
+                probas=torch.cat([pos_scores, neg_scores]),
                 targets=torch.cat([
-                    torch.ones_like(pos_scores),
-                    torch.zeros_like(neg_scores)
-                ], device=device),
+                    torch.ones_like(pos_scores, device=device),
+                    torch.zeros_like(neg_scores, device=device)
+                ]),
                 user_indices=torch.full((len(pos_scores) + len(neg_scores),),
                                         user_id, device=device)
             )
@@ -288,15 +288,15 @@ def train_func(
             all_labels.extend([1] * len(pos_scores) + [0] * len(neg_scores))
 
             mhandler.update(
-                probas=torch.cat([pos_scores, neg_scores], device=device),
+                probas=torch.cat([pos_scores, neg_scores]),
                 targets=torch.cat([
-                    torch.ones_like(pos_scores),
-                    torch.zeros_like(neg_scores)
-                ], device=device),
+                    torch.ones_like(pos_scores, device=device),
+                    torch.zeros_like(neg_scores, device=device)
+                ]),
                 user_indices=torch.cat([
                     edge_label_index[0][pos_mask],
                     edge_label_index[0][neg_mask]
-                ], device=device)
+                ])
             )
 
             # check
