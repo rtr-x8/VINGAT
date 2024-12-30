@@ -4,7 +4,7 @@ from torch_geometric.nn import HANConv, HGTConv
 from torch_geometric.nn.norm import BatchNorm
 import torch.nn as nn
 import os
-# from vingat.loss import SeparationLoss
+from vingat.loss import SeparationLoss
 
 
 class RepeatTensor(nn.Module):
@@ -131,9 +131,8 @@ class MultiModalFusionGAT(nn.Module):
              ('user', 'buys', 'item'),
              ('item', 'bought_by', 'user')]
     """
-    NODES = ['user', 'item', 'image']
-    EDGES = [  # ('taste', 'associated_with', 'item'),
-               #  ('intention', 'associated_with', 'item'),
+    NODES = ['user', 'item', 'taste', 'image']
+    EDGES = [('taste', 'associated_with', 'item'),
              ('image', 'associated_with', 'item'),
              ('user', 'buys', 'item'),
              ('item', 'bought_by', 'user')]
@@ -174,6 +173,7 @@ def print_layer_outputs(model, input_data, max_elements=10, prefix=""):
         print(f"{prefix} Layer {i}: {layer.__class__.__name__}")
         # 出力の一部を表示 (最大 max_elements 個)
         print(input_data[:max_elements])
+        print("-" * 20)
 
 
 class RecommendationModel(nn.Module):
@@ -201,25 +201,22 @@ class RecommendationModel(nn.Module):
         self.tiny_hidden_dim = node_embeding_dimmention
 
         #  TODO: もしか学習するなら直後にDropOut
-        self.user_encoder = nn.Embedding(num_user, hidden_dim)
-        self.item_encoder = nn.Embedding(num_item, hidden_dim)
+        self.user_encoder = nn.Embedding(num_user, hidden_dim, max_norm=1)
+        self.item_encoder = nn.Embedding(num_item, hidden_dim, max_norm=1)
         self.image_encoder = nn.Linear(hidden_dim, hidden_dim)
 
         # visual
-        # self.separation_loss = SeparationLoss(reg_lambda=0.01)
+        self.separation_loss = SeparationLoss(reg_lambda=0.01)
 
         # Contrastive caption and nutrient
-        """
         self.cl_with_caption_and_nutrient = nn.ModuleList()
         for _ in range(intention_layers):
             cl = NutCaptionContrastiveLearning(nutrient_dim, hidden_dim, temperature)
             self.cl_with_caption_and_nutrient.append(cl)
         self.cl_dropout = DictDropout(dropout_rate, ["intention"])
         self.cl_norm = DictBatchNorm(hidden_dim)
-        """
 
         # Fusion of ingredient and recipe
-        """
         self.ing_to_recipe = nn.ModuleList()
         for _ in range(sencing_layers):
             gnn = TasteGNN(hidden_dim, dropout_rate=dropout_rate)
@@ -228,7 +225,6 @@ class RecommendationModel(nn.Module):
         self.taste_dropout = DictDropout(dropout_rate, ["taste"])
 
         self.batch_norm = DictBatchNorm(hidden_dim)
-        """
 
         # HANConv layers
         self.fusion_gnn = nn.ModuleList()
@@ -245,12 +241,10 @@ class RecommendationModel(nn.Module):
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
             nn.Linear(hidden_dim + hidden_dim, hidden_dim),
-            nn.LazyBatchNorm1d(hidden_dim),
-            nn.Dropout(dropout_rate),
+            nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.LazyBatchNorm1d(hidden_dim),
-            nn.Linear(hidden_dim, 1)
+            nn.Linear(hidden_dim, 1),
+            nn.Sigmoid()
         )
 
     def forward(self, data):
@@ -258,10 +252,9 @@ class RecommendationModel(nn.Module):
         data.set_value_dict("x", {
             "user": self.user_encoder(data["user"].id),
             "item": self.item_encoder(data["item"].id),
-            # "image": self.image_encoder(data["image"].x)
+            "image": self.image_encoder(data["image"].x)
         })
 
-        """
         cl_losses = []
         for cl in self.cl_with_caption_and_nutrient:
             intention_x, _, cl_loss = cl(data["intention"].caption, data["intention"].nutrient)
@@ -272,26 +265,20 @@ class RecommendationModel(nn.Module):
         cl_loss = torch.stack(cl_losses).mean()
         data.set_value_dict("x", self.cl_dropout(data.x_dict))
         data.set_value_dict("x", self.cl_norm(data.x_dict))
-        """
-        data.set_value_dict("x", {
-            "intention": data["intention"].caption
-        })
 
         # Message passing
-        """
         for gnn in self.ing_to_recipe:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
         data.set_value_dict("x", self.taste_dropout(data.x_dict))
 
         data.set_value_dict("x", self.batch_norm(data.x_dict))
-        """
 
         for gnn in self.fusion_gnn:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
         data.set_value_dict("x", self.fusion_dropout(data.x_dict))
 
         return data, [
-            # {"name": "cl_loss", "loss": cl_loss, "weight": 1.0}
+            {"name": "cl_loss", "loss": cl_loss, "weight": 1.0}
         ]
 
     def predict(self, user_nodes, recipe_nodes):
@@ -299,7 +286,5 @@ class RecommendationModel(nn.Module):
         user_nodes = F.normalize(user_nodes, p=2, dim=1)
         recipe_nodes = F.normalize(recipe_nodes, p=2, dim=1)
         edge_features = torch.cat([user_nodes, recipe_nodes], dim=1)
-        logits = self.link_predictor(edge_features)
-        print("logi mean: ", logits.mean(), logits[:3])
-        probs = torch.sigmoid(logits)
-        return probs
+        # print_layer_outputs(self.link_predictor, edge_features)
+        return self.link_predictor(edge_features)
