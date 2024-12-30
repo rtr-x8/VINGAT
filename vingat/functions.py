@@ -33,7 +33,7 @@ def evaluate_model(
     user_pos_scores = []
     user_neg_scores = []
 
-    mhandler = MetricsHandler(threshold=0.5)
+    mhandler = MetricsHandler(device=device, threshold=0.5)
 
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
 
@@ -227,7 +227,7 @@ def train_func(
 
         node_mean = []
 
-        mhandler = MetricsHandler(threshold=0.5)
+        mhandler = MetricsHandler(device=device, threshold=0.5)
 
         print(f"Epoch {epoch}/{epochs} ======================")
 
