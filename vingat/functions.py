@@ -2,13 +2,16 @@ import torch
 import torch.nn as nn
 from torch_geometric.data import HeteroData
 from tqdm.notebook import tqdm
+from sklearn.metrics import accuracy_score, recall_score, f1_score, precision_score
 import os
 import numpy as np
 from torch_geometric.utils import negative_sampling
+from sklearn.metrics import roc_auc_score
+from vingat.metrics import ndcg_at_k
 from typing import Callable
 import pandas as pd
 from vingat.visualizer import visualize_node_pca
-from vingat.metrics import score_stastics, MetricsAtK, BatchMetricsAverager
+from vingat.metrics import score_stastics
 from IPython.core.display import display
 
 
@@ -16,14 +19,18 @@ def evaluate_model(
     model: nn.Module,
     data: HeteroData,
     device: torch.device,
-    is_validation,
     k=10,
     desc: str = ""
 ):
     model.eval()
+    all_recalls = []
+    all_precisions = []
+    all_ndcgs = []
+    all_accuracies = []
+    all_f1_scores = []
+    all_aucs = []
     user_pos_scores = []
     user_neg_scores = []
-    metrics_at_k = MetricsAtK(k=k, device=device)
 
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
 
@@ -56,8 +63,7 @@ def evaluate_model(
                 user_pos_indices
             ])
 
-            # 負例ペアの数 HAFR, HCGAN
-            num_neg_samples = num_pos_samples if is_validation else 500
+            num_neg_samples = 500    # 負例ペアの数 HAFR, HCGAN
             # PyTorch Geometricのnegative_samplingを使用して負例を取得
             negative_edge_index = negative_sampling(
                 edge_index=user_edge_label_index,
@@ -80,30 +86,55 @@ def evaluate_model(
             pos_scores = model.predict(pos_user_embed, pos_recipe_embed).squeeze(dim=1)
             neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze(dim=1)
 
+            scores = torch.cat([pos_scores, neg_scores], dim=0).cpu().numpy()
+            labels = np.concatenate([np.ones(len(pos_scores)), np.zeros(len(neg_scores))])
+
             user_pos_scores.append(pos_scores)
             user_neg_scores.append(neg_scores)
 
-            metrics_at_k.update(
-                preds=torch.cat([pos_scores, neg_scores], dim=0),
-                target=torch.tensor([1] * len(pos_scores) + [0] * len(neg_scores),
-                                    dtype=torch.long,
-                                    device=device),
-                indexed=torch.full((len(pos_scores) + len(neg_scores),),
-                                   user_id, dtype=torch.long, device=device)
-            )
+            if len(np.unique(labels)) > 1:    # Check if we have both positive and negative samples
+                auc = roc_auc_score(labels, scores)
+                all_aucs.append(auc)
 
-    result = metrics_at_k.compute(prefix="", suffix="")
+            # このユーザーのスコアを集計してトップkのレコメンデーションを取得
+            user_scores = torch.cat([pos_scores, neg_scores], dim=0).cpu().numpy()
+            recipe_indices = np.concatenate([
+                user_pos_indices.cpu().numpy(),
+                user_neg_indices.cpu().numpy()
+            ])
+
+            k = min(k, len(user_scores))
+            sorted_indices = np.argsort(-user_scores)    # 降順にソート
+            top_k_indices = recipe_indices[sorted_indices[:k]]
+
+            # 実際の購入レシピと評価指標の計算
+            test_purchased = user_pos_indices.cpu().numpy()
+            if len(test_purchased) > 0:
+                hits = np.isin(top_k_indices, test_purchased).astype(np.float32)
+                recall = hits.sum() / len(test_purchased)
+                precision = hits.sum() / k
+                ndcg = ndcg_at_k(hits, k)
+                accuracy = hits.sum() / k
+                if precision + recall > 0:
+                    f1 = 2 * (precision * recall) / (precision + recall)
+                else:
+                    f1 = 0.0
+
+                all_recalls.append(recall)
+                all_precisions.append(precision)
+                all_ndcgs.append(ndcg)
+                all_accuracies.append(accuracy)
+                all_f1_scores.append(f1)
+
+    avg_recall = np.mean(all_recalls)
+    avg_precision = np.mean(all_precisions)
+    avg_ndcg = np.mean(all_ndcgs)
+    avg_accuracy = np.mean(all_accuracies)
+    avg_f1 = np.mean(all_f1_scores)
+    avg_auc = np.mean(all_aucs) if all_aucs else 0.0
     score_statics = score_stastics(user_pos_scores, user_neg_scores)
 
-    return (
-        result.get("precision"),
-        result.get("recall"),
-        result.get("ndcg"),
-        result.get("accuracy"),
-        result.get("f1"),
-        result.get("auroc"),
-        score_statics
-    )
+    return avg_precision, avg_recall, avg_ndcg, avg_accuracy, avg_f1, avg_auc, score_statics
 
 
 def save_model(model: nn.Module,  save_directory: str, filename: str):
@@ -161,7 +192,7 @@ def train_func(
     validation_interval=5,
     max_grad_norm=1.0,
     pca_cols=["user", "item", "intention", "taste", "image"],
-    cl_loss_rate=0.3,
+    cl_loss_rate=0.3
 ):
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
     model.to(device)
@@ -173,12 +204,13 @@ def train_func(
 
     for epoch in range(1, epochs+1):
         total_loss = 0
-        # loss_dettails = {}
+        loss_dettails = {}
+        all_preds = []
+        all_labels = []
 
         model.train()
 
         node_mean = []
-        metrics_averager = BatchMetricsAverager(device=device)
 
         print(f"Epoch {epoch}/{epochs} ======================")
 
@@ -217,28 +249,26 @@ def train_func(
             neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
 
             # 損失の計算
-            main_loss = criterion(pos_scores, neg_scores)
+            main_loss = criterion(pos_scores, neg_scores, model.parameters())
             # rated_bpr_loss = (1 - cl_loss_rate) * bpr_loss
             # rated_cl_loss = cl_loss_rate * cl_loss
 
             # loss = rated_bpr_loss + cl_loss_rate * rated_cl_loss
-            """
             other_loss = torch.sum(torch.stack(
                 [entry["loss"] * entry["weight"] for entry in loss_entories]
             ))
             loss = main_loss + other_loss
-            """
 
-            main_loss.backward()
+            loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             optimizer.step()
 
-            total_loss += main_loss.item()
-            # loss_dettails.update({"main_loss": main_loss})
-            # for entry in loss_entories:
-            #     loss_dettails.update({entry["name"]: entry["loss"] * entry["weight"]})
-
-            metrics_averager.update(pos_scores=pos_scores, neg_scores=neg_scores)
+            total_loss += loss.item()
+            loss_dettails.update({"main_loss": main_loss})
+            for entry in loss_entories:
+                loss_dettails.update({entry["name"]: entry["loss"] * entry["weight"]})
+            all_preds.extend((pos_scores > 0.5).int().tolist() + (neg_scores <= 0.5).int().tolist())
+            all_labels.extend([1] * len(pos_scores) + [0] * len(neg_scores))
 
             # check
             node_mean.append({
@@ -253,20 +283,23 @@ def train_func(
         display(df)
 
         aveg_loss = total_loss / len(train_loader)
-        epoch_metrics = metrics_averager.compute_epoch_average(prefix="train/")
+        epoch_accuracy = accuracy_score(all_labels, all_preds)
+        epoch_recall = recall_score(all_labels, all_preds)
+        epoch_f1 = f1_score(all_labels, all_preds)
+        epoch_pre = precision_score(all_labels, all_preds)
 
         tr_metrics = {
             "train/total_loss": total_loss,
             "train/aveg_loss": aveg_loss,
-            **epoch_metrics
+            "train/accuracy": epoch_accuracy,
+            "train/recall": epoch_recall,
+            "train/precision": epoch_pre,
+            "train/f1": epoch_f1,
         }
-        """
-        if len(loss_dettails) > 0:
-            tr_metrics.update({
-                f"train/{k}": v.item()
-                for k, v in loss_dettails.items()
-            })
-        """
+        tr_metrics.update({
+            f"train/{k}": v.item()
+            for k, v in loss_dettails.items()
+        })
         display(pd.DataFrame(tr_metrics, index=[epoch]))
         wbLogger(
             data=tr_metrics,
@@ -285,12 +318,7 @@ def train_func(
 
             k = 10
             v_precision, v_recall, v_ndcg, v_accuracy, v_f1, v_auc, score_statics = evaluate_model(
-                model=model,
-                data=val,
-                device=device,
-                is_validation=True,
-                k=k,
-                desc=f"[Valid] Epoch {epoch}/{epochs}")
+                model, val, device, k=k, desc=f"[Valid] Epoch {epoch}/{epochs}")
 
             val_metrics = {
                 f"val/Precision@{k}": v_precision,
