@@ -67,8 +67,9 @@ class MetricsHandler():
     """
     入力を繰り返し受け取り、最終的な計算を行う。
     """
-    def __init__(self, threshold: float = 0.5):
+    def __init__(self, device, threshold: float = 0.5):
         self.threshold = threshold
+        self.device = device
         self.reset()
 
     def reset(self):
@@ -91,20 +92,24 @@ class MetricsHandler():
             all_targets = torch.cat(self.targets)
             all_user_indices = torch.cat(self.user_indices)
 
-            recall_at_10 = RetrievalRecall(empty_target_action="skip", top_k=10)
-            recall_at_20 = RetrievalRecall(empty_target_action="skip", top_k=20)
-            pre_at_10 = RetrievalPrecision(empty_target_action="skip", top_k=10, adaptive_k=True)
-            pre_at_20 = RetrievalPrecision(empty_target_action="skip", top_k=20, adaptive_k=True)
-            ndcg_at_10 = RetrievalNormalizedDCG(empty_target_action="skip", top_k=10)
-            ndcg_at_20 = RetrievalNormalizedDCG(empty_target_action="skip", top_k=20)
-            map_at_10 = RetrievalMAP(empty_target_action="skip", top_k=10)
-            map_at_20 = RetrievalMAP(empty_target_action="skip", top_k=20)
-            mrr_at_10 = RetrievalMRR(empty_target_action="skip", top_k=10)
-            mrr_at_20 = RetrievalMRR(empty_target_action="skip", top_k=20)
-            binary_accuracy = BinaryAccuracy(threshold=self.threshold)
-            binary_recall = BinaryRecall(threshold=self.threshold)
-            binary_f1 = BinaryF1Score(threshold=self.threshold)
-            binary_confusion_matrix = BinaryConfusionMatrix(threshold=self.threshold)
+            recall_at_10 = RetrievalRecall(empty_target_action="skip", top_k=10).to(self.device)
+            recall_at_20 = RetrievalRecall(empty_target_action="skip", top_k=20).to(self.device)
+            pre_at_10 = RetrievalPrecision(empty_target_action="skip",
+                                           top_k=10, adaptive_k=True).to(self.device)
+            pre_at_20 = RetrievalPrecision(empty_target_action="skip",
+                                           top_k=20, adaptive_k=True).to(self.device)
+            ndcg_at_10 = RetrievalNormalizedDCG(empty_target_action="skip",
+                                                top_k=10).to(self.device)
+            ndcg_at_20 = RetrievalNormalizedDCG(empty_target_action="skip",
+                                                top_k=20).to(self.device)
+            map_at_10 = RetrievalMAP(empty_target_action="skip", top_k=10).to(self.device)
+            map_at_20 = RetrievalMAP(empty_target_action="skip", top_k=20).to(self.device)
+            mrr_at_10 = RetrievalMRR(empty_target_action="skip", top_k=10).to(self.device)
+            mrr_at_20 = RetrievalMRR(empty_target_action="skip", top_k=20).to(self.device)
+            binary_accuracy = BinaryAccuracy(threshold=self.threshold).to(self.device)
+            binary_recall = BinaryRecall(threshold=self.threshold).to(self.device)
+            binary_f1 = BinaryF1Score(threshold=self.threshold).to(self.device)
+            binary_confusion_matrix = BinaryConfusionMatrix(threshold=self.threshold).to(self.device)
 
             self.recall_at_10_result = recall_at_10(all_probas, all_targets, all_user_indices)
             self.recall_at_20_result = recall_at_20(all_probas, all_targets, all_user_indices)
