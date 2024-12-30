@@ -82,6 +82,9 @@ class MetricsHandler():
                probas: torch.Tensor,
                targets: torch.Tensor,
                user_indices: torch.Tensor):
+        probas = probas.to(self.device)
+        targets = targets.to(self.device)
+        user_indices = user_indices.to(self.device)
         self.probas.append(probas)
         self.targets.append(targets)
         self.user_indices.append(user_indices)
