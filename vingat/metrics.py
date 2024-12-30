@@ -143,7 +143,7 @@ class MetricsHandler():
             "tp": self.binary_confusion_matrix_result[1][1].item(),
         }
 
-    def log(self, prefix: str, separator: str = "/", num_rount: int = 8):
+    def log(self, prefix: str = "", separator: str = "/", num_round: int = 8):
         return {
             f"{prefix}{separator}{k}": round(v, num_rount)
             for k, v in self.compute().items()

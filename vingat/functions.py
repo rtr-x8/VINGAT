@@ -13,6 +13,7 @@ import pandas as pd
 from vingat.visualizer import visualize_node_pca
 from vingat.metrics import score_stastics
 from IPython.core.display import display
+from vingat.metrics import MetricsHandler
 
 
 def evaluate_model(
@@ -31,6 +32,8 @@ def evaluate_model(
     all_aucs = []
     user_pos_scores = []
     user_neg_scores = []
+
+    mhandler = MetricsHandler(threshold=0.5)
 
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
 
@@ -126,6 +129,15 @@ def evaluate_model(
                 all_accuracies.append(accuracy)
                 all_f1_scores.append(f1)
 
+            mhandler.update(
+                probas=torch.cat([pos_scores, neg_scores], device=device),
+                targets=torch.cat([
+                    torch.ones_like(pos_scores),
+                    torch.zeros_like(neg_scores)
+                ], device=device),
+                user_indices=torch.full((len(pos_scores) + len(neg_scores),), user_id, device=device)
+            )
+
     avg_recall = np.mean(all_recalls)
     avg_precision = np.mean(all_precisions)
     avg_ndcg = np.mean(all_ndcgs)
@@ -134,7 +146,9 @@ def evaluate_model(
     avg_auc = np.mean(all_aucs) if all_aucs else 0.0
     score_statics = score_stastics(user_pos_scores, user_neg_scores)
 
-    return avg_precision, avg_recall, avg_ndcg, avg_accuracy, avg_f1, avg_auc, score_statics
+    mhres = mhandler.log(prefix="valid-handler", num_round=4)
+
+    return avg_precision, avg_recall, avg_ndcg, avg_accuracy, avg_f1, avg_auc, score_statics, mhres
 
 
 def save_model(model: nn.Module,  save_directory: str, filename: str):
@@ -212,6 +226,8 @@ def train_func(
 
         node_mean = []
 
+        mhandler = MetricsHandler(threshold=0.5)
+
         print(f"Epoch {epoch}/{epochs} ======================")
 
         for batch_data in tqdm(train_loader, desc=f"[Train] Epoch {epoch}/{epochs}"):
@@ -270,6 +286,18 @@ def train_func(
             all_preds.extend((pos_scores > 0.5).int().tolist() + (neg_scores <= 0.5).int().tolist())
             all_labels.extend([1] * len(pos_scores) + [0] * len(neg_scores))
 
+            mhandler.update(
+                probas=torch.cat([pos_scores, neg_scores], device=device),
+                targets=torch.cat([
+                    torch.ones_like(pos_scores),
+                    torch.zeros_like(neg_scores)
+                ], device=device),
+                user_indices=torch.cat([
+                    edge_label_index[0][pos_mask],
+                    edge_label_index[0][neg_mask]
+                ], device=device)
+            )
+
             # check
             node_mean.append({
                 key: val.mean().mean().item()
@@ -306,6 +334,10 @@ def train_func(
             step=epoch
         )
 
+        wbLogger(data=mhandler.log("train-handler"), step=epoch)
+        print("handler Result: ")
+        print(mhandler.log(num_round=4))
+
         # Valid
         if epoch % validation_interval == 0:
 
@@ -317,14 +349,14 @@ def train_func(
             wbScatter(_df, epoch, title=f"after training (epoch: {epoch})")
 
             k = 10
-            v_precision, v_recall, v_ndcg, v_accuracy, v_f1, v_auc, score_statics = evaluate_model(
+            v_pre, v_recall, v_ndcg, v_acc, v_f1, v_auc, score_statics, mhres = evaluate_model(
                 model, val, device, k=k, desc=f"[Valid] Epoch {epoch}/{epochs}")
 
             val_metrics = {
-                f"val/Precision@{k}": v_precision,
+                f"val/Precision@{k}": v_pre,
                 f"val/Recall@{k}": v_recall,
                 f"val/NDCG@{k}": v_ndcg,
-                f"val/Accuracy@{k}": v_accuracy,
+                f"val/Accuracy@{k}": v_acc,
                 f"val/F1@{k}": v_f1,
                 "val/AUC": v_auc,
                 "val/last_lr": scheduler.get_last_lr()[0]
@@ -339,12 +371,15 @@ def train_func(
             )
             display(score_statics)
             wbLogger(**score_statics, step=epoch)
+            print("handler Result: ")
+            print(mhres)
+            wbLogger(data=mhres, step=epoch)
 
             save_model(model, save_dir, f"model_{epoch}")
 
             # Early Stoppingの判定（バリデーションの精度または他のメトリクスで判定）
-            if v_accuracy > best_val_metric:
-                best_val_metric = v_accuracy    # 最良のバリデーションメトリクスを更新
+            if v_acc > best_val_metric:
+                best_val_metric = v_acc    # 最良のバリデーションメトリクスを更新
                 patience_counter = 0    # 改善が見られたためカウンターをリセット
                 best_model_epoch = epoch
             else:
