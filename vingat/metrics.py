@@ -38,18 +38,37 @@ def score_stastics(pos_scores: List[torch.Tensor], neg_scores: List[torch.Tensor
     diff_mean = pos_mean - neg_mean
 
     return {
-        "data": {
-            "score_metrics/pos_mean": pos_mean,
-            "score_metrics/pos_min": pos_scores_tensor.min().item(),
-            "score_metrics/pos_max": pos_scores_tensor.max().item(),
-            "score_metrics/pos_std": pos_scores_tensor.std().item(),
-            "score_metrics/neg_mean": neg_mean,
-            "score_metrics/neg_min": neg_scores_tensor.min().item(),
-            "score_metrics/neg_max": neg_scores_tensor.max().item(),
-            "score_metrics/neg_std": neg_scores_tensor.std().item(),
-            "score_metrics/diff_mean": diff_mean,
-        },
+        "pos_mean": pos_mean,
+        "pos_min": pos_scores_tensor.min().item(),
+        "pos_max": pos_scores_tensor.max().item(),
+        "pos_std": pos_scores_tensor.std().item(),
+        "neg_mean": neg_mean,
+        "neg_min": neg_scores_tensor.min().item(),
+        "neg_max": neg_scores_tensor.max().item(),
+        "neg_std": neg_scores_tensor.std().item(),
+        "diff_mean": diff_mean,
     }
+
+
+class ScoreMetricHandler():
+    def __init__(self, pos_scores: List[torch.Tensor], neg_scores: List[torch.Tensor]):
+        self.pos_scores = pos_scores
+        self.neg_scores = neg_scores
+        self.is_calculated = False
+        self.result = None
+
+    def compute(self):
+        if not self.is_calculated:
+            self.result = score_stastics(self.pos_scores, self.neg_scores)
+            self.is_calculated = True
+
+        return self.result
+
+    def log(self, prefix: str = "", separator: str = "/", num_round: int = 8):
+        return {
+            f"{prefix}{separator}{k}": round(v, num_round)
+            for k, v in self.compute().items()
+        }
 
 
 class MetricsHandler():
