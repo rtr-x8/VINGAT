@@ -28,36 +28,25 @@ def ndcg_at_k(r: np.ndarray, k: int):
 def score_stastics(pos_scores: List[torch.Tensor], neg_scores: List[torch.Tensor]):
 
     # torch.catで結合 (1次元テンソルを想定)
-    u_pos_scores_tensor = torch.cat(pos_scores)
-    u_neg_scores_tensor = torch.cat(neg_scores)
-
-    # NumPy配列に変換
-    u_pos_scores_np = u_pos_scores_tensor.detach().cpu().numpy()
-    u_neg_scores_np = u_neg_scores_tensor.detach().cpu().numpy()
+    pos_scores_tensor = torch.cat(pos_scores)
+    neg_scores_tensor = torch.cat(neg_scores)
 
     # 統計量を算出
-    pos_mean = np.mean(u_pos_scores_np)
-    pos_min = np.min(u_pos_scores_np)
-    pos_max = np.max(u_pos_scores_np)
-    pos_std = np.std(u_pos_scores_np)
-
-    neg_mean = np.mean(u_neg_scores_np)
-    neg_min = np.min(u_neg_scores_np)
-    neg_max = np.max(u_neg_scores_np)
-    neg_std = np.std(u_neg_scores_np)
+    pos_mean = pos_scores_tensor.mean().item()
+    neg_mean = neg_scores_tensor.mean().item()
 
     diff_mean = pos_mean - neg_mean
 
     return {
         "data": {
             "score_metrics/pos_mean": pos_mean,
-            "score_metrics/pos_min": pos_min,
-            "score_metrics/pos_max": pos_max,
-            "score_metrics/pos_std": pos_std,
+            "score_metrics/pos_min": pos_scores_tensor.min().item(),
+            "score_metrics/pos_max": pos_scores_tensor.max().item(),
+            "score_metrics/pos_std": pos_scores_tensor.std().item(),
             "score_metrics/neg_mean": neg_mean,
-            "score_metrics/neg_min": neg_min,
-            "score_metrics/neg_max": neg_max,
-            "score_metrics/neg_std": neg_std,
+            "score_metrics/neg_min": neg_scores_tensor.min().item(),
+            "score_metrics/neg_max": neg_scores_tensor.max().item(),
+            "score_metrics/neg_std": neg_scores_tensor.std().item(),
             "score_metrics/diff_mean": diff_mean,
         },
     }
@@ -97,14 +86,10 @@ class MetricsHandler():
 
             recall_at_10 = RetrievalRecall(empty_target_action="skip", top_k=10).to(self.device)
             recall_at_20 = RetrievalRecall(empty_target_action="skip", top_k=20).to(self.device)
-            pre_at_10 = RetrievalPrecision(empty_target_action="skip",
-                                           top_k=10, adaptive_k=True).to(self.device)
-            pre_at_20 = RetrievalPrecision(empty_target_action="skip",
-                                           top_k=20, adaptive_k=True).to(self.device)
-            ndcg_at_10 = RetrievalNormalizedDCG(empty_target_action="skip",
-                                                top_k=10).to(self.device)
-            ndcg_at_20 = RetrievalNormalizedDCG(empty_target_action="skip",
-                                                top_k=20).to(self.device)
+            pre_at_10 = RetrievalPrecision(empty_target_action="skip", top_k=10, adaptive_k=True).to(self.device)  # noqa: E501
+            pre_at_20 = RetrievalPrecision(empty_target_action="skip", top_k=20, adaptive_k=True).to(self.device)  # noqa: E501
+            ndcg_at_10 = RetrievalNormalizedDCG(empty_target_action="skip", top_k=10).to(self.device)  # noqa: E501
+            ndcg_at_20 = RetrievalNormalizedDCG(empty_target_action="skip", top_k=20).to(self.device)  # noqa: E501
             map_at_10 = RetrievalMAP(empty_target_action="skip", top_k=10).to(self.device)
             map_at_20 = RetrievalMAP(empty_target_action="skip", top_k=20).to(self.device)
             mrr_at_10 = RetrievalMRR(empty_target_action="skip", top_k=10).to(self.device)
