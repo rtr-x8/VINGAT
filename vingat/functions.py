@@ -8,7 +8,6 @@ from torch_geometric.utils import negative_sampling
 from typing import Callable
 import pandas as pd
 from vingat.metrics import ScoreMetricHandler
-from IPython.core.display import display
 from vingat.metrics import MetricsHandler
 
 
