@@ -296,7 +296,7 @@ def train_func(
                 step=epoch
             )
             print("Score Statics: ")
-            print(score_statics.data)
+            print(score_statics.get("data"))
             wbLogger(**score_statics, step=epoch)
 
             print("handler Result: ")
