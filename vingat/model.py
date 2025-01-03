@@ -191,6 +191,7 @@ class RecommendationModel(nn.Module):
         fusion_layers=10,
         intention_layers=10,
         temperature=0.05,
+        cl_loss=0.5,
     ):
         super().__init__()
 
@@ -199,6 +200,7 @@ class RecommendationModel(nn.Module):
         self.device = device
         self.hidden_dim = hidden_dim
         self.tiny_hidden_dim = node_embeding_dimmention
+        self.cl_loss = cl_loss
 
         #  TODO: もしか学習するなら直後にDropOut
         self.user_encoder = nn.Embedding(num_user, hidden_dim, max_norm=1)
@@ -278,7 +280,7 @@ class RecommendationModel(nn.Module):
         data.set_value_dict("x", self.fusion_dropout(data.x_dict))
 
         return data, [
-            {"name": "cl_loss", "loss": cl_loss, "weight": 1.0}
+            {"name": "cl_loss", "loss": cl_loss, "weight": self.cl_loss}
         ]
 
     def predict(self, user_nodes, recipe_nodes):

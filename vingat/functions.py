@@ -153,7 +153,6 @@ def train_func(
     validation_interval=5,
     max_grad_norm=1.0,
     pca_cols=["user", "item", "intention", "taste", "image"],
-    cl_loss_rate=0.3
 ):
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
     model.to(device)
@@ -164,14 +163,14 @@ def train_func(
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
     for epoch in range(1, epochs+1):
-        total_loss = 0
-        loss_dettails = {}
+        loss_histories = {
+            "total_loss": [],
+            "main_loss": [],
+        }
+        node_mean = []
+        mhandler = MetricsHandler(device=device, threshold=0.5)
 
         model.train()
-
-        node_mean = []
-
-        mhandler = MetricsHandler(device=device, threshold=0.5)
 
         print(f"Epoch {epoch}/{epochs} ======================")
 
@@ -182,6 +181,10 @@ def train_func(
             # モデルのフォワードパス
             # out, cl_loss = model(batch_data)
             out, loss_entories = model(batch_data)
+
+            main_loss_rate = 1.0 - sum([entry["weight"] for entry in loss_entories])
+            if main_loss_rate < 0:
+                raise ValueError("main loss rate is negative")
 
             # エッジのラベルとエッジインデックスを取得
             # edge_label = batch_data['user', 'buys', 'item'].edge_label
@@ -211,23 +214,24 @@ def train_func(
 
             # 損失の計算
             main_loss = criterion(pos_scores, neg_scores, model.parameters())
-            # rated_bpr_loss = (1 - cl_loss_rate) * bpr_loss
-            # rated_cl_loss = cl_loss_rate * cl_loss
 
-            # loss = rated_bpr_loss + cl_loss_rate * rated_cl_loss
             other_loss = torch.sum(torch.stack(
                 [entry["loss"] * entry["weight"] for entry in loss_entories]
             ))
-            loss = main_loss + other_loss
+            loss = main_loss_rate * main_loss + other_loss
 
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             optimizer.step()
 
-            total_loss += loss.item()
-            loss_dettails.update({"main_loss": main_loss})
+            loss_histories["total_loss"].append(loss.item())
+            loss_histories["main_loss"].append((main_loss_rate * main_loss).item())
             for entry in loss_entories:
-                loss_dettails.update({entry["name"]: entry["loss"] * entry["weight"]})
+                if entry["name"] not in loss_histories.keys():
+                    loss_histories[entry["name"]] = []
+                loss_histories[entry["name"]].append(
+                    (entry["loss"] * entry["weight"]).item()
+                )
 
             mhandler.update(
                 probas=torch.cat([pos_scores, neg_scores]),
@@ -246,24 +250,17 @@ def train_func(
                 key: val.mean().mean().item()
                 for key, val in out.x_dict.items()
             })
-        # print("bpr_loss: ", bpr_loss)
-        # print("cl_loss: ", cl_loss, ", loss: ", loss)
-        # print("rated_bpr_loss: ", rated_bpr_loss, ", rated_cl_loss: ", rated_cl_loss)
 
         df = calculate_statistics(node_mean)
+        print("Score Statics: ")
         print(df)
 
-        aveg_loss = np.mean(total_loss)
-
         tr_metrics = {
-            "train/total_loss": total_loss,
-            "train/aveg_loss": aveg_loss,
+            f"train-loss/{k}": np.mean(v)
+            for k, v in loss_histories.items()
         }
-        tr_metrics.update({
-            f"train/{k}": v.item()
-            for k, v in loss_dettails.items()
-        })
-        display(pd.DataFrame(tr_metrics, index=[epoch]))
+        print("Loss: ")
+        print(tr_metrics)
         wbLogger(
             data=tr_metrics,
             step=epoch
