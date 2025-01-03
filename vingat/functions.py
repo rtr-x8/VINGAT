@@ -7,7 +7,6 @@ import numpy as np
 from torch_geometric.utils import negative_sampling
 from typing import Callable
 import pandas as pd
-from vingat.visualizer import visualize_node_pca
 from vingat.metrics import score_stastics
 from IPython.core.display import display
 from vingat.metrics import MetricsHandler
