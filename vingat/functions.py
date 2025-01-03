@@ -2,12 +2,9 @@ import torch
 import torch.nn as nn
 from torch_geometric.data import HeteroData
 from tqdm.notebook import tqdm
-from sklearn.metrics import accuracy_score, recall_score, f1_score, precision_score
 import os
 import numpy as np
 from torch_geometric.utils import negative_sampling
-from sklearn.metrics import roc_auc_score
-from vingat.metrics import ndcg_at_k
 from typing import Callable
 import pandas as pd
 from vingat.visualizer import visualize_node_pca
@@ -24,12 +21,6 @@ def evaluate_model(
     desc: str = ""
 ):
     model.eval()
-    all_recalls = []
-    all_precisions = []
-    all_ndcgs = []
-    all_accuracies = []
-    all_f1_scores = []
-    all_aucs = []
     user_pos_scores = []
     user_neg_scores = []
 
@@ -81,54 +72,16 @@ def evaluate_model(
             # 正例と負例のユーザーとレシピの埋め込みを作成
             pos_user_embed = user_embeddings[user_id].expand(num_pos_samples, -1)
             pos_recipe_embed = recipe_embeddings[user_pos_indices]
-
             neg_user_embed = user_embeddings[user_id].expand(num_neg_samples, -1)
             neg_recipe_embed = recipe_embeddings[user_neg_indices]
 
             # 正例と負例のスコアを計算
             pos_scores = model.predict(pos_user_embed, pos_recipe_embed).squeeze(dim=1)
             neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze(dim=1)
-
-            scores = torch.cat([pos_scores, neg_scores], dim=0).cpu().numpy()
-            labels = np.concatenate([np.ones(len(pos_scores)), np.zeros(len(neg_scores))])
-
             user_pos_scores.append(pos_scores)
             user_neg_scores.append(neg_scores)
 
-            if len(np.unique(labels)) > 1:    # Check if we have both positive and negative samples
-                auc = roc_auc_score(labels, scores)
-                all_aucs.append(auc)
-
             # このユーザーのスコアを集計してトップkのレコメンデーションを取得
-            user_scores = torch.cat([pos_scores, neg_scores], dim=0).cpu().numpy()
-            recipe_indices = np.concatenate([
-                user_pos_indices.cpu().numpy(),
-                user_neg_indices.cpu().numpy()
-            ])
-
-            k = min(k, len(user_scores))
-            sorted_indices = np.argsort(-user_scores)    # 降順にソート
-            top_k_indices = recipe_indices[sorted_indices[:k]]
-
-            # 実際の購入レシピと評価指標の計算
-            test_purchased = user_pos_indices.cpu().numpy()
-            if len(test_purchased) > 0:
-                hits = np.isin(top_k_indices, test_purchased).astype(np.float32)
-                recall = hits.sum() / len(test_purchased)
-                precision = hits.sum() / k
-                ndcg = ndcg_at_k(hits, k)
-                accuracy = hits.sum() / k
-                if precision + recall > 0:
-                    f1 = 2 * (precision * recall) / (precision + recall)
-                else:
-                    f1 = 0.0
-
-                all_recalls.append(recall)
-                all_precisions.append(precision)
-                all_ndcgs.append(ndcg)
-                all_accuracies.append(accuracy)
-                all_f1_scores.append(f1)
-
             mhandler.update(
                 probas=torch.cat([pos_scores, neg_scores]),
                 targets=torch.cat([
@@ -139,17 +92,10 @@ def evaluate_model(
                                         user_id, device=device)
             )
 
-    avg_recall = np.mean(all_recalls)
-    avg_precision = np.mean(all_precisions)
-    avg_ndcg = np.mean(all_ndcgs)
-    avg_accuracy = np.mean(all_accuracies)
-    avg_f1 = np.mean(all_f1_scores)
-    avg_auc = np.mean(all_aucs) if all_aucs else 0.0
     score_statics = score_stastics(user_pos_scores, user_neg_scores)
+    mhandler.compute()
 
-    mhres = mhandler.log(prefix="valid-handler", num_round=4)
-
-    return avg_precision, avg_recall, avg_ndcg, avg_accuracy, avg_f1, avg_auc, score_statics, mhres
+    return score_statics, mhandler
 
 
 def save_model(model: nn.Module,  save_directory: str, filename: str):
@@ -220,8 +166,6 @@ def train_func(
     for epoch in range(1, epochs+1):
         total_loss = 0
         loss_dettails = {}
-        all_preds = []
-        all_labels = []
 
         model.train()
 
@@ -284,8 +228,6 @@ def train_func(
             loss_dettails.update({"main_loss": main_loss})
             for entry in loss_entories:
                 loss_dettails.update({entry["name"]: entry["loss"] * entry["weight"]})
-            all_preds.extend((pos_scores > 0.5).int().tolist() + (neg_scores <= 0.5).int().tolist())
-            all_labels.extend([1] * len(pos_scores) + [0] * len(neg_scores))
 
             mhandler.update(
                 probas=torch.cat([pos_scores, neg_scores]),
@@ -309,21 +251,13 @@ def train_func(
         # print("rated_bpr_loss: ", rated_bpr_loss, ", rated_cl_loss: ", rated_cl_loss)
 
         df = calculate_statistics(node_mean)
-        display(df)
+        print(df)
 
-        aveg_loss = total_loss / len(train_loader)
-        epoch_accuracy = accuracy_score(all_labels, all_preds)
-        epoch_recall = recall_score(all_labels, all_preds)
-        epoch_f1 = f1_score(all_labels, all_preds)
-        epoch_pre = precision_score(all_labels, all_preds)
+        aveg_loss = np.mean(total_loss)
 
         tr_metrics = {
             "train/total_loss": total_loss,
             "train/aveg_loss": aveg_loss,
-            "train/accuracy": epoch_accuracy,
-            "train/recall": epoch_recall,
-            "train/precision": epoch_pre,
-            "train/f1": epoch_f1,
         }
         tr_metrics.update({
             f"train/{k}": v.item()
@@ -337,7 +271,7 @@ def train_func(
 
         wbLogger(data=mhandler.log("train-handler"), step=epoch)
         print("handler Result: ")
-        print(mhandler.log(num_round=4))
+        print(mhandler.log(prefix="train-handler", num_round=4))
 
         # Valid
         if epoch % validation_interval == 0:
@@ -350,38 +284,33 @@ def train_func(
             wbScatter(_df, epoch, title=f"after training (epoch: {epoch})")
 
             k = 10
-            v_pre, v_recall, v_ndcg, v_acc, v_f1, v_auc, score_statics, mhres = evaluate_model(
+            score_statics, v_mhandler = evaluate_model(
                 model, val, device, k=k, desc=f"[Valid] Epoch {epoch}/{epochs}")
 
             val_metrics = {
-                f"val/Precision@{k}": v_pre,
-                f"val/Recall@{k}": v_recall,
-                f"val/NDCG@{k}": v_ndcg,
-                f"val/Accuracy@{k}": v_acc,
-                f"val/F1@{k}": v_f1,
-                "val/AUC": v_auc,
                 "val/last_lr": scheduler.get_last_lr()[0]
             }
-
-            # 結果を表示
-            display(pd.DataFrame(val_metrics, index=[epoch]))
 
             wbLogger(
                 data=val_metrics,
                 step=epoch
             )
-            display(score_statics)
+            print("Score Statics: ")
+            print(score_statics.data)
             wbLogger(**score_statics, step=epoch)
 
             print("handler Result: ")
-            print(mhres)
-            wbLogger(data=mhres, step=epoch)
+            vmhlog = v_mhandler.log(prefix="val-handler", num_round=4)
+            print(vmhlog)
+            wbLogger(data=vmhlog, step=epoch)
 
             save_model(model, save_dir, f"model_{epoch}")
 
+            v_base_metric = v_mhandler.compute().get("precision@10")
+
             # Early Stoppingの判定（バリデーションの精度または他のメトリクスで判定）
-            if v_acc > best_val_metric:
-                best_val_metric = v_acc    # 最良のバリデーションメトリクスを更新
+            if v_base_metric > best_val_metric:
+                best_val_metric = v_base_metric    # 最良のバリデーションメトリクスを更新
                 patience_counter = 0    # 改善が見られたためカウンターをリセット
                 best_model_epoch = epoch
             else:
