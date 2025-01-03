@@ -275,10 +275,12 @@ def train_func(
 
             print("Validation -------------------")
 
+            """
             _df = visualize_node_pca(batch_data,
                                      pca_cols,
                                      f"after_training. Epoch: {epoch}/{epochs}")
             wbScatter(_df, epoch, title=f"after training (epoch: {epoch})")
+            """
 
             k = 10
             score_statics, v_mhandler = evaluate_model(
