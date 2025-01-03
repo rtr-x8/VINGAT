@@ -7,7 +7,7 @@ import numpy as np
 from torch_geometric.utils import negative_sampling
 from typing import Callable
 import pandas as pd
-from vingat.metrics import score_stastics
+from vingat.metrics import ScoreMetricHandler
 from IPython.core.display import display
 from vingat.metrics import MetricsHandler
 
@@ -91,7 +91,7 @@ def evaluate_model(
                                         user_id, device=device)
             )
 
-    score_statics = score_stastics(user_pos_scores, user_neg_scores)
+    score_statics = ScoreMetricHandler(user_pos_scores, user_neg_scores)
     mhandler.compute()
 
     return score_statics, mhandler
@@ -294,8 +294,8 @@ def train_func(
                 step=epoch
             )
             print("Score Statics: ")
-            print(score_statics.get("data"))
-            wbLogger(**score_statics, step=epoch)
+            print(score_statics.log(prefix="val-score-statics", num_round=4))
+            wbLogger(data=score_statics.log(prefix="val-score-statics"), step=epoch)
 
             print("handler Result: ")
             vmhlog = v_mhandler.log(prefix="val-handler", num_round=4)
