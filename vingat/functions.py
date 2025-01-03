@@ -5,7 +5,7 @@ from tqdm.notebook import tqdm
 import os
 import numpy as np
 from torch_geometric.utils import negative_sampling
-from typing import Callable
+from typing import Callable, Dict, List
 import pandas as pd
 from vingat.metrics import ScoreMetricHandler
 from vingat.metrics import MetricsHandler
@@ -161,7 +161,7 @@ def train_func(
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
     for epoch in range(1, epochs+1):
-        loss_histories = {
+        loss_histories: Dict[str, List[torch.Tensor]] = {
             "total_loss": [],
             "main_loss": [],
         }
