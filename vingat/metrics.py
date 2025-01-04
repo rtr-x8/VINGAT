@@ -25,44 +25,44 @@ def ndcg_at_k(r: np.ndarray, k: int):
     return 0.
 
 
-def score_stastics(pos_scores: List[torch.Tensor], neg_scores: List[torch.Tensor]):
-
-    # torch.catで結合 (1次元テンソルを想定)
-    pos_scores_tensor = torch.cat(pos_scores)
-    neg_scores_tensor = torch.cat(neg_scores)
-
-    # 統計量を算出
-    pos_mean = pos_scores_tensor.mean().item()
-    neg_mean = neg_scores_tensor.mean().item()
-
-    diff_mean = pos_mean - neg_mean
-
-    return {
-        "pos_mean": pos_mean,
-        "pos_min": pos_scores_tensor.min().item(),
-        "pos_max": pos_scores_tensor.max().item(),
-        "pos_std": pos_scores_tensor.std().item(),
-        "neg_mean": neg_mean,
-        "neg_min": neg_scores_tensor.min().item(),
-        "neg_max": neg_scores_tensor.max().item(),
-        "neg_std": neg_scores_tensor.std().item(),
-        "diff_mean": diff_mean,
-    }
-
-
 class ScoreMetricHandler():
-    def __init__(self, pos_scores: List[torch.Tensor], neg_scores: List[torch.Tensor]):
-        self.pos_scores = pos_scores
-        self.neg_scores = neg_scores
+    def __init__(
+        self,
+        pos_scores: List[torch.Tensor],
+        neg_scores: List[torch.Tensor],
+        device: torch.device
+    ):
+        self.pos_scores = torch.cat(pos_scores).to(device)
+        self.neg_scores = torch.cat(neg_scores).to(device)
         self.is_calculated = False
         self.result = None
+        self.device = device
 
     def compute(self):
         if not self.is_calculated:
-            self.result = score_stastics(self.pos_scores, self.neg_scores)
+            self.pos_mean = self.pos_scores.mean().item()
+            self.pos_min = self.pos_scores.min().item()
+            self.pos_max = self.pos_scores.max().item()
+            self.pos_std = self.pos_scores.std().item()
+            self.neg_mean = self.neg_scores.mean().item()
+            self.neg_min = self.neg_scores.min().item()
+            self.neg_max = self.neg_scores.max().item()
+            self.neg_std = self.neg_scores.std().item()
+            self.diff_mean = self.pos_mean - self.neg_mean
+
             self.is_calculated = True
 
-        return self.result
+        return {
+            "pos_mean": self.pos_mean,
+            "pos_min": self.pos_min,
+            "pos_max": self.pos_max,
+            "pos_std": self.pos_std,
+            "neg_mean": self.neg_mean,
+            "neg_min": self.neg_min,
+            "neg_max": self.neg_max,
+            "neg_std": self.neg_std,
+            "diff_mean": self.diff_mean,
+        }
 
     def log(self, prefix: str = "", separator: str = "/", num_round: int = 8):
         return {
