@@ -58,6 +58,9 @@ def create_base_hetero(
     device: torch.device,
     hidden_dim: int,
     input_image_dim: int,
+    input_vlm_caption_dim: int,
+    input_ingredient_dim: int,
+    input_cooking_direction_dim: int
 ) -> Tuple[HeteroData, LabelEncoder, LabelEncoder, LabelEncoder]:
 
     # 全データ
@@ -107,7 +110,7 @@ def create_base_hetero(
         _recipe_nutrients.loc[item_lencoder.classes_, use_nutritions].values,
         dtype=torch.float32)
     caption_encoder = StaticEmbeddingLoader(recipe_image_vlm_caption_embeddings,
-                                            dimention=hidden_dim,
+                                            dimention=input_vlm_caption_dim,
                                             device=device)
     data["intention"].caption = caption_encoder(torch.tensor(item_lencoder.classes_,
                                                              dtype=torch.long))
@@ -118,13 +121,13 @@ def create_base_hetero(
     data["taste"].item_id = torch.tensor(item_lencoder.classes_)
     vlm_encoder = StaticEmbeddingLoader(
         recipe_cooking_directions_embeddings,
-        dimention=hidden_dim, device=device)
+        dimention=input_cooking_direction_dim, device=device)
     data["taste"].x = vlm_encoder(torch.tensor(item_lencoder.classes_, dtype=torch.long))
 
     data["ingredient"].num_nodes = len(ing_lencoder.classes_)
     data["ingredient"].ingredient_id = torch.tensor(ing_lencoder.classes_)
     ingre_encoder = StaticEmbeddingLoader(ingredients_with_embeddings,
-                                          dimention=hidden_dim,
+                                          dimention=input_ingredient_dim,
                                           device=device)
     data["ingredient"].x = ingre_encoder(torch.tensor(ing_lencoder.classes_, dtype=torch.long))
 

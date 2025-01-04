@@ -246,15 +246,21 @@ def load_recipe_cooking_directions(
 
 def load_ingredients_with_embeddings(
     directory_path: str,
-    originarl_df: pd.DataFrame
+    originarl_df: pd.DataFrame,
+    col_range: int = 384
 ):
     """
     食材の埋込データ
     """
-    file_path = f"{directory_path}/ingredients_with_embeddings.csv"
+    name = "ingredients"
+    file_path = f"{directory_path}/{name}_embeddings.csv"
     if not os.path.isfile(file_path):
-        # next cell, next next cell, next next next cell
-        raise Exception("embedding file not found")
+        text_to_embedding(
+            directory_path,
+            originarl_df,
+            name,
+            [f"e_{i}" for i in range(col_range)]
+        )
     ingredients_with_embeddings = pd.read_csv(file_path, index_col=0)
     print("ingredients_with_embeddings is loaded")
     return ingredients_with_embeddings
