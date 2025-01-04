@@ -58,6 +58,7 @@ def create_base_hetero(
     device: torch.device,
     hidden_dim: int,
     input_image_dim: int,
+    input_vlm_caption_dim: int,
 ) -> Tuple[HeteroData, LabelEncoder, LabelEncoder, LabelEncoder]:
 
     # 全データ
@@ -107,7 +108,7 @@ def create_base_hetero(
         _recipe_nutrients.loc[item_lencoder.classes_, use_nutritions].values,
         dtype=torch.float32)
     caption_encoder = StaticEmbeddingLoader(recipe_image_vlm_caption_embeddings,
-                                            dimention=hidden_dim,
+                                            dimention=input_vlm_caption_dim,
                                             device=device)
     data["intention"].caption = caption_encoder(torch.tensor(item_lencoder.classes_,
                                                              dtype=torch.long))
