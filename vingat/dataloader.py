@@ -172,14 +172,14 @@ def mask_hetero(
     # LabelEncoderは既に全体のIDに対してフィットされているため、エラーは発生しない
     no_user_indices = user_lencoder.transform(no_user_ids)
     no_item_indices = item_lencoder.transform(no_item_ids)
-    no_ingre_indices = ing_lencoder.transform(no_ingr_ids)
+    no_ingr_indices = ing_lencoder.transform(no_ingr_ids)
 
     data.x_dict["user"][no_user_indices] = data.x_dict["user"][no_user_indices].zero_()
     data.x_dict["item"][no_item_indices] = data.x_dict["item"][no_item_indices].zero_()
     data.x_dict["intention"][no_item_indices] = data.x_dict["intention"][no_item_indices].zero_()
     data.x_dict["taste"][no_item_indices] = data.x_dict["taste"][no_item_indices].zero_()
     data.x_dict["image"][no_item_indices] = data.x_dict["image"][no_item_indices].zero_()
-    data.x_dict["ingredient"][no_ingre_indices] = data.x_dict["ingredient"][no_ingre_indices].zero_()
+    data.x_dict["ingredient"][no_ingr_indices] = data.x_dict["ingredient"][no_ingr_indices].zero_()
 
     # 標準化
     if scalar_preprocess is None:
