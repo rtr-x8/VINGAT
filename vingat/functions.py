@@ -19,10 +19,9 @@ def evaluate_model(
     desc: str = ""
 ):
     model.eval()
-    user_pos_scores = []
-    user_neg_scores = []
 
     mhandler = MetricsHandler(device=device, threshold=0.5)
+    shandler = ScoreMetricHandler(device=device)
 
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
 
@@ -76,10 +75,9 @@ def evaluate_model(
             # 正例と負例のスコアを計算
             pos_scores = model.predict(pos_user_embed, pos_recipe_embed).squeeze(dim=1)
             neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze(dim=1)
-            user_pos_scores.append(pos_scores)
-            user_neg_scores.append(neg_scores)
 
-            # このユーザーのスコアを集計してトップkのレコメンデーションを取得
+            # スコアの統計量を更新
+            shandler.update(pos_scores, neg_scores)
             mhandler.update(
                 probas=torch.cat([pos_scores, neg_scores]),
                 targets=torch.cat([
@@ -90,10 +88,10 @@ def evaluate_model(
                                         user_id, device=device)
             )
 
-    score_statics = ScoreMetricHandler(user_pos_scores, user_neg_scores, device)
+    shandler.compute()
     mhandler.compute()
 
-    return score_statics, mhandler
+    return shandler, mhandler
 
 
 def save_model(model: nn.Module,  save_directory: str, filename: str):

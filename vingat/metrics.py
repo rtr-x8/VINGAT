@@ -28,15 +28,18 @@ def ndcg_at_k(r: np.ndarray, k: int):
 class ScoreMetricHandler():
     def __init__(
         self,
-        pos_scores: List[torch.Tensor],
-        neg_scores: List[torch.Tensor],
         device: torch.device
     ):
-        self.pos_scores = torch.cat(pos_scores).to(device)
-        self.neg_scores = torch.cat(neg_scores).to(device)
+        self.pos_scores = torch.Tensor([], device=device)
+        self.neg_scores = torch.Tensor([], device=device)
         self.is_calculated = False
         self.result = None
         self.device = device
+
+    def update(self, pos_scores: torch.Tensor, neg_scores: torch.Tensor):
+        self.pos_scores = torch.cat([self.pos_scores, pos_scores]).to(self.device)
+        self.neg_scores = torch.cat([self.neg_scores, neg_scores]).to(self.device)
+        self.is_calculated = False
 
     def compute(self):
         if not self.is_calculated:
