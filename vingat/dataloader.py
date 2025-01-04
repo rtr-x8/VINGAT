@@ -59,6 +59,7 @@ def create_base_hetero(
     hidden_dim: int,
     input_image_dim: int,
     input_vlm_caption_dim: int,
+    input_ingredient_dim: int
 ) -> Tuple[HeteroData, LabelEncoder, LabelEncoder, LabelEncoder]:
 
     # 全データ
@@ -125,7 +126,7 @@ def create_base_hetero(
     data["ingredient"].num_nodes = len(ing_lencoder.classes_)
     data["ingredient"].ingredient_id = torch.tensor(ing_lencoder.classes_)
     ingre_encoder = StaticEmbeddingLoader(ingredients_with_embeddings,
-                                          dimention=hidden_dim,
+                                          dimention=input_ingredient_dim,
                                           device=device)
     data["ingredient"].x = ingre_encoder(torch.tensor(ing_lencoder.classes_, dtype=torch.long))
 

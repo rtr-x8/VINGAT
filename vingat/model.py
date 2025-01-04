@@ -194,6 +194,7 @@ class RecommendationModel(nn.Module):
         cl_loss=0.5,
         input_image_dim=1024,
         input_vlm_caption_dim=384,
+        input_ingredient_dim=384,
     ):
         super().__init__()
 
@@ -208,6 +209,7 @@ class RecommendationModel(nn.Module):
         self.item_encoder = nn.Embedding(num_item, hidden_dim, max_norm=1)
         self.image_encoder = nn.Linear(input_image_dim, hidden_dim)
         self.vlm_caption_encoder = nn.Linear(input_vlm_caption_dim, hidden_dim)
+        self.ingredient_encoder = nn.Linear(input_ingredient_dim, hidden_dim)
 
         # visual
         self.separation_loss = SeparationLoss(reg_lambda=0.01)
@@ -258,6 +260,7 @@ class RecommendationModel(nn.Module):
             "item": self.item_encoder(data["item"].id),
             "image": self.image_encoder(data["image"].x),
             "intention": self.vlm_caption_encoder(data["intention"].caption),
+            "ingredient": self.ingredient_encoder(data["ingredient"].x),
         })
 
         cl_losses = []
