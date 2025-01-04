@@ -178,13 +178,12 @@ def mask_hetero(
     no_item_indices = item_lencoder.transform(no_item_ids)
     no_ingr_indices = ing_lencoder.transform(no_ingr_ids)
 
-    device = hetero.device
-    data.x_dict["user"][no_user_indices] = torch.rand_like(data.x_dict["user"][no_user_indices], device=device)  # noqa: E501
-    data.x_dict["item"][no_item_indices] = torch.rand_like(data.x_dict["item"][no_item_indices], device=device)  # noqa: E501
-    data.x_dict["intention"][no_item_indices] = torch.rand_like(data.x_dict["intention"][no_item_indices], device=device)  # noqa: E501
-    data.x_dict["taste"][no_item_indices] = torch.rand_like(data.x_dict["taste"][no_item_indices], device=device)  # noqa: E501
-    data.x_dict["image"][no_item_indices] = torch.rand_like(data.x_dict["image"][no_item_indices], device=device)  # noqa: E501
-    data.x_dict["ingredient"][no_ingr_indices] = torch.rand_like(data.x_dict["ingredient"][no_ingr_indices], device=device)  # noqa: E501
+    data.x_dict["user"][no_user_indices] = torch.rand_like(data.x_dict["user"][no_user_indices])  # noqa: E501
+    data.x_dict["item"][no_item_indices] = torch.rand_like(data.x_dict["item"][no_item_indices])  # noqa: E501
+    data.x_dict["intention"][no_item_indices] = torch.rand_like(data.x_dict["intention"][no_item_indices])  # noqa: E501
+    data.x_dict["taste"][no_item_indices] = torch.rand_like(data.x_dict["taste"][no_item_indices])  # noqa: E501
+    data.x_dict["image"][no_item_indices] = torch.rand_like(data.x_dict["image"][no_item_indices])  # noqa: E501
+    data.x_dict["ingredient"][no_ingr_indices] = torch.rand_like(data.x_dict["ingredient"][no_ingr_indices])  # noqa: E501
 
     # 標準化
     if scalar_preprocess is None:
