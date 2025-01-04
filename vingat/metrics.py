@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-from typing import List
 from torchmetrics.retrieval import (
     RetrievalRecall,
     RetrievalPrecision,
