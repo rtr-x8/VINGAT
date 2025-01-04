@@ -4,7 +4,7 @@ from tqdm.notebook import tqdm
 import os
 import numpy as np
 from torch_geometric.utils import negative_sampling
-from torch_geometric.loader import LinkNeighborLoader
+from torch_geometric.data import HeteroData
 from typing import Callable, Dict, List
 import pandas as pd
 from vingat.metrics import ScoreMetricHandler
@@ -13,7 +13,7 @@ from vingat.metrics import MetricsHandler
 
 def evaluate_model(
     model: nn.Module,
-    dataloader: LinkNeighborLoader,
+    data: HeteroData,
     device: torch.device,
     desc: str = ""
 ):
@@ -25,39 +25,49 @@ def evaluate_model(
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
 
     with torch.no_grad():
-        for batch_data in tqdm(dataloader, desc=desc):
-            batch_data = batch_data.to(device)
-            out, _ = model(batch_data)
+        data = data.to(device)
+        out, _ = model(data)
 
-            # 評価用のエッジラベルとエッジインデックスを取得
-            pos_edge_index = batch_data['user', 'buys', 'item'].edge_label_index
+        # 評価用のエッジラベルとエッジインデックスを取得
+        edge_label_index = data['user', 'buys', 'item'].edge_label_index
 
-            # ユーザーとレシピの埋め込みを取得
-            user_embeddings = out['user'].x
-            recipe_embeddings = out['item'].x
+        # ユーザーとレシピの埋め込みを取得
+        user_embeddings = out['user'].x
+        recipe_embeddings = out['item'].x
 
-            # 負例ペアがないか確認
-            neg_mask = batch_data['user', 'buys', 'item'].edge_label == 0
-            if torch.sum(neg_mask) > 0:
-                raise ValueError("Negative mask is not empty")
+        # userのindexを取得
+        unique_user_ids = edge_label_index[0].unique()
 
-            user_num = pos_edge_index[0].unique().shape[0]
-            item_num = pos_edge_index[1].unique().shape[0]
+        # 各ユーザーごとにループ
+        for user_id in tqdm(unique_user_ids.cpu().numpy(), desc=desc):
+            # 現在のユーザーに対する正例ペアを取得
+            user_pos_indices = edge_label_index[1][edge_label_index[0] == user_id]
+            num_pos_samples = len(user_pos_indices)    # 正例ペアの数を取得
+            if num_pos_samples == 0:
+                continue
 
-            # PyTorch Geometricのnegative_samplingを使用して負例を取得
+            # 既存エッジのセットを生成
+            user_edge_label_index = torch.stack([
+                torch.full((num_pos_samples,), user_id, dtype=torch.long, device=device),
+                user_pos_indices
+            ])
+
             num_neg_samples = 500    # 負例ペアの数 HAFR, HCGAN
-            neg_edge_index = negative_sampling(
-                edge_index=pos_edge_index,
-                num_nodes=(user_num, item_num),    # (ユーザーのノード数, レシピのノード数)
+            negative_edge_index = negative_sampling(
+                edge_index=user_edge_label_index,
+                num_nodes=(1, recipe_embeddings.shape[0]),    # (ユーザーのノード数, レシピのノード数)
                 num_neg_samples=num_neg_samples,
                 force_undirected=False
             )
 
+            # 負例のインデックスを取得
+            user_neg_indices = negative_edge_index[1]
+
             # 正例と負例のユーザーとレシピの埋め込みを作成
-            pos_user_embed = user_embeddings[pos_edge_index[0]]
-            pos_recipe_embed = recipe_embeddings[pos_edge_index[1]]
-            neg_user_embed = user_embeddings[neg_edge_index[0]]
-            neg_recipe_embed = recipe_embeddings[neg_edge_index[1]]
+            pos_user_embed = user_embeddings[user_id].expand(num_pos_samples, -1)
+            pos_recipe_embed = recipe_embeddings[user_pos_indices]
+            neg_user_embed = user_embeddings[user_id].expand(num_neg_samples, -1)
+            neg_recipe_embed = recipe_embeddings[user_neg_indices]
 
             # 正例と負例のスコアを計算
             pos_scores = model.predict(pos_user_embed, pos_recipe_embed).squeeze(dim=1)
@@ -71,10 +81,8 @@ def evaluate_model(
                     torch.ones_like(pos_scores, device=device),
                     torch.zeros_like(neg_scores, device=device)
                 ]),
-                user_indices=torch.cat([
-                    pos_edge_index[0],
-                    neg_edge_index[0]
-                ])
+                user_indices=torch.full((len(pos_scores) + len(neg_scores),),
+                                        user_id, device=device)
             )
 
     shandler.compute()
