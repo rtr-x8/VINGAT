@@ -29,8 +29,8 @@ class ScoreMetricHandler():
         self,
         device: torch.device
     ):
-        self.pos_scores = torch.Tensor([], device=device)
-        self.neg_scores = torch.Tensor([], device=device)
+        self.pos_scores = torch.empty(0, device=device)
+        self.neg_scores = torch.empty(0, device=device)
         self.is_calculated = False
         self.result = None
         self.device = device
