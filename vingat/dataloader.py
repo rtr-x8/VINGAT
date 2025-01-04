@@ -207,10 +207,11 @@ def mask_hetero(
     data["item", "has_taste", "taste"].edge_index = ei_item_item.detach().clone()
 
     # Item-Ingredient Edge
-    ei_ing_item = torch.tensor([
-        ing_lencoder.transform(ing_item["ingredient_id"].values),
-        item_lencoder.transform(ing_item["recipe_id"].values)
-    ], dtype=torch.long)
+    ei_ing_item = torch.tensor(
+        np.array([
+            ing_lencoder.transform(ing_item["ingredient_id"].values),
+            item_lencoder.transform(ing_item["recipe_id"].values)
+        ]), dtype=torch.long)
     data["ingredient", "part_of", "taste"].edge_index = ei_ing_item
     data["taste", "contains", "ingredient"].edge_index = ei_ing_item.detach().clone().flip(0)
 
