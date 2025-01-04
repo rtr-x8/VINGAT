@@ -15,7 +15,6 @@ def evaluate_model(
     model: nn.Module,
     dataloader: LinkNeighborLoader,
     device: torch.device,
-    k=10,
     desc: str = ""
 ):
     model.eval()
@@ -268,9 +267,8 @@ def train_func(
             wbScatter(_df, epoch, title=f"after training (epoch: {epoch})")
             """
 
-            k = 10
             score_statics, v_mhandler = evaluate_model(
-                model, val_loader, device, k=k, desc=f"[Valid] Epoch {epoch}/{epochs}")
+                model, val_loader, device, desc=f"[Valid] Epoch {epoch}/{epochs}")
 
             val_metrics = {
                 "val/last_lr": scheduler.get_last_lr()[0]
