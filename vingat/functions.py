@@ -90,7 +90,7 @@ def evaluate_model(
                                         user_id, device=device)
             )
 
-    score_statics = ScoreMetricHandler(user_pos_scores, user_neg_scores)
+    score_statics = ScoreMetricHandler(user_pos_scores, user_neg_scores, device)
     mhandler.compute()
 
     return score_statics, mhandler
