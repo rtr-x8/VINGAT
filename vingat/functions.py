@@ -26,18 +26,18 @@ def evaluate_model(
 
     with torch.no_grad():
         for batch_data in tqdm(dataloader, desc=desc):
-            data = batch_data.to(device)
-            out, _ = model(data)
+            batch_data = batch_data.to(device)
+            out, _ = model(batch_data)
 
             # 評価用のエッジラベルとエッジインデックスを取得
-            pos_edge_index = data['user', 'buys', 'item'].edge_label_index
+            pos_edge_index = batch_data['user', 'buys', 'item'].edge_label_index
 
             # ユーザーとレシピの埋め込みを取得
             user_embeddings = out['user'].x
             recipe_embeddings = out['item'].x
 
             # 負例ペアがないか確認
-            neg_mask = data['user', 'buys', 'item'].edge_label == 0
+            neg_mask = batch_data['user', 'buys', 'item'].edge_label == 0
             if torch.sum(neg_mask) > 0:
                 raise ValueError("Negative mask is not empty")
 
