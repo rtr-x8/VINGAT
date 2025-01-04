@@ -96,7 +96,7 @@ def create_base_hetero(
     data["image"].num_nodes = len(item_lencoder.classes_)
     data["image"].item_id = torch.tensor(item_lencoder.classes_)
     image_encoder = StaticEmbeddingLoader(recipe_image_embeddings,
-                                          dimention=hidden_dim,
+                                          dimention=1024,
                                           device=device)
     data["image"].x = image_encoder(torch.tensor(item_lencoder.classes_, dtype=torch.long))
 
@@ -127,18 +127,6 @@ def create_base_hetero(
                                           device=device)
     data["ingredient"].x = ingre_encoder(torch.tensor(ing_lencoder.classes_, dtype=torch.long))
 
-    # Edge
-    ei_attr_item = torch.stack([
-        torch.arange(len(item_lencoder.classes_)),
-        torch.arange(len(item_lencoder.classes_))
-    ], dim=0)
-    data["image", "associated_with", "item"].edge_index = ei_attr_item.detach().clone()
-    data["item", "has_image", "image"].edge_index = ei_attr_item.detach().clone().flip(0)
-    data["intention", "associated_with", "item"].edge_index = ei_attr_item.detach().clone()
-    data["item", "has_intention", "intention"].edge_index = ei_attr_item.detach().clone().flip(0)
-    data["taste", "associated_with", "item"].edge_index = ei_attr_item.detach().clone()
-    data["item", "has_taste", "taste"].edge_index = ei_attr_item.detach().clone().flip(0)
-
     data.to(device=device)
 
     return data, user_lencoder, item_lencoder, ing_lencoder
@@ -166,16 +154,24 @@ def mask_hetero(
     # ユーザーIDのセット差分を取得（全体のクラスから現在のデータセットに存在するIDを引く）
     no_user_ids = np.setdiff1d(user_lencoder.classes_, user_recipe_set["user_id"].values)
     no_item_ids = np.setdiff1d(item_lencoder.classes_, user_recipe_set["recipe_id"].values)
+    no_ingr_ids = np.setdiff1d(ing_lencoder.classes_, ing_item["ingredient_id"].values)
 
     # 存在しないユーザーIDおよびアイテムIDをエンコード（インデックスに変換）
     # LabelEncoderは既に全体のIDに対してフィットされているため、エラーは発生しない
     no_user_indices = user_lencoder.transform(no_user_ids)
     no_item_indices = item_lencoder.transform(no_item_ids)
+    no_ingr_indices = ing_lencoder.transform(no_ingr_ids)
 
+    # 関係しないノードをゼロ初期化
     data.x_dict["user"][no_user_indices] = data.x_dict["user"][no_user_indices].zero_()
     data.x_dict["item"][no_item_indices] = data.x_dict["item"][no_item_indices].zero_()
+    data.x_dict["image"][no_item_indices] = data.x_dict["image"][no_item_indices].zero_()
+    data.x_dict["intention"][no_item_indices] = data.x_dict["intention"][no_item_indices].zero_()
+    data.x_dict["taste"][no_item_indices] = data.x_dict["taste"][no_item_indices].zero_()
+    data.x_dict["ingredient"][no_ingr_indices] = data.x_dict["ingredient"][no_ingr_indices].zero_()
 
     # 標準化
+    # TODO; 消しても良い
     if scalar_preprocess is None:
         if is_train:
             scalar_preprocess = ScalarPreprocess(data.x_dict)
@@ -184,7 +180,7 @@ def mask_hetero(
             raise ValueError("scalar_preprocess must be provided when is_train is False.")
     data.set_value_dict("x", scalar_preprocess.transform(data.x_dict))
 
-    # edge
+    # User-Item Edge
     edge_index_user_recipe = torch.tensor([
         user_lencoder.transform(rating["user_id"].values),
         item_lencoder.transform(rating["recipe_id"].values)
@@ -196,6 +192,19 @@ def mask_hetero(
         dtype=torch.long)
     data["user", "buys", "item"].edge_label_index = edge_index_user_recipe.clone().detach()
 
+    # Item-Intention, Item-Image, Item-Taste Edge
+    ei_item_item = torch.stack([
+        torch.arange(len(rating["recipe_id"].values)),
+        torch.arange(len(rating["recipe_id"].values))
+    ], dim=0)
+    data["image", "associated_with", "item"].edge_index = ei_item_item.detach().clone()
+    data["item", "has_image", "image"].edge_index = ei_item_item.detach().clone()
+    data["intention", "associated_with", "item"].edge_index = ei_item_item.detach().clone()
+    data["item", "has_intention", "intention"].edge_index = ei_item_item.detach().clone()
+    data["taste", "associated_with", "item"].edge_index = ei_item_item.detach().clone()
+    data["item", "has_taste", "taste"].edge_index = ei_item_item.detach().clone()
+
+    # Item-Ingredient Edge
     ei_ing_item = torch.tensor([
         ing_lencoder.transform(ing_item["ingredient_id"].values),
         item_lencoder.transform(ing_item["recipe_id"].values)
