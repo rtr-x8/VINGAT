@@ -177,7 +177,7 @@ def mask_hetero(
     no_user_indices = user_lencoder.transform(no_user_ids)
     no_item_indices = item_lencoder.transform(no_item_ids)
     no_ingr_indices = ing_lencoder.transform(no_ingr_ids)
-    
+
     device = hetero.device
     data.x_dict["user"][no_user_indices] = torch.rand_like(data.x_dict["user"][no_user_indices], device=device)  # noqa: E501
     data.x_dict["item"][no_item_indices] = torch.rand_like(data.x_dict["item"][no_item_indices], device=device)  # noqa: E501
