@@ -176,6 +176,16 @@ def print_layer_outputs(model, input_data, max_elements=10, prefix=""):
         print("-" * 20)
 
 
+class StaticEmbeddingEncoder():
+    def __init__(self, input_dim, output_dim):
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        # self.encoder = nn.Linear(input_dim, output_dim)
+
+    def forward(self, x):
+        return x[:, :self.output_dim]
+
+
 class RecommendationModel(nn.Module):
     def __init__(
         self,
@@ -208,10 +218,11 @@ class RecommendationModel(nn.Module):
 
         self.user_encoder = nn.Embedding(num_user, hidden_dim, max_norm=1)
         self.item_encoder = nn.Embedding(num_item, hidden_dim, max_norm=1)
-        self.image_encoder = nn.Linear(input_image_dim, hidden_dim)
-        self.vlm_caption_encoder = nn.Linear(input_vlm_caption_dim, hidden_dim)
-        self.ingredient_encoder = nn.Linear(input_ingredient_dim, hidden_dim)
-        self.cooking_direction_encoder = nn.Linear(input_cooking_direction_dim, hidden_dim)
+        self.image_encoder = StaticEmbeddingEncoder(input_image_dim, hidden_dim)
+        self.vlm_caption_encoder = StaticEmbeddingEncoder(input_vlm_caption_dim, hidden_dim)
+        self.ingredient_encoder = StaticEmbeddingEncoder(input_ingredient_dim, hidden_dim)
+        self.cooking_direction_encoder = StaticEmbeddingEncoder(input_cooking_direction_dim,
+                                                                hidden_dim)
 
         # visual
         self.separation_loss = SeparationLoss(reg_lambda=0.01)
