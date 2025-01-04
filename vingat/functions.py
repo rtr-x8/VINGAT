@@ -41,8 +41,8 @@ def evaluate_model(
             if torch.sum(neg_mask) > 0:
                 raise ValueError("Negative mask is not empty")
 
-            user_num = pos_edge_index[0].unique().shape[0].item()
-            item_num = pos_edge_index[1].unique().shape[0].item()
+            user_num = pos_edge_index[0].unique().shape[0]
+            item_num = pos_edge_index[1].unique().shape[0]
 
             # PyTorch Geometricのnegative_samplingを使用して負例を取得
             num_neg_samples = 500    # 負例ペアの数 HAFR, HCGAN
