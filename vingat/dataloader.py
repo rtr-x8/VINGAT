@@ -166,14 +166,20 @@ def mask_hetero(
     # ユーザーIDのセット差分を取得（全体のクラスから現在のデータセットに存在するIDを引く）
     no_user_ids = np.setdiff1d(user_lencoder.classes_, user_recipe_set["user_id"].values)
     no_item_ids = np.setdiff1d(item_lencoder.classes_, user_recipe_set["recipe_id"].values)
+    no_ingr_ids = np.setdiff1d(ing_lencoder.classes_, ing_item["ingredient_id"].values)
 
     # 存在しないユーザーIDおよびアイテムIDをエンコード（インデックスに変換）
     # LabelEncoderは既に全体のIDに対してフィットされているため、エラーは発生しない
     no_user_indices = user_lencoder.transform(no_user_ids)
     no_item_indices = item_lencoder.transform(no_item_ids)
+    no_ingr_indices = ing_lencoder.transform(no_ingr_ids)
 
     data.x_dict["user"][no_user_indices] = data.x_dict["user"][no_user_indices].zero_()
     data.x_dict["item"][no_item_indices] = data.x_dict["item"][no_item_indices].zero_()
+    data.x_dict["intention"][no_item_indices] = data.x_dict["intention"][no_item_indices].zero_()
+    data.x_dict["taste"][no_item_indices] = data.x_dict["taste"][no_item_indices].zero_()
+    data.x_dict["image"][no_item_indices] = data.x_dict["image"][no_item_indices].zero_()
+    data.x_dict["ingredient"][no_ingr_indices] = data.x_dict["ingredient"][no_ingr_indices].zero_()
 
     # 標準化
     if scalar_preprocess is None:
@@ -185,10 +191,11 @@ def mask_hetero(
     data.set_value_dict("x", scalar_preprocess.transform(data.x_dict))
 
     # edge
-    edge_index_user_recipe = torch.tensor([
-        user_lencoder.transform(rating["user_id"].values),
-        item_lencoder.transform(rating["recipe_id"].values)
-    ], dtype=torch.long)
+    edge_index_user_recipe = torch.tensor(
+        np.array([
+            user_lencoder.transform(rating["user_id"].values),
+            item_lencoder.transform(rating["recipe_id"].values)
+        ]), dtype=torch.long)
     data["user", "buys", "item"].edge_index = edge_index_user_recipe
     data["item", "bought_by", "user"].edge_index = edge_index_user_recipe.detach().clone().flip(0)
     data['user', 'buys', 'item'].edge_label = torch.ones(
@@ -196,10 +203,11 @@ def mask_hetero(
         dtype=torch.long)
     data["user", "buys", "item"].edge_label_index = edge_index_user_recipe.clone().detach()
 
-    ei_ing_item = torch.tensor([
-        ing_lencoder.transform(ing_item["ingredient_id"].values),
-        item_lencoder.transform(ing_item["recipe_id"].values)
-    ], dtype=torch.long)
+    ei_ing_item = torch.tensor(
+        np.array([
+            ing_lencoder.transform(ing_item["ingredient_id"].values),
+            item_lencoder.transform(ing_item["recipe_id"].values)
+        ]), dtype=torch.long)
     data["ingredient", "part_of", "taste"].edge_index = ei_ing_item
     data["taste", "contains", "ingredient"].edge_index = ei_ing_item.detach().clone().flip(0)
 
