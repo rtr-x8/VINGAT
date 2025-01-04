@@ -129,7 +129,7 @@ def calculate_statistics(data):
 
 def train_func(
     train_loader,
-    val_loader,
+    val_data,
     model,
     optimizer,
     scheduler,
@@ -276,7 +276,7 @@ def train_func(
             """
 
             score_statics, v_mhandler = evaluate_model(
-                model, val_loader, device, desc=f"[Valid] Epoch {epoch}/{epochs}")
+                model, val_data, device, desc=f"[Valid] Epoch {epoch}/{epochs}")
 
             val_metrics = {
                 "val/last_lr": scheduler.get_last_lr()[0]
