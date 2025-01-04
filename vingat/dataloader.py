@@ -182,10 +182,11 @@ def mask_hetero(
     data.set_value_dict("x", scalar_preprocess.transform(data.x_dict))
 
     # User-Item Edge
-    edge_index_user_recipe = torch.tensor([
-        user_lencoder.transform(rating["user_id"].values),
-        item_lencoder.transform(rating["recipe_id"].values)
-    ], dtype=torch.long)
+    edge_index_user_recipe = torch.tensor(
+        np.array([
+            user_lencoder.transform(rating["user_id"].values),
+            item_lencoder.transform(rating["recipe_id"].values)
+        ]), dtype=torch.long)
     data["user", "buys", "item"].edge_index = edge_index_user_recipe
     data["item", "bought_by", "user"].edge_index = edge_index_user_recipe.detach().clone().flip(0)
     data['user', 'buys', 'item'].edge_label = torch.ones(
