@@ -268,7 +268,7 @@ class RecommendationModel(nn.Module):
 
         cl_losses = []
         for cl in self.cl_with_caption_and_nutrient:
-            intention_x, _, cl_loss = cl(data["intention"].caption, data["intention"].nutrient)
+            intention_x, _, cl_loss = cl(data["intention"].x, data["intention"].nutrient)
             cl_losses.append(cl_loss)
             data.set_value_dict("x", {
                 "intention": intention_x
