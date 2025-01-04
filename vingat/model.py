@@ -192,7 +192,6 @@ class RecommendationModel(nn.Module):
         intention_layers=10,
         temperature=0.05,
         cl_loss=0.5,
-        original_image_dim=1024
     ):
         super().__init__()
 
@@ -206,7 +205,7 @@ class RecommendationModel(nn.Module):
         #  TODO: もしか学習するなら直後にDropOut
         self.user_encoder = nn.Embedding(num_user, hidden_dim, max_norm=1)
         self.item_encoder = nn.Embedding(num_item, hidden_dim, max_norm=1)
-        self.image_encoder = nn.Linear(original_image_dim, hidden_dim)
+        self.image_encoder = nn.Linear(hidden_dim, hidden_dim)
 
         # visual
         self.separation_loss = SeparationLoss(reg_lambda=0.01)
