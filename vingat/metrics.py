@@ -11,7 +11,8 @@ from torchmetrics.classification import (
     BinaryAccuracy,
     BinaryRecall,
     BinaryF1Score,
-    BinaryConfusionMatrix
+    BinaryConfusionMatrix,
+    BinaryAUROC
 )
 
 
@@ -120,6 +121,7 @@ class MetricsHandler():
             binary_f1 = BinaryF1Score(threshold=self.threshold).to(self.device)
             binary_confusion_matrix = BinaryConfusionMatrix(threshold=self.threshold)
             binary_confusion_matrix.to(self.device)
+            binary_aucroc = BinaryAUROC(threshold=self.threshold).to(self.device)
 
             self.recall_at_10_result = recall_at_10(all_probas, all_targets, all_user_indices)
             self.recall_at_20_result = recall_at_20(all_probas, all_targets, all_user_indices)
@@ -135,6 +137,7 @@ class MetricsHandler():
             self.binary_recall_result = binary_recall(all_probas, all_targets)
             self.binary_f1_result = binary_f1(all_probas, all_targets)
             self.binary_confusion_matrix_result = binary_confusion_matrix(all_probas, all_targets)
+            self.binary_aucroc_result = binary_aucroc(all_probas, all_targets)
 
             self.is_calculated = True
 
@@ -151,6 +154,7 @@ class MetricsHandler():
             "mrr@20": self.mrr_at_20_result.item(),
             "accuracy": self.binary_accuracy_result.item(),
             "recall": self.binary_recall_result.item(),
+            "AUROC": self.binary_aucroc_result.item(),
             "f1": self.binary_f1_result.item(),
             "tn": self.binary_confusion_matrix_result[0][0].item(),
             "fp": self.binary_confusion_matrix_result[0][1].item(),
