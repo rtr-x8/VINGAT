@@ -173,18 +173,17 @@ def train_func(
             pos_mask = batch_data['user', 'buys', 'item'].edge_label == 1
             neg_mask = batch_data['user', 'buys', 'item'].edge_label == 0
 
-            # エッジインデックスからノードの埋め込みを取得
-            user_embed = user_embeddings[edge_label_index[0]]
-            recipe_embed = recipe_embeddings[edge_label_index[1]]
+            pos_edge_index = edge_label_index[:, pos_mask]
+            neg_edge_index = edge_label_index[:, neg_mask]
 
             # 正例のスコアを計算
-            pos_user_embed = user_embed[pos_mask]
-            pos_recipe_embed = recipe_embed[pos_mask]
+            pos_user_embed = user_embeddings[pos_edge_index[0]]
+            pos_recipe_embed = recipe_embeddings[pos_edge_index[1]]
             pos_scores = model.predict(pos_user_embed, pos_recipe_embed).squeeze()
 
             # 負例のスコアを計算
-            neg_user_embed = user_embed[neg_mask]
-            neg_recipe_embed = recipe_embed[neg_mask]
+            neg_user_embed = user_embeddings[neg_edge_index[0]]
+            neg_recipe_embed = recipe_embeddings[neg_edge_index[1]]
             neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
 
             # 損失の計算
