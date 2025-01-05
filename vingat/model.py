@@ -58,9 +58,6 @@ class TasteGNN(nn.Module):
 
     def __init__(self, hidden_dim, dropout_rate):
         super().__init__()
-        self.drop = DictDropout(dropout_rate, self.NODES)
-        self.act = DictActivate()
-        self.norm = DictBatchNorm(hidden_dim)
         self.gnn = HANConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
@@ -73,10 +70,7 @@ class TasteGNN(nn.Module):
     def forward(self, x_dict, edge_index_dict):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
-        out = self.norm(x_dict)
-        out = self.drop(out)
-        out = self.gnn(out, edge_index_dict)
-        out = self.act(out)
+        out = self.gnn(x_dict, edge_index_dict)
         return out
         """
         taste_x = x_dict['taste']
@@ -139,8 +133,6 @@ class MultiModalFusionGAT(nn.Module):
     def __init__(self, hidden_dim, num_heads, dropout_rate):
         super().__init__()
         self.drop = DictDropout(dropout_rate, self.NODES)
-        self.act = DictActivate()
-        self.norm = DictBatchNorm(hidden_dim)
         self.gnn = HGTConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
@@ -151,10 +143,7 @@ class MultiModalFusionGAT(nn.Module):
     def forward(self, x_dict, edge_index_dict):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
-        out = self.norm(x_dict)
-        out = self.drop(out)
-        out = self.gnn(out, edge_index_dict)
-        out = self.act(out)
+        out = self.gnn(x_dict, edge_index_dict)
         return out
 
 
@@ -238,14 +227,6 @@ class RecommendationModel(nn.Module):
         self.cooking_direction_encoder = StaticEmbeddingEncoder(input_cooking_direction_dim,
                                                                 hidden_dim)
 
-        # Norm
-        self.user_norm = BatchNorm(hidden_dim)
-        self.item_norm = BatchNorm(hidden_dim)
-        self.image_norm = BatchNorm(hidden_dim)
-        self.caption_norm = BatchNorm(hidden_dim)
-        self.ingr_norm = BatchNorm(hidden_dim)
-        self.recipe_norm = BatchNorm(hidden_dim)
-
         # Contrastive caption and nutrient
         self.cl_with_caption_and_nutrient = nn.ModuleList()
         for _ in range(intention_layers):
@@ -259,7 +240,10 @@ class RecommendationModel(nn.Module):
         for _ in range(sencing_layers):
             gnn = TasteGNN(hidden_dim, dropout_rate=dropout_rate)
             self.ing_to_recipe.append(gnn)
-
+        self.after_sensing_taste_norm = BatchNorm(hidden_dim)
+        self.after_sensing_ingre_norm = BatchNorm(hidden_dim)
+        self.after_sensing_taste_act = nn.ReLU()
+        self.after_sensing_ingre_act = nn.ReLU()
         self.taste_dropout = DictDropout(dropout_rate, ["taste"])
 
         # HANConv layers
@@ -271,7 +255,16 @@ class RecommendationModel(nn.Module):
                 dropout_rate=dropout_rate
             )
             self.fusion_gnn.append(gnn)
-        self.fusion_norm = BatchNorm(hidden_dim)
+        self.after_fusion_user_norm = BatchNorm(hidden_dim)
+        self.after_fusion_item_norm = BatchNorm(hidden_dim)
+        self.after_fusion_taste_norm = BatchNorm(hidden_dim)
+        self.after_fusion_image_norm = BatchNorm(hidden_dim)
+        self.after_fusion_intention_norm = BatchNorm(hidden_dim)
+        self.after_fusion_user_act = nn.ReLU()
+        self.after_fusion_item_act = nn.ReLU()
+        self.after_fusion_taste_act = nn.ReLU()
+        self.after_fusion_image_act = nn.ReLU()
+        self.after_fusion_intention_act = nn.ReLU()
         self.fusion_dropout = DictDropout(dropout_rate, ["user", "item", "taste", "image"])
 
         # リンク予測のためのMLP
@@ -294,15 +287,6 @@ class RecommendationModel(nn.Module):
             "taste": self.cooking_direction_encoder(data["taste"].x)
         })
 
-        data.set_value_dict("x", {
-            "user": self.user_norm(data.x_dict["user"]),
-            "item": self.item_norm(data.x_dict["item"]),
-            "image": self.image_norm(data.x_dict["image"]),
-            "intention": self.caption_norm(data.x_dict["intention"]),
-            "ingredient": self.ingr_norm(data.x_dict["ingredient"]),
-            "taste": self.recipe_norm(data.x_dict["taste"])
-        })
-
         cl_losses = []
         for cl in self.cl_with_caption_and_nutrient:
             intention_x, _, cl_loss = cl(data["intention"].x, data["intention"].nutrient)
@@ -317,13 +301,37 @@ class RecommendationModel(nn.Module):
         })
 
         # Message passing
+        # Sensing
         for gnn in self.ing_to_recipe:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
         data.set_value_dict("x", self.taste_dropout(data.x_dict))
+        data.set_value_dict("x", {
+            "taste": self.after_sensing_taste_norm(data.x_dict["taste"]),
+            "ingredient": self.after_sensing_ingre_norm(data.x_dict["ingredient"])
+        })
+        data.set_value_dict("x", {
+            "taste": self.after_sensing_taste_act(data.x_dict["taste"]),
+            "ingredient": self.after_sensing_ingre_act(data.x_dict["ingredient"])
+        })
 
+        # Fusion
         for gnn in self.fusion_gnn:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
         data.set_value_dict("x", self.fusion_dropout(data.x_dict))
+        data.set_value_dict("x", {
+            "user": self.after_fusion_user_norm(data.x_dict["user"]),
+            "item": self.after_fusion_item_norm(data.x_dict["item"]),
+            "taste": self.after_fusion_taste_norm(data.x_dict["taste"]),
+            "image": self.after_fusion_image_norm(data.x_dict["image"]),
+            "intention": self.after_fusion_intention_norm(data.x_dict["intention"])
+        })
+        data.set_value_dict("x", {
+            "user": self.after_fusion_user_act(data.x_dict["user"]),
+            "item": self.after_fusion_item_act(data.x_dict["item"]),
+            "taste": self.after_fusion_taste_act(data.x_dict["taste"]),
+            "image": self.after_fusion_image_act(data.x_dict["image"]),
+            "intention": self.after_fusion_intention_act(data.x_dict["intention"])
+        })
 
         return data, [
             {"name": "cl_loss", "loss": cl_loss, "weight": self.cl_loss}
