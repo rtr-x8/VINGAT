@@ -21,16 +21,16 @@ def create_dataloader(
     return LinkNeighborLoader(
         data=data,
         num_neighbors={
-            ('user', 'buys', 'item'): [20, 10],
-            ('item', 'bought_by', 'user'): [20, 10],
-            ('image', 'associated_with', 'item'): [20, 10],
-            ('intention', 'associated_with', 'item'): [20, 10],
-            ('taste', 'associated_with', 'item'): [20, 10],
-            ('taste', 'contains', 'ingredient'): [20, 10],
-            ('ingredient', 'part_of', 'taste'): [20, 10],
-            ('item', 'has_image', 'image'): [20, 10],
-            ('item', 'has_intention', 'intention'): [20, 10],
-            ('item', 'has_taste', 'taste'): [20, 10],
+            ('user', 'buys', 'item'): [15, 8],
+            ('item', 'bought_by', 'user'): [15, 8],
+            ('image', 'associated_with', 'item'): [15, 8],
+            ('intention', 'associated_with', 'item'): [15, 8],
+            ('taste', 'associated_with', 'item'): [15, 8],
+            ('taste', 'contains', 'ingredient'): [15, 8],
+            ('ingredient', 'part_of', 'taste'): [15, 8],
+            ('item', 'has_image', 'image'): [15, 8],
+            ('item', 'has_intention', 'intention'): [15, 8],
+            ('item', 'has_taste', 'taste'): [15, 8],
         },
         edge_label_index=(
             ('user', 'buys', 'item'),
@@ -102,7 +102,7 @@ def create_base_hetero(
     image_encoder = StaticEmbeddingLoader(recipe_image_embeddings,
                                           dimention=input_image_dim,
                                           device=device)
-    data["image"].x = image_encoder(torch.tensor(item_lencoder.classes_, dtype=torch.long))
+    data["image"].cnn = image_encoder(torch.tensor(item_lencoder.classes_, dtype=torch.long))
 
     data["intention"].num_nodes = len(item_lencoder.classes_)
     data["intention"].item_id = torch.tensor(item_lencoder.classes_)
