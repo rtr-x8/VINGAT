@@ -263,9 +263,8 @@ def train_func(
         wbLogger(data=mhandler.log("train-handler"), step=epoch)
         print("handler Result: ")
         print(mhandler.log(prefix="train-handler", num_round=4))
-
-        print("Pos Count in Train :", (mhandler.targets == 1).sum())
-        print("Neg Count in Train :", (mhandler.targets == 0).sum())
+        print("Pos Count :", sum(torch.count_nonzero(t == 1).item() for t in mhandler.targets))
+        print("Neg Count :", sum(torch.count_nonzero(t == 0).item() for t in mhandler.targets))
 
         # Valid
         if epoch % validation_interval == 0:
