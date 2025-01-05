@@ -6,7 +6,7 @@ from vingat.loader import use_nutritions
 import pandas as pd
 from torch_geometric.loader import LinkNeighborLoader
 from vingat.encoder import StaticEmbeddingLoader
-from typing import Tuple, Optional
+from typing import Tuple
 import copy
 from vingat.preprocess import ScalarPreprocess
 
