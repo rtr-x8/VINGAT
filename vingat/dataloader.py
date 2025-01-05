@@ -6,7 +6,7 @@ from vingat.loader import use_nutritions
 import pandas as pd
 from torch_geometric.loader import LinkNeighborLoader
 from vingat.encoder import StaticEmbeddingLoader
-from typing import Tuple, Optional
+from typing import Tuple
 import copy
 from vingat.preprocess import ScalarPreprocess
 
@@ -26,7 +26,6 @@ def create_dataloader(
             ('image', 'associated_with', 'item'): [15, 8],
             ('intention', 'associated_with', 'item'): [15, 8],
             ('taste', 'associated_with', 'item'): [15, 8],
-            ('taste', 'contains', 'ingredient'): [15, 8],
             ('ingredient', 'part_of', 'taste'): [15, 8],
             ('item', 'has_image', 'image'): [15, 8],
             ('item', 'has_intention', 'intention'): [15, 8],
@@ -203,6 +202,5 @@ def mask_hetero(
             item_lencoder.transform(ing_item["recipe_id"].values)
         ]), dtype=torch.long)
     data["ingredient", "part_of", "taste"].edge_index = ei_ing_item
-    data["taste", "contains", "ingredient"].edge_index = ei_ing_item.detach().clone().flip(0)
 
     return data
