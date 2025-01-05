@@ -264,6 +264,9 @@ def train_func(
         print("handler Result: ")
         print(mhandler.log(prefix="train-handler", num_round=4))
 
+        print("Pos Count in Train :", (mhandler.targets == 1).sum())
+        print("Neg Count in Train :", (mhandler.targets == 0).sum())
+
         # Valid
         if epoch % validation_interval == 0:
 
