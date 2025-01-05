@@ -9,8 +9,6 @@ from vingat.encoder import StaticEmbeddingLoader
 from typing import Tuple, Optional
 import copy
 from vingat.preprocess import ScalarPreprocess
-from tqdm.notebook import tqdm
-from typing import List
 
 
 def create_dataloader(
@@ -203,12 +201,11 @@ def mask_hetero(
             item_lencoder.transform(rating["recipe_id"].values)
         ]), dtype=torch.long)
     data["user", "buys", "item"].edge_index = edge_index_user_recipe
+    data["item", "bought_by", "user"].edge_index = edge_index_user_recipe.detach().clone().flip(0)
     data['user', 'buys', 'item'].edge_label = torch.ones(
         edge_index_user_recipe.shape[1],
         dtype=torch.long)
     data["user", "buys", "item"].edge_label_index = edge_index_user_recipe.clone().detach()
-    data["item", "bought_by", "user"].edge_index = edge_index_user_recipe.detach().clone().flip(0)
-    data["item", "bought_by", "user"].edge_label = data['user', 'buys', 'item'].edge_label.clone().detach()  # noqa: E501
 
     ei_ing_item = torch.tensor(
         np.array([
@@ -219,85 +216,3 @@ def mask_hetero(
     data["taste", "contains", "ingredient"].edge_index = ei_ing_item.detach().clone().flip(0)
 
     return data, scalar_preprocess
-
-
-def get_popularity(
-    train: pd.DataFrame,
-    test: pd.DataFrame,
-    val: pd.DataFrame,
-    device: torch.device,
-    item_lencoder: LabelEncoder
-) -> torch.Tensor:
-    res = pd.concat([train, test, val])
-    res = res.groupby("recipe_id").sum()
-    res["idx"] = item_lencoder.transform(res.index)
-    res = res[["idx", "rating"]].reset_index(drop=True).set_index("idx")
-    return torch.tensor(res.rating.to_numpy()).to(device)
-
-
-def add_negative_edge(
-    data: HeteroData,
-    type: str,
-    device: torch.device,
-    item_poplarity: torch.Tensor
-) -> HeteroData:
-    """
-    type: str は、"train", "val", "test" のいずれかを指定する。
-    """
-    data = copy.deepcopy(data)
-    data = data.to(device)
-    edge_label_index = data["user", "buys", "item"].edge_label_index
-
-    if (data['user', 'buys', 'item'].edge_label == 0).sum() > 0:
-        raise ValueError("Negative edge already exists.")
-
-    user_ids = edge_label_index[0].unique()
-    negative_edges: List[torch.Tensor] = []
-
-    for user_id in tqdm(user_ids, desc="Add Negative Edge"):
-        positive_edge_index = edge_label_index[:, edge_label_index[0] == user_id]
-        positive_item_ids = positive_edge_index[1].unique()
-
-        num_positive_edge = positive_edge_index.shape[1]
-        if num_positive_edge == 0:
-            continue
-
-        _item_poplarity = item_poplarity.clone()
-        _item_poplarity[positive_item_ids] = 0
-
-        popularity_sum = _item_poplarity.sum()
-
-        if popularity_sum == 0:
-            raise ValueError("All items are positive.")
-
-        proba = _item_poplarity / popularity_sum
-        num_negative_edge = 500
-        if type == "train":
-            num_negative_edge = num_positive_edge
-
-        sampled_indices = torch.multinomial(proba, num_negative_edge, replacement=True)
-        negative_edge_index = torch.stack([
-            torch.full((sampled_indices.size(-1),), user_id, dtype=torch.long).to(device),
-            sampled_indices
-        ]).to(device)
-
-        negative_edges.append(negative_edge_index)
-
-    negative_edges_tensor = torch.cat(negative_edges, dim=1).to(device)
-    ei = torch.cat([
-        data["user", "buys", "item"].edge_index,
-        negative_edges_tensor
-    ], dim=1)
-    el = torch.cat([
-        data["user", "buys", "item"].edge_label,
-        torch.zeros(negative_edges_tensor.shape[1], dtype=torch.long).to(device)
-    ])
-    data["user", "buys", "item"].edge_index = ei.detach().clone()
-    data["user", "buys", "item"].edge_label_index = ei.detach().clone()
-    data["user", "buys", "item"].edge_label = el.detach().clone()
-    data["item", "bought_by", "user"].edge_index = ei.detach().clone().flip(0)
-    data["item", "bought_by", "user"].edge_label = el
-
-    data = data.to(device)
-
-    return data

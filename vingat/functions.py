@@ -3,7 +3,8 @@ import torch.nn as nn
 from tqdm.notebook import tqdm
 import os
 import numpy as np
-from torch_geometric.loader import LinkNeighborLoader
+from torch_geometric.utils import negative_sampling
+from torch_geometric.data import HeteroData
 from typing import Callable, Dict, List
 import pandas as pd
 from vingat.metrics import ScoreMetricHandler
@@ -12,7 +13,7 @@ from vingat.metrics import MetricsHandler
 
 def evaluate_model(
     model: nn.Module,
-    dataloader: LinkNeighborLoader,
+    data: HeteroData,
     device: torch.device,
     desc: str = ""
 ):
@@ -24,34 +25,53 @@ def evaluate_model(
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
 
     with torch.no_grad():
-        for batch_data in tqdm(dataloader, desc=desc):
-            batch_data = batch_data.to(device)
-            out, _ = model(batch_data)
+        data = data.to(device)
+        out, _ = model(data)
 
-            # 評価用のエッジラベルとエッジインデックスを取得
-            edge_label_index = batch_data['user', 'buys', 'item'].edge_label_index
+        # 評価用のエッジラベルとエッジインデックスを取得
+        edge_label_index = data['user', 'buys', 'item'].edge_label_index
 
-            # ユーザーとレシピの埋め込みを取得
-            user_embeddings = out['user'].x
-            recipe_embeddings = out['item'].x
+        # ユーザーとレシピの埋め込みを取得
+        user_embeddings = out['user'].x
+        recipe_embeddings = out['item'].x
 
-            # 正例と負例のマスクを取得
-            pos_mask = batch_data['user', 'buys', 'item'].edge_label == 1
-            neg_mask = batch_data['user', 'buys', 'item'].edge_label == 0
+        # userのindexを取得
+        unique_user_ids = edge_label_index[0].unique()
 
-            # エッジインデックスからノードの埋め込みを取得
-            user_embed = user_embeddings[edge_label_index[0]]
-            recipe_embed = recipe_embeddings[edge_label_index[1]]
+        # 各ユーザーごとにループ
+        for user_id in tqdm(unique_user_ids.cpu().numpy(), desc=desc):
+            # 現在のユーザーに対する正例ペアを取得
+            user_pos_indices = edge_label_index[1][edge_label_index[0] == user_id]
+            num_pos_samples = len(user_pos_indices)    # 正例ペアの数を取得
+            if num_pos_samples == 0:
+                continue
 
-            # 正例のスコアを計算
-            pos_user_embed = user_embed[pos_mask]
-            pos_recipe_embed = recipe_embed[pos_mask]
-            pos_scores = model.predict(pos_user_embed, pos_recipe_embed).squeeze()
+            # 既存エッジのセットを生成
+            user_edge_label_index = torch.stack([
+                torch.full((num_pos_samples,), user_id, dtype=torch.long, device=device),
+                user_pos_indices
+            ])
 
-            # 負例のスコアを計算
-            neg_user_embed = user_embed[neg_mask]
-            neg_recipe_embed = recipe_embed[neg_mask]
-            neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
+            num_neg_samples = 500    # 負例ペアの数 HAFR, HCGAN
+            negative_edge_index = negative_sampling(
+                edge_index=user_edge_label_index,
+                num_nodes=(1, recipe_embeddings.shape[0]),    # (ユーザーのノード数, レシピのノード数)
+                num_neg_samples=num_neg_samples,
+                force_undirected=False
+            )
+
+            # 負例のインデックスを取得
+            user_neg_indices = negative_edge_index[1]
+
+            # 正例と負例のユーザーとレシピの埋め込みを作成
+            pos_user_embed = user_embeddings[user_id].expand(num_pos_samples, -1)
+            pos_recipe_embed = recipe_embeddings[user_pos_indices]
+            neg_user_embed = user_embeddings[user_id].expand(num_neg_samples, -1)
+            neg_recipe_embed = recipe_embeddings[user_neg_indices]
+
+            # 正例と負例のスコアを計算
+            pos_scores = model.predict(pos_user_embed, pos_recipe_embed).squeeze(dim=1)
+            neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze(dim=1)
 
             # スコアの統計量を更新
             shandler.update(pos_scores, neg_scores)
@@ -61,10 +81,8 @@ def evaluate_model(
                     torch.ones_like(pos_scores, device=device),
                     torch.zeros_like(neg_scores, device=device)
                 ]),
-                user_indices=torch.cat([
-                    edge_label_index[0][pos_mask],
-                    edge_label_index[0][neg_mask]
-                ])
+                user_indices=torch.full((len(pos_scores) + len(neg_scores),),
+                                        user_id, device=device)
             )
 
     shandler.compute()
@@ -111,7 +129,7 @@ def calculate_statistics(data):
 
 def train_func(
     train_loader,
-    val_dataloader,
+    val_data,
     model,
     optimizer,
     scheduler,
@@ -173,17 +191,18 @@ def train_func(
             pos_mask = batch_data['user', 'buys', 'item'].edge_label == 1
             neg_mask = batch_data['user', 'buys', 'item'].edge_label == 0
 
-            pos_edge_index = edge_label_index[:, pos_mask]
-            neg_edge_index = edge_label_index[:, neg_mask]
+            # エッジインデックスからノードの埋め込みを取得
+            user_embed = user_embeddings[edge_label_index[0]]
+            recipe_embed = recipe_embeddings[edge_label_index[1]]
 
             # 正例のスコアを計算
-            pos_user_embed = user_embeddings[pos_edge_index[0]]
-            pos_recipe_embed = recipe_embeddings[pos_edge_index[1]]
+            pos_user_embed = user_embed[pos_mask]
+            pos_recipe_embed = recipe_embed[pos_mask]
             pos_scores = model.predict(pos_user_embed, pos_recipe_embed).squeeze()
 
             # 負例のスコアを計算
-            neg_user_embed = user_embeddings[neg_edge_index[0]]
-            neg_recipe_embed = recipe_embeddings[neg_edge_index[1]]
+            neg_user_embed = user_embed[neg_mask]
+            neg_recipe_embed = recipe_embed[neg_mask]
             neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
 
             # 損失の計算
@@ -257,7 +276,7 @@ def train_func(
             """
 
             score_statics, v_mhandler = evaluate_model(
-                model, val_dataloader, device, desc=f"[Valid] Epoch {epoch}/{epochs}")
+                model, val_data, device, desc=f"[Valid] Epoch {epoch}/{epochs}")
 
             val_metrics = {
                 "val/last_lr": scheduler.get_last_lr()[0]
