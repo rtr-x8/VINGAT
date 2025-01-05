@@ -4,7 +4,6 @@ from torch_geometric.nn import HANConv, HGTConv
 from torch_geometric.nn.norm import BatchNorm
 import torch.nn as nn
 import os
-from vingat.loss import SeparationLoss
 
 
 class RepeatTensor(nn.Module):
@@ -188,6 +187,15 @@ class StaticEmbeddingEncoder():
         return x[:, :self.output_dim]
 
 
+class StaticEmbeddingLinearEncoder(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super().__init__()
+        self.encoder = nn.Linear(input_dim, output_dim)
+
+    def forward(self, x):
+        return self.encoder(x)
+
+
 class RecommendationModel(nn.Module):
     def __init__(
         self,
@@ -220,14 +228,23 @@ class RecommendationModel(nn.Module):
 
         self.user_encoder = nn.Embedding(num_user, hidden_dim, max_norm=1)
         self.item_encoder = nn.Embedding(num_item, hidden_dim, max_norm=1)
-        self.image_encoder = StaticEmbeddingEncoder(input_image_dim, hidden_dim)
+
+        # 次元削減
+        self.image_encoder = StaticEmbeddingLinearEncoder(input_image_dim, hidden_dim)
+
+        # 次元はこのまま使う
         self.vlm_caption_encoder = StaticEmbeddingEncoder(input_vlm_caption_dim, hidden_dim)
         self.ingredient_encoder = StaticEmbeddingEncoder(input_ingredient_dim, hidden_dim)
         self.cooking_direction_encoder = StaticEmbeddingEncoder(input_cooking_direction_dim,
                                                                 hidden_dim)
 
-        # visual
-        self.separation_loss = SeparationLoss(reg_lambda=0.01)
+        # Norm
+        self.user_norm = BatchNorm(hidden_dim)
+        self.item_norm = BatchNorm(hidden_dim)
+        self.image_norm = BatchNorm(hidden_dim)
+        self.caption_norm = BatchNorm(hidden_dim)
+        self.ingr_norm = BatchNorm(hidden_dim)
+        self.recipe_norm = BatchNorm(hidden_dim)
 
         # Contrastive caption and nutrient
         self.cl_with_caption_and_nutrient = nn.ModuleList()
@@ -235,7 +252,7 @@ class RecommendationModel(nn.Module):
             cl = NutCaptionContrastiveLearning(nutrient_dim, hidden_dim, temperature)
             self.cl_with_caption_and_nutrient.append(cl)
         self.cl_dropout = DictDropout(dropout_rate, ["intention"])
-        self.cl_norm = DictBatchNorm(hidden_dim)
+        self.cl_norm = BatchNorm(hidden_dim)
 
         # Fusion of ingredient and recipe
         self.ing_to_recipe = nn.ModuleList()
@@ -244,8 +261,6 @@ class RecommendationModel(nn.Module):
             self.ing_to_recipe.append(gnn)
 
         self.taste_dropout = DictDropout(dropout_rate, ["taste"])
-
-        self.batch_norm = DictBatchNorm(hidden_dim)
 
         # HANConv layers
         self.fusion_gnn = nn.ModuleList()
@@ -256,7 +271,7 @@ class RecommendationModel(nn.Module):
                 dropout_rate=dropout_rate
             )
             self.fusion_gnn.append(gnn)
-
+        self.fusion_norm = BatchNorm(hidden_dim)
         self.fusion_dropout = DictDropout(dropout_rate, ["user", "item", "taste", "image"])
 
         # リンク予測のためのMLP
@@ -279,6 +294,15 @@ class RecommendationModel(nn.Module):
             "taste": self.cooking_direction_encoder(data["taste"].x)
         })
 
+        data.set_value_dict("x", {
+            "user": self.user_norm(data.x_dict["user"]),
+            "item": self.item_norm(data.x_dict["item"]),
+            "image": self.image_norm(data.x_dict["image"]),
+            "intention": self.caption_norm(data.x_dict["intention"]),
+            "ingredient": self.ingr_norm(data.x_dict["ingredient"]),
+            "taste": self.recipe_norm(data.x_dict["taste"])
+        })
+
         cl_losses = []
         for cl in self.cl_with_caption_and_nutrient:
             intention_x, _, cl_loss = cl(data["intention"].x, data["intention"].nutrient)
@@ -288,17 +312,25 @@ class RecommendationModel(nn.Module):
             })
         cl_loss = torch.stack(cl_losses).mean()
         data.set_value_dict("x", self.cl_dropout(data.x_dict))
-        data.set_value_dict("x", self.cl_norm(data.x_dict))
+        data.set_value_dict("x", {
+            "intention": self.cl_norm(data.x_dict["intention"])
+        })
 
         # Message passing
         for gnn in self.ing_to_recipe:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
         data.set_value_dict("x", self.taste_dropout(data.x_dict))
 
-        data.set_value_dict("x", self.batch_norm(data.x_dict))
-
         for gnn in self.fusion_gnn:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
+        data.set_value_dict("x", {
+            "user": self.user_norm(data.x_dict["user"]),
+            "item": self.item_norm(data.x_dict["item"]),
+            "image": self.image_norm(data.x_dict["image"]),
+            "intention": self.caption_norm(data.x_dict["intention"]),
+            "ingredient": self.ingr_norm(data.x_dict["ingredient"]),
+            "taste": self.recipe_norm(data.x_dict["taste"])
+        })
         data.set_value_dict("x", self.fusion_dropout(data.x_dict))
 
         return data, [
