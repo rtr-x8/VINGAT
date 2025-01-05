@@ -263,7 +263,6 @@ def train_func(
         wbLogger(data=mhandler.log("train-handler"), step=epoch)
         print("handler Result: ")
         print(mhandler.log(prefix="train-handler", num_round=4))
-        sum(torch.count_nonzero(t == 1).item() for t in mhandler.targets)
         print("Pos Count :", sum(torch.count_nonzero(t == 1).item() for t in mhandler.targets))
         print("Neg Count :", sum(torch.count_nonzero(t == 0).item() for t in mhandler.targets))
 
