@@ -53,7 +53,6 @@ class TasteGNN(nn.Module):
     NODES = ['ingredient', 'taste']
     EDGES = [
         ('ingredient', 'part_of', 'taste'),
-        ('taste', 'contains', 'ingredient')
     ]
 
     def __init__(self, hidden_dim, dropout_rate):
