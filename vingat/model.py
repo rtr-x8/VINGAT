@@ -288,7 +288,7 @@ class RecommendationModel(nn.Module):
         data.set_value_dict("x", {
             "user": self.user_encoder(data["user"].id),
             "item": self.item_encoder(data["item"].id),
-            "image": self.image_encoder(data["image"].x),
+            "image": self.image_encoder(data["image"].cnn),
             "intention": self.vlm_caption_encoder(data["intention"].caption),
             "ingredient": self.ingredient_encoder(data["ingredient"].x),
             "taste": self.cooking_direction_encoder(data["taste"].x)
@@ -323,14 +323,6 @@ class RecommendationModel(nn.Module):
 
         for gnn in self.fusion_gnn:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
-        data.set_value_dict("x", {
-            "user": self.user_norm(data.x_dict["user"]),
-            "item": self.item_norm(data.x_dict["item"]),
-            "image": self.image_norm(data.x_dict["image"]),
-            "intention": self.caption_norm(data.x_dict["intention"]),
-            "ingredient": self.ingr_norm(data.x_dict["ingredient"]),
-            "taste": self.recipe_norm(data.x_dict["taste"])
-        })
         data.set_value_dict("x", self.fusion_dropout(data.x_dict))
 
         return data, [
