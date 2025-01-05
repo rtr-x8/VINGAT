@@ -101,7 +101,8 @@ def create_base_hetero(
     image_encoder = StaticEmbeddingLoader(recipe_image_embeddings,
                                           dimention=input_image_dim,
                                           device=device)
-    data["image"].x = image_encoder(torch.tensor(item_lencoder.classes_, dtype=torch.long))
+    data["image"].original = image_encoder(torch.tensor(item_lencoder.classes_, dtype=torch.long))
+    data["image"].x = torch.zeros((len(item_lencoder.classes_), hidden_dim), dtype=torch.float32)
 
     data["intention"].num_nodes = len(item_lencoder.classes_)
     data["intention"].item_id = torch.tensor(item_lencoder.classes_)
@@ -179,8 +180,10 @@ def mask_hetero(
     data.x_dict["user"][no_user_indices] = torch.rand_like(data.x_dict["user"][no_user_indices])  # noqa: E501
     data.x_dict["item"][no_item_indices] = torch.rand_like(data.x_dict["item"][no_item_indices])  # noqa: E501
     data.x_dict["intention"][no_item_indices] = torch.rand_like(data.x_dict["intention"][no_item_indices])  # noqa: E501
+    data["intention"].caption[no_item_indices] = torch.rand_like(data["intention"].caption[no_item_indices])  # noqa: E501
     data.x_dict["taste"][no_item_indices] = torch.rand_like(data.x_dict["taste"][no_item_indices])  # noqa: E501
     data.x_dict["image"][no_item_indices] = torch.rand_like(data.x_dict["image"][no_item_indices])  # noqa: E501
+    data["image"].original[no_item_indices] = torch.rand_like(data["image"].original[no_item_indices])  # noqa: E501
     data.x_dict["ingredient"][no_ingr_indices] = torch.rand_like(data.x_dict["ingredient"][no_ingr_indices])  # noqa: E501
 
     # edge
