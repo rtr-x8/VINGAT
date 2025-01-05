@@ -156,7 +156,6 @@ def mask_hetero(
     item_lencoder: LabelEncoder,
     ing_lencoder: LabelEncoder,
     is_train: bool,
-    scalar_preprocess: Optional[ScalarPreprocess] = None,
 ) -> Tuple[HeteroData, ScalarPreprocess]:
 
     # 環境ごとのデータ
@@ -206,4 +205,4 @@ def mask_hetero(
     data["ingredient", "part_of", "taste"].edge_index = ei_ing_item
     data["taste", "contains", "ingredient"].edge_index = ei_ing_item.detach().clone().flip(0)
 
-    return data, scalar_preprocess
+    return data
