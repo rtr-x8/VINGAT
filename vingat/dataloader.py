@@ -185,15 +185,6 @@ def mask_hetero(
     data.x_dict["image"][no_item_indices] = torch.rand_like(data.x_dict["image"][no_item_indices])  # noqa: E501
     data.x_dict["ingredient"][no_ingr_indices] = torch.rand_like(data.x_dict["ingredient"][no_ingr_indices])  # noqa: E501
 
-    # 標準化
-    if scalar_preprocess is None:
-        if is_train:
-            scalar_preprocess = ScalarPreprocess(data.x_dict)
-            scalar_preprocess.fit()
-        else:
-            raise ValueError("scalar_preprocess must be provided when is_train is False.")
-    data.set_value_dict("x", scalar_preprocess.transform(data.x_dict))
-
     # edge
     edge_index_user_recipe = torch.tensor(
         np.array([

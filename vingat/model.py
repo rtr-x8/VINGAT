@@ -58,27 +58,22 @@ class TasteGNN(nn.Module):
 
     def __init__(self, hidden_dim, dropout_rate):
         super().__init__()
+        self.act = DictActivate()
+        self.norm = DictBatchNorm(hidden_dim)
         self.gnn = HANConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
-            metadata=(self.NODES, self.EDGES)
+            metadata=(self.NODES, self.EDGES),
+            dropout=dropout_rate,
         )
-        """
-        self.gnn = LGConv()
-        """
 
     def forward(self, x_dict, edge_index_dict):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.gnn(x_dict, edge_index_dict)
+        out = self.norm(out)
+        out = self.act(out)
         return out
-        """
-        taste_x = x_dict['taste']
-        taste_edge_index = edge_index_dict[('taste', 'contains', 'ingredient')]
-
-        # LGConvの適用
-        return self.gnn(taste_x, taste_edge_index)
-        """
 
 
 class DictActivate(nn.Module):
@@ -185,6 +180,16 @@ class StaticEmbeddingLinearEncoder(nn.Module):
         return self.encoder(x)
 
 
+class LowRankLinear(nn.Module):
+    def __init__(self, input_dim, output_dim, rank, bias=True):
+        super(LowRankLinear, self).__init__()
+        self.u = nn.Linear(input_dim, rank, bias=False)
+        self.v = nn.Linear(rank, output_dim, bias=bias)
+
+    def forward(self, x):
+        return self.v(self.u(x))
+
+
 class RecommendationModel(nn.Module):
     def __init__(
         self,
@@ -226,6 +231,8 @@ class RecommendationModel(nn.Module):
         self.ingredient_encoder = StaticEmbeddingEncoder(input_ingredient_dim, hidden_dim)
         self.cooking_direction_encoder = StaticEmbeddingEncoder(input_cooking_direction_dim,
                                                                 hidden_dim)
+
+        # self.image_encoder = LowRankLinear(input_image_dim, hidden_dim, rank=64)
 
         # Contrastive caption and nutrient
         self.cl_with_caption_and_nutrient = nn.ModuleList()
@@ -295,10 +302,10 @@ class RecommendationModel(nn.Module):
                 "intention": intention_x
             })
         cl_loss = torch.stack(cl_losses).mean()
-        data.set_value_dict("x", self.cl_dropout(data.x_dict))
         data.set_value_dict("x", {
             "intention": self.cl_norm(data.x_dict["intention"])
         })
+        data.set_value_dict("x", self.cl_dropout(data.x_dict))
 
         # Message passing
         # Sensing
