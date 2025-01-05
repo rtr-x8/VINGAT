@@ -9,6 +9,7 @@ from typing import Callable, Dict, List
 import pandas as pd
 from vingat.metrics import ScoreMetricHandler
 from vingat.metrics import MetricsHandler
+from sklearn.preprocessing import LabelEncoder
 
 
 def evaluate_model(
@@ -276,7 +277,12 @@ def train_func(
             """
 
             score_statics, v_mhandler = evaluate_model(
-                model, val_data, device, desc=f"[Valid] Epoch {epoch}/{epochs}")
+                model=model,
+                data=val_data,
+                device=device,
+                desc=f"[Valid] Epoch {epoch}/{epochs}"
+
+            )
 
             val_metrics = {
                 "val/last_lr": scheduler.get_last_lr()[0]
@@ -324,3 +330,47 @@ def train_func(
         wbTagger(f"under_{(epoch // 10 + 1) * 10}_epochs")
 
     return model
+
+
+def get_popularity(
+    all_rating: pd.DataFrame,
+    device: torch.device,
+    item_lencoder: LabelEncoder
+) -> torch.Tensor:
+    res = all_rating.groupby("recipe_id").sum()
+    res["idx"] = item_lencoder.transform(res.index)
+    res = res[["idx", "rating"]].reset_index(drop=True).set_index("idx")
+    return torch.tensor(res.rating.to_numpy()).to(device)
+
+
+def get_available_indices(
+    rating: pd.DataFrame,
+    item_lencoder: LabelEncoder,
+    device: torch.device
+) -> torch.Tensor:
+    recipe_ids = item_lencoder.transform(rating["recipe_id"].unique())
+    indeices = torch.tensor(recipe_ids).to(device)
+    mask = torch.zeros(item_lencoder.classes_.shape[0], dtype=torch.bool).to(device)
+    mask[indeices] = True
+    return mask
+
+
+def negative_sampling_by_popularity(
+    positive_edge_index: torch.Tensor,
+    popularity: torch.Tensor,
+    user_index: int,
+    availabel_item_mask: torch.Tensor,
+    num_neg_samples: int,
+    device: torch.device
+) -> torch.Tensor:
+    positive_edge_index = positive_edge_index[:, positive_edge_index[0] == user_index]
+    positive_item_indices = positive_edge_index[1]
+    popularity[positive_item_indices] = 0
+    popularity[~availabel_item_mask] = 0
+    popularity_sum = popularity.sum()
+    proba = popularity / popularity_sum
+    sample = torch.multinomial(proba, num_neg_samples, replacement=False)
+    return torch.stack([
+        torch.full((num_neg_samples,), user_index, dtype=torch.long),
+        sample
+    ]).to(device)
