@@ -167,7 +167,6 @@ def train_func(
 
         print(f"Epoch {epoch}/{epochs} ======================")
 
-        batch_count = 0
         for batch_data in tqdm(train_loader, desc=f"[Train] Epoch {epoch}/{epochs}"):
             optimizer.zero_grad()
             batch_data = batch_data.to(device)
