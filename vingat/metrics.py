@@ -160,15 +160,15 @@ class MetricsHandlerForUserLoop():
         mh = MetricsHandler(self.device, threshold=self.threshold)
         mh.update(probas, targets, user_indices)
         result = mh.compute()
+        if len(self.results) == 0:
+            self.results = result
+            return
         for k, v in result.items():
-            if k not in self.results.keys():
-                self.results[k] = []
-            self.results[k].append(v.unsqueeze(0))
+            self.results[k] = (self.results[k] + result[k]) / 2
 
     def compute(self):
-        print(self.results.items())
         return {
-            k: torch.cat(v).mean().item()
+            k: v.item()
             for k, v in self.results.items()
         }
 
