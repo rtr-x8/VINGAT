@@ -276,7 +276,9 @@ class RecommendationModel(nn.Module):
         # Contrastive caption and nutrient
         self.cl_with_caption_and_nutrient = nn.ModuleList()
         for _ in range(intention_layers):
-            cl = NutCaptionContrastiveLearning(nutrient_dim, hidden_dim, temperature)
+            cl = NutrientCaptionContrastiveLearning(
+                nutrient_dim, input_vlm_caption_dim, hidden_dim, temperature
+            )
             self.cl_with_caption_and_nutrient.append(cl)
         self.cl_dropout = DictDropout(dropout_rate, device, ["intention"])
         self.cl_norm = BatchNorm(hidden_dim)
