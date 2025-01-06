@@ -135,12 +135,13 @@ class MetricsHandler():
             result["tp"] = result["cm"][1][1]
             del result["cm"]
 
-            self.is_calculated = True
+            self.result = result
 
-        return result
+            self.is_calculated = True
+        return self.result
 
     def log(self, prefix: str = "", separator: str = "/", num_round: int = 8):
         return {
-            f"{prefix}{separator}{k}": round(v, num_round)
+            f"{prefix}{separator}{k}": round(v.item(), num_round)
             for k, v in self.compute().items()
         }
