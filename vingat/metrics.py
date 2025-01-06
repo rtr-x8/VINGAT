@@ -5,8 +5,8 @@ from torchmetrics.retrieval import (
     RetrievalRecall,
     RetrievalPrecision,
     RetrievalNormalizedDCG,
-    RetrievalMAP,
-    RetrievalMRR,
+    # RetrievalMAP,
+    # RetrievalMRR,
 )
 from torchmetrics.classification import (
     BinaryAccuracy,
