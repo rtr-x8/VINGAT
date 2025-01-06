@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from torchmetrics import MetricCollection
 from torchmetrics.retrieval import (
     RetrievalRecall,
     RetrievalPrecision,
@@ -109,61 +110,34 @@ class MetricsHandler():
             all_targets = torch.cat(self.targets)
             all_user_indices = torch.cat(self.user_indices)
 
-            recall_at_10 = RetrievalRecall(empty_target_action="skip", top_k=10).to(self.device)
-            recall_at_20 = RetrievalRecall(empty_target_action="skip", top_k=20).to(self.device)
-            pre_at_10 = RetrievalPrecision(empty_target_action="skip", top_k=10, adaptive_k=True).to(self.device)  # noqa: E501
-            pre_at_20 = RetrievalPrecision(empty_target_action="skip", top_k=20, adaptive_k=True).to(self.device)  # noqa: E501
-            ndcg_at_10 = RetrievalNormalizedDCG(empty_target_action="skip", top_k=10).to(self.device)  # noqa: E501
-            ndcg_at_20 = RetrievalNormalizedDCG(empty_target_action="skip", top_k=20).to(self.device)  # noqa: E501
-            map_at_10 = RetrievalMAP(empty_target_action="skip", top_k=10).to(self.device)
-            map_at_20 = RetrievalMAP(empty_target_action="skip", top_k=20).to(self.device)
-            mrr_at_10 = RetrievalMRR(empty_target_action="skip", top_k=10).to(self.device)
-            mrr_at_20 = RetrievalMRR(empty_target_action="skip", top_k=20).to(self.device)
-            binary_accuracy = BinaryAccuracy(threshold=self.threshold).to(self.device)
-            binary_recall = BinaryRecall(threshold=self.threshold).to(self.device)
-            binary_f1 = BinaryF1Score(threshold=self.threshold).to(self.device)
-            binary_confusion_matrix = BinaryConfusionMatrix(threshold=self.threshold)
-            binary_confusion_matrix.to(self.device)
-            binary_aucroc = BinaryAUROC().to(self.device)
+            collection = MetricCollection({
+                "recall@10": RetrievalRecall(empty_target_action="skip", top_k=10),
+                "recall@20": RetrievalRecall(empty_target_action="skip", top_k=20),
+                "precision@10": RetrievalPrecision(empty_target_action="skip", top_k=10, adaptive_k=True),  # noqa: E501
+                "precision@20": RetrievalPrecision(empty_target_action="skip", top_k=20, adaptive_k=True),  # noqa: E501
+                "ndcg@10": RetrievalNormalizedDCG(empty_target_action="skip", top_k=10),  # noqa: E501
+                "ndcg@20": RetrievalNormalizedDCG(empty_target_action="skip", top_k=20),  # noqa: E501
+                "map@10": RetrievalMAP(empty_target_action="skip", top_k=10),
+                "map@20": RetrievalMAP(empty_target_action="skip", top_k=20),
+                "mrr@10": RetrievalMRR(empty_target_action="skip", top_k=10),
+                "mrr@20": RetrievalMRR(empty_target_action="skip", top_k=20),
+                "accuracy": BinaryAccuracy(threshold=self.threshold),
+                "recall": BinaryRecall(threshold=self.threshold),
+                "f1": BinaryF1Score(threshold=self.threshold),
+                "cm": BinaryConfusionMatrix(threshold=self.threshold),
+                "AUROC": BinaryAUROC(),
+            }).to(self.device)
 
-            self.recall_at_10_result = recall_at_10(all_probas, all_targets, all_user_indices)
-            self.recall_at_20_result = recall_at_20(all_probas, all_targets, all_user_indices)
-            self.pre_at_10_result = pre_at_10(all_probas, all_targets, all_user_indices)
-            self.pre_at_20_result = pre_at_20(all_probas, all_targets, all_user_indices)
-            self.ndcg_at_10_result = ndcg_at_10(all_probas, all_targets, all_user_indices)
-            self.ndcg_at_20_result = ndcg_at_20(all_probas, all_targets, all_user_indices)
-            self.map_at_10_result = map_at_10(all_probas, all_targets, all_user_indices)
-            self.map_at_20_result = map_at_20(all_probas, all_targets, all_user_indices)
-            self.mrr_at_10_result = mrr_at_10(all_probas, all_targets, all_user_indices)
-            self.mrr_at_20_result = mrr_at_20(all_probas, all_targets, all_user_indices)
-            self.binary_accuracy_result = binary_accuracy(all_probas, all_targets)
-            self.binary_recall_result = binary_recall(all_probas, all_targets)
-            self.binary_f1_result = binary_f1(all_probas, all_targets)
-            self.binary_confusion_matrix_result = binary_confusion_matrix(all_probas, all_targets)
-            self.binary_aucroc_result = binary_aucroc(all_probas, all_targets)
+            result = collection(all_probas, all_targets, all_user_indices)
+            result["tn"] = result["cm"][0][0]
+            result["fp"] = result["cm"][0][1]
+            result["fn"] = result["cm"][1][0]
+            result["tp"] = result["cm"][1][1]
+            del result["cm"]
 
             self.is_calculated = True
 
-        return {
-            "recall@10": self.recall_at_10_result.item(),
-            "recall@20": self.recall_at_20_result.item(),
-            "precision@10": self.pre_at_10_result.item(),
-            "precision@20": self.pre_at_20_result.item(),
-            "ndcg@10": self.ndcg_at_10_result.item(),
-            "ndcg@20": self.ndcg_at_20_result.item(),
-            "map@10": self.map_at_10_result.item(),
-            "map@20": self.map_at_20_result.item(),
-            "mrr@10": self.mrr_at_10_result.item(),
-            "mrr@20": self.mrr_at_20_result.item(),
-            "accuracy": self.binary_accuracy_result.item(),
-            "recall": self.binary_recall_result.item(),
-            "AUROC": self.binary_aucroc_result.item(),
-            "f1": self.binary_f1_result.item(),
-            "tn": self.binary_confusion_matrix_result[0][0].item(),
-            "fp": self.binary_confusion_matrix_result[0][1].item(),
-            "fn": self.binary_confusion_matrix_result[1][0].item(),
-            "tp": self.binary_confusion_matrix_result[1][1].item(),
-        }
+        return result
 
     def log(self, prefix: str = "", separator: str = "/", num_round: int = 8):
         return {
