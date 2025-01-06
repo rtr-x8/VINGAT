@@ -14,6 +14,7 @@ from torchmetrics.classification import (
     BinaryConfusionMatrix,
     BinaryAUROC
 )
+from typing import List
 
 
 def ndcg_at_k(r: np.ndarray, k: int):
@@ -30,8 +31,8 @@ class ScoreMetricHandler():
         self,
         device: torch.device
     ):
-        self.pos_scores = []
-        self.neg_scores = []
+        self.pos_scores: List[torch.Tensor] = []
+        self.neg_scores: List[torch.Tensor] = []
         self.is_calculated = False
         self.result = None
         self.device = device
