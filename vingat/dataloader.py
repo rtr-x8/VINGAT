@@ -93,7 +93,7 @@ def create_base_hetero(
     num_items = len(item_lencoder.classes_)
     data["item"].num_nodes = num_items
     data["item"].item_id = torch.tensor(item_lencoder.classes_)
-    data['item'].x = torch.rand((num_items, hidden_dim), dtype=torch.float32)
+    data['item'].x = torch.zeros((num_items, hidden_dim), dtype=torch.float32)
     data["item"].id = torch.arange(0, num_items, dtype=torch.long)
 
     data["image"].num_nodes = len(item_lencoder.classes_)
