@@ -72,7 +72,9 @@ class TasteGNN(nn.Module):
         out = self.gnn(x_dict, edge_index_dict)
         out["ingredient"] = ings
         out = self.drop(out)
-        return out
+        return {
+            k: v for k, v in out.items() if v is not None
+        }
 
 
 class DictActivate(nn.Module):
@@ -113,23 +115,16 @@ class DictBatchNorm(nn.Module):
 
 
 class MultiModalFusionGAT(nn.Module):
-    """
     NODES = ['user', 'item', 'taste', 'intention', 'image']
     EDGES = [('taste', 'associated_with', 'item'),
              ('intention', 'associated_with', 'item'),
              ('image', 'associated_with', 'item'),
              ('user', 'buys', 'item'),
              ('item', 'bought_by', 'user')]
-    """
-    NODES = ['user', 'item', 'taste', 'image']
-    EDGES = [('taste', 'associated_with', 'item'),
-             ('image', 'associated_with', 'item'),
-             ('user', 'buys', 'item'),
-             ('item', 'bought_by', 'user')]
 
     def __init__(self, hidden_dim, num_heads, dropout_rate):
         super().__init__()
-        self.drop = DictDropout(dropout_rate, self.NODES)
+        self.drop = DictDropout(dropout_rate, ["user", "item"])
         self.gnn = HGTConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
@@ -138,15 +133,13 @@ class MultiModalFusionGAT(nn.Module):
         )
 
     def forward(self, x_dict, edge_index_dict):
-        _x_dict = x_dict
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.gnn(x_dict, edge_index_dict)
-        for k, v in out.items():
-            if v is None:
-                out[k] = _x_dict[k]
         out = self.drop(out)
-        return out
+        return {
+            k: v for k, v in out.items() if v is not None
+        }
 
 
 def print_layer_outputs(model, input_data, max_elements=10, prefix=""):
