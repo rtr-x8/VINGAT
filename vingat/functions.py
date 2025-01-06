@@ -8,7 +8,7 @@ from torch_geometric.data import HeteroData
 from typing import Callable, Dict, List
 import pandas as pd
 from vingat.metrics import ScoreMetricHandler
-from vingat.metrics import MetricsHandler, MetricsHandlerForEval
+from vingat.metrics import MetricsHandler, MetricsHandlerForUserLoop
 from sklearn.preprocessing import LabelEncoder
 
 
@@ -23,7 +23,7 @@ def evaluate_model(
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
 
     with torch.no_grad():
-        mhandler = MetricsHandler(device=device, threshold=0.5)
+        mhandler = MetricsHandlerForUserLoop(device=device, threshold=0.5)
         shandler = ScoreMetricHandler(device=device)
 
         data = data.to(device)
@@ -161,7 +161,7 @@ def train_func(
             "main_loss": [],
         }
         node_mean = []
-        mhandler = MetricsHandlerForEval(device=device, threshold=0.5)
+        mhandler = MetricsHandler(device=device, threshold=0.5)
 
         model.train()
 

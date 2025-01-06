@@ -147,7 +147,7 @@ class MetricsHandler():
         }
 
 
-class MetricsHandlerForEval():
+class MetricsHandlerForUserLoop():
     def __init__(self, device, threshold: float = 0.5):
         self.threshold = threshold
         self.device = device
