@@ -57,6 +57,7 @@ class TasteGNN(nn.Module):
 
     def __init__(self, hidden_dim, dropout_rate):
         super().__init__()
+        self.drop = DictDropout(dropout_rate, ["taste"])
         self.gnn = HANConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
@@ -70,29 +71,33 @@ class TasteGNN(nn.Module):
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.gnn(x_dict, edge_index_dict)
         out["ingredient"] = ings
+        out = self.drop(out)
         return out
 
 
 class DictActivate(nn.Module):
     def __init__(self):
         super().__init__()
-        self.act = nn.ReLU()
+        self.acts = {
+            k: nn.ReLU() for k in ["taste"]
+        }
 
     def forward(self, x_dict):
         return {
-            k: self.act(v) for k, v in x_dict.items()
+            k: act(x_dict.get(k)) for k, act in x_dict.items()
         }
 
 
 class DictDropout(nn.Module):
     def __init__(self, dropout_rate, keys=[]):
         super().__init__()
-        self.dropout = nn.Dropout(dropout_rate)
-        self.keys = keys
+        self.dropouts = {
+            k: nn.Dropout(dropout_rate) for k in keys
+        }
 
     def forward(self, x_dict):
         return {
-            k: self.dropout(x_dict.get(k)) for k in self.keys
+            k: drop(x_dict.get(k)) for k, drop in self.dropouts
         }
 
 
@@ -136,6 +141,7 @@ class MultiModalFusionGAT(nn.Module):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.gnn(x_dict, edge_index_dict)
+        out = self.drop(out)
         return out
 
 
@@ -218,6 +224,7 @@ class RecommendationModel(nn.Module):
         self.cl_loss = cl_loss
 
         self.user_encoder = nn.Embedding(num_user, hidden_dim, max_norm=1)
+        self.user_embedding_dropout = nn.Dropout(p=0.3)
 
         # 次元削減
         self.image_encoder = StaticEmbeddingEncoder(input_image_dim, hidden_dim)
@@ -287,6 +294,9 @@ class RecommendationModel(nn.Module):
             "intention": self.vlm_caption_encoder(data["intention"].caption),
             "ingredient": self.ingredient_encoder(data["ingredient"].x),
             "taste": self.cooking_direction_encoder(data["taste"].x)
+        })
+        data.set_value_dict("x", {
+            "user": self.user_embedding_dropout(data.x_dict["user"])
         })
 
         cl_losses = []
