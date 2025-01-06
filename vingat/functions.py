@@ -85,9 +85,7 @@ def evaluate_model(
                 user_indices=torch.full((len(pos_scores) + len(neg_scores),),
                                         user_id, device=device)
             )
-        print("Score Statics Computing...")
         shandler.compute()
-        print("Metric Computing...")
         mhandler.compute()
 
     return shandler, mhandler
@@ -148,7 +146,6 @@ def train_func(
     validation_interval=5,
     max_grad_norm=1.0,
     pca_cols=["user", "item", "intention", "taste", "image"],
-    early_batch_finish=None
 ):
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
     model.to(device)
@@ -170,7 +167,6 @@ def train_func(
 
         print(f"Epoch {epoch}/{epochs} ======================")
 
-        batch_count = 0
         for batch_data in tqdm(train_loader, desc=f"[Train] Epoch {epoch}/{epochs}"):
             optimizer.zero_grad()
             batch_data = batch_data.to(device)
@@ -247,9 +243,6 @@ def train_func(
                 key: val.mean().mean().item()
                 for key, val in out.x_dict.items()
             })
-
-            if early_batch_finish is not None and batch_count >= early_batch_finish:
-                break
 
         df = calculate_statistics(node_mean)
         print("Score Statics: ")
