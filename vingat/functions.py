@@ -10,6 +10,12 @@ import pandas as pd
 from vingat.metrics import ScoreMetricHandler
 from vingat.metrics import MetricsHandler
 from sklearn.preprocessing import LabelEncoder
+from datetime import datetime
+import pytz
+
+
+def now():
+    return datetime.now(pytz.timezone('Asia/Tokyo')).strftime('%Y-%m-%d %H:%M:%S')
 
 
 def evaluate_model(
@@ -165,7 +171,7 @@ def train_func(
 
         model.train()
 
-        print(f"Epoch {epoch}/{epochs} ======================")
+        print(now(), f"Epoch {epoch}/{epochs} ======================")
 
         for batch_data in tqdm(train_loader, desc=f"[Train] Epoch {epoch}/{epochs}"):
             optimizer.zero_grad()
@@ -245,14 +251,14 @@ def train_func(
             })
 
         df = calculate_statistics(node_mean)
-        print("Score Statics: ")
+        print(now(), "Score Statics: ")
         print(df)
 
         tr_metrics = {
             f"train-loss/{k}": np.mean(v)
             for k, v in loss_histories.items()
         }
-        print("Loss: ")
+        print(now(), "Loss: ")
         print(tr_metrics)
         wbLogger(
             data=tr_metrics,
@@ -260,7 +266,7 @@ def train_func(
         )
 
         wbLogger(data=mhandler.log("train-handler"), step=epoch)
-        print("handler Result: ")
+        print(now(), "handler Result: ")
         print(mhandler.log(prefix="train-handler", num_round=4))
         print("Pos Count :", sum(torch.count_nonzero(t == 1).item() for t in mhandler.targets))
         print("Neg Count :", sum(torch.count_nonzero(t == 0).item() for t in mhandler.targets))
@@ -268,7 +274,7 @@ def train_func(
         # Valid
         if epoch % validation_interval == 0:
 
-            print("Validation -------------------")
+            print(now(), "Validation -------------------")
 
             """
             _df = visualize_node_pca(batch_data,
@@ -293,11 +299,11 @@ def train_func(
                 data=val_metrics,
                 step=epoch
             )
-            print("Score Statics: ")
+            print(now(), "Score Statics: ")
             print(score_statics.log(prefix="val-score-statics", num_round=4))
             wbLogger(data=score_statics.log(prefix="val-score-statics"), step=epoch)
 
-            print("handler Result: ")
+            print(now(), "handler Result: ")
             vmhlog = v_mhandler.log(prefix="val-handler", num_round=4)
             print(vmhlog)
             wbLogger(data=vmhlog, step=epoch)
@@ -316,12 +322,12 @@ def train_func(
 
             # patienceを超えた場合にEarly Stoppingを実行
             if patience_counter >= patience:
-                print(f"エポック{epoch}でEarly Stoppingを実行します。")
+                print(now(), f"エポック{epoch}でEarly Stoppingを実行します。")
                 wbTagger("early_stopped")
                 model.load_state_dict(torch.load(f"{save_dir}/model_{best_model_epoch}.pth"))
                 break
 
-            print(f"patience_counter: {patience_counter} / {patience}")
+            print(now(), f"patience_counter: {patience_counter} / {patience}")
 
         scheduler.step()
 
