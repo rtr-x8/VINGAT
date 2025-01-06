@@ -70,7 +70,6 @@ class TasteGNN(nn.Module):
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.gnn(x_dict, edge_index_dict)
         out["ingredient"] = ings
-        out["taste"] = self.taste_act(out["taste"])
         return out
 
 
