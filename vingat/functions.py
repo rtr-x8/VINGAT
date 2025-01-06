@@ -20,12 +20,12 @@ def evaluate_model(
 ):
     model.eval()
 
-    mhandler = MetricsHandler(device=device, threshold=0.5)
-    shandler = ScoreMetricHandler(device=device)
-
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
 
     with torch.no_grad():
+        mhandler = MetricsHandler(device=device, threshold=0.5)
+        shandler = ScoreMetricHandler(device=device)
+
         data = data.to(device)
         out, _ = model(data)
 
@@ -85,10 +85,10 @@ def evaluate_model(
                 user_indices=torch.full((len(pos_scores) + len(neg_scores),),
                                         user_id, device=device)
             )
-    print("Score Statics Computing...")
-    shandler.compute()
-    print("Metric Computing...")
-    mhandler.compute()
+        print("Score Statics Computing...")
+        shandler.compute()
+        print("Metric Computing...")
+        mhandler.compute()
 
     return shandler, mhandler
 
