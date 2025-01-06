@@ -74,9 +74,9 @@ class TasteGNN(nn.Module):
         out = self.gnn(x_dict, edge_index_dict)
         out["ingredient"] = ings
         out["taste"] += x_dict["taste"]  # 残差結合
-        out.set_value_dict("x", self.norm(out.x_dixt))
-        out.set_value_dict("x", self.act(out.x_dixt))
-        out.set_value_dict("x", self.drop(out.x_dixt))
+        out.update(self.norm(out))
+        out.update(self.act(out))
+        out.update(self.drop(out))
         return {
             k: v for k, v in out.items() if v is not None
         }
@@ -147,9 +147,9 @@ class MultiModalFusionGAT(nn.Module):
         out = self.gnn(x_dict, edge_index_dict)
         for k, v in out.items():  # 残差結合
             out[k] += x_dict[k]
-        out.set_value_dict("x", self.norm(out.x_dict))
-        out.set_value_dict("x", self.act(out.x_dict))
-        out.set_value_dict("x", self.drop(out.x_dict))
+        out.update(self.norm(out.x_dict))
+        out.update(self.act(out.x_dict))
+        out.update(self.drop(out.x_dict))
         return {
             k: v for k, v in out.items() if v is not None
         }
