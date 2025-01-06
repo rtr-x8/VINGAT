@@ -15,7 +15,7 @@ from torchmetrics.classification import (
     BinaryConfusionMatrix,
     BinaryAUROC
 )
-from typing import List
+from typing import Dict, List
 
 
 def ndcg_at_k(r: np.ndarray, k: int):
@@ -129,10 +129,10 @@ class MetricsHandler():
             }).to(self.device)
 
             result = collection(all_probas, all_targets, indexes=all_user_indices)
-            result["tn"] = result["cm"][0][0]
-            result["fp"] = result["cm"][0][1]
-            result["fn"] = result["cm"][1][0]
-            result["tp"] = result["cm"][1][1]
+            result["tn"] = result["cm"][0][0].type(torch.float16)
+            result["fp"] = result["cm"][0][1].type(torch.float16)
+            result["fn"] = result["cm"][1][0].type(torch.float16)
+            result["tp"] = result["cm"][1][1].type(torch.float16)
             del result["cm"]
 
             self.result = result
@@ -143,5 +143,34 @@ class MetricsHandler():
     def log(self, prefix: str = "", separator: str = "/", num_round: int = 8):
         return {
             f"{prefix}{separator}{k}": round(v.item(), num_round)
+            for k, v in self.compute().items()
+        }
+
+
+class MetricsHandlerForEval():
+    def __init__(self, device, threshold: float = 0.5):
+        self.threshold = threshold
+        self.device = device
+        self.results: Dict[str, List[torch.Tensor]] = {}
+
+    def update(self, probas: torch.Tensor, targets: torch.Tensor, user_id):
+        mh = MetricsHandler(self.device, threshold=self.threshold)
+        mh.update(probas, targets, torch.full_like(targets, user_id))
+        result = mh.compute()
+        for k, v in result.items():
+            if k not in self.results.keys():
+                self.results[k] = []
+            self.results[k].append(v.unsqueeze(0))
+
+    def compute(self):
+        print(self.results.items())
+        return {
+            k: torch.cat(v).mean().item()
+            for k, v in self.results.items()
+        }
+
+    def log(self, prefix: str = "", separator: str = "/", num_round: int = 8):
+        return {
+            f"{prefix}{separator}{k}": round(v, num_round)
             for k, v in self.compute().items()
         }
