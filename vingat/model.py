@@ -55,11 +55,11 @@ class TasteGNN(nn.Module):
         ('ingredient', 'part_of', 'taste'),
     ]
 
-    def __init__(self, hidden_dim, dropout_rate):
+    def __init__(self, hidden_dim, dropout_rate, device):
         super().__init__()
-        self.norm = DictBatchNorm(hidden_dim, ["taste"])
+        self.norm = DictBatchNorm(hidden_dim, device, ["taste"])
         self.act = DictActivate(["taste"])
-        self.drop = DictDropout(dropout_rate, ["taste"])
+        self.drop = DictDropout(dropout_rate, device, ["taste"])
         self.gnn = HANConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
@@ -74,19 +74,19 @@ class TasteGNN(nn.Module):
         out = self.gnn(x_dict, edge_index_dict)
         out["ingredient"] = ings
         out["taste"] += x_dict["taste"]  # 残差結合
-        out.set_value_dict("x", self.norm(out.x_dixt))
-        out.set_value_dict("x", self.act(out.x_dixt))
-        out.set_value_dict("x", self.drop(out.x_dixt))
+        out.update(self.norm(out))
+        out.update(self.act(out))
+        out.update(self.drop(out))
         return {
             k: v for k, v in out.items() if v is not None
         }
 
 
 class DictActivate(nn.Module):
-    def __init__(self, keys=[]):
+    def __init__(self, device, keys=[]):
         super().__init__()
         self.acts = {
-            k: nn.ReLU() for k in keys
+            k: nn.ReLU().to(device) for k in keys
         }
 
     def forward(self, x_dict):
@@ -96,10 +96,10 @@ class DictActivate(nn.Module):
 
 
 class DictDropout(nn.Module):
-    def __init__(self, dropout_rate, keys=[]):
+    def __init__(self, dropout_rate, device, keys=[]):
         super().__init__()
         self.dropouts = {
-            k: nn.Dropout(dropout_rate) for k in keys
+            k: nn.Dropout(dropout_rate).to(device) for k in keys
         }
 
     def forward(self, x_dict):
@@ -109,10 +109,10 @@ class DictDropout(nn.Module):
 
 
 class DictBatchNorm(nn.Module):
-    def __init__(self, hidden_dim, keys=[]):
+    def __init__(self, hidden_dim, device, keys=[]):
         super().__init__()
         self.norms = {
-            k: BatchNorm(hidden_dim) for k in keys
+            k: BatchNorm(hidden_dim).to(device) for k in keys
         }
 
     def forward(self, x_dict):
@@ -129,11 +129,11 @@ class MultiModalFusionGAT(nn.Module):
              ('user', 'buys', 'item'),
              ('item', 'bought_by', 'user')]
 
-    def __init__(self, hidden_dim, num_heads, dropout_rate):
+    def __init__(self, hidden_dim, num_heads, dropout_rate, device):
         super().__init__()
-        self.norm = DictBatchNorm(hidden_dim, ["user", "item"])
-        self.act = DictActivate(["user", "item"])
-        self.drop = DictDropout(dropout_rate, ["user", "item"])
+        self.norm = DictBatchNorm(hidden_dim, device, ["user", "item"])
+        self.act = DictActivate(device, ["user", "item"])
+        self.drop = DictDropout(dropout_rate, device, ["user", "item"])
         self.gnn = HGTConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
@@ -147,9 +147,9 @@ class MultiModalFusionGAT(nn.Module):
         out = self.gnn(x_dict, edge_index_dict)
         for k, v in out.items():  # 残差結合
             out[k] += x_dict[k]
-        out.set_value_dict("x", self.norm(out.x_dict))
-        out.set_value_dict("x", self.act(out.x_dict))
-        out.set_value_dict("x", self.drop(out.x_dict))
+        out.update(self.norm(out))
+        out.update(self.act(out))
+        out.update(self.drop(out))
         return {
             k: v for k, v in out.items() if v is not None
         }
@@ -252,17 +252,17 @@ class RecommendationModel(nn.Module):
         for _ in range(intention_layers):
             cl = NutCaptionContrastiveLearning(nutrient_dim, hidden_dim, temperature)
             self.cl_with_caption_and_nutrient.append(cl)
-        self.cl_dropout = DictDropout(dropout_rate, ["intention"])
+        self.cl_dropout = DictDropout(dropout_rate, device, ["intention"])
         self.cl_norm = BatchNorm(hidden_dim)
 
         # Fusion of ingredient and recipe
         self.ing_to_recipe = nn.ModuleList()
         for _ in range(sencing_layers):
-            gnn = TasteGNN(hidden_dim, dropout_rate=0.3)
+            gnn = TasteGNN(hidden_dim, dropout_rate=0.3, device=device)
             self.ing_to_recipe.append(gnn)
-        self.after_sensing_norm = DictBatchNorm(hidden_dim, ["taste", "ingredient"])
-        self.after_sensing_act = DictActivate(["taste", "ingredient"])
-        self.taste_dropout = DictDropout(dropout_rate, ["taste"])
+        self.after_sensing_norm = DictBatchNorm(hidden_dim, device, ["taste", "ingredient"])
+        self.after_sensing_act = DictActivate(device, ["taste", "ingredient"])
+        self.taste_dropout = DictDropout(dropout_rate, device, ["taste"])
 
         # HANConv layers
         self.fusion_gnn = nn.ModuleList()
@@ -270,14 +270,16 @@ class RecommendationModel(nn.Module):
             gnn = MultiModalFusionGAT(
                 hidden_dim=hidden_dim,
                 num_heads=num_heads,
-                dropout_rate=dropout_rate
+                dropout_rate=dropout_rate,
+                device=device
             )
             self.fusion_gnn.append(gnn)
         self.after_fusion_norm = DictBatchNorm(
-            hidden_dim, ["user", "item", "taste", "image", "intention"]
+            hidden_dim, device, ["user", "item", "taste", "image", "intention"]
         )
-        self.after_fusion_act = DictActivate(["user", "item", "taste", "image", "intention"])
-        self.fusion_dropout = DictDropout(dropout_rate, ["user", "item", "taste", "image"])
+        self.after_fusion_act = DictActivate(
+            device, ["user", "item", "taste", "image", "intention"])
+        self.fusion_dropout = DictDropout(dropout_rate, device, ["user", "item", "taste", "image"])
 
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
