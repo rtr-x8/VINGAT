@@ -15,7 +15,7 @@ from torchmetrics.classification import (
     BinaryConfusionMatrix,
     BinaryAUROC
 )
-from typing import Dict, List
+from typing import List
 
 
 def ndcg_at_k(r: np.ndarray, k: int):
@@ -112,15 +112,15 @@ class MetricsHandler():
 
             collection = MetricCollection({
                 "recall@10": RetrievalRecall(empty_target_action="skip", top_k=10),
-                "recall@20": RetrievalRecall(empty_target_action="skip", top_k=20),
+                # "recall@20": RetrievalRecall(empty_target_action="skip", top_k=20),
                 "precision@10": RetrievalPrecision(empty_target_action="skip", top_k=10, adaptive_k=True),  # noqa: E501
-                "precision@20": RetrievalPrecision(empty_target_action="skip", top_k=20, adaptive_k=True),  # noqa: E501
+                # "precision@20": RetrievalPrecision(empty_target_action="skip", top_k=20, adaptive_k=True),  # noqa: E501
                 "ndcg@10": RetrievalNormalizedDCG(empty_target_action="skip", top_k=10),  # noqa: E501
-                "ndcg@20": RetrievalNormalizedDCG(empty_target_action="skip", top_k=20),  # noqa: E501
-                "map@10": RetrievalMAP(empty_target_action="skip", top_k=10),
-                "map@20": RetrievalMAP(empty_target_action="skip", top_k=20),
-                "mrr@10": RetrievalMRR(empty_target_action="skip", top_k=10),
-                "mrr@20": RetrievalMRR(empty_target_action="skip", top_k=20),
+                # "ndcg@20": RetrievalNormalizedDCG(empty_target_action="skip", top_k=20),  # noqa: E501
+                # "map@10": RetrievalMAP(empty_target_action="skip", top_k=10),
+                # "map@20": RetrievalMAP(empty_target_action="skip", top_k=20),
+                # "mrr@10": RetrievalMRR(empty_target_action="skip", top_k=10),
+                # "mrr@20": RetrievalMRR(empty_target_action="skip", top_k=20),
                 "accuracy": BinaryAccuracy(threshold=self.threshold),
                 "recall": BinaryRecall(threshold=self.threshold),
                 "f1": BinaryF1Score(threshold=self.threshold),
@@ -143,37 +143,5 @@ class MetricsHandler():
     def log(self, prefix: str = "", separator: str = "/", num_round: int = 8):
         return {
             f"{prefix}{separator}{k}": round(v.item(), num_round)
-            for k, v in self.compute().items()
-        }
-
-
-class MetricsHandlerForUserLoop():
-    def __init__(self, device, threshold: float = 0.5):
-        self.threshold = threshold
-        self.device = device
-        self.results: Dict[str, List[torch.Tensor]] = {}
-
-    def update(self,
-               probas: torch.Tensor,
-               targets: torch.Tensor,
-               user_indices: torch.Tensor):
-        mh = MetricsHandler(self.device, threshold=self.threshold)
-        mh.update(probas, targets, user_indices)
-        result = mh.compute()
-        if len(self.results) == 0:
-            self.results = result
-            return
-        for k, v in result.items():
-            self.results[k] = (self.results[k] + result[k]) / 2
-
-    def compute(self):
-        return {
-            k: v.item()
-            for k, v in self.results.items()
-        }
-
-    def log(self, prefix: str = "", separator: str = "/", num_round: int = 8):
-        return {
-            f"{prefix}{separator}{k}": round(v, num_round)
             for k, v in self.compute().items()
         }
