@@ -218,7 +218,6 @@ class RecommendationModel(nn.Module):
         self.cl_loss = cl_loss
 
         self.user_encoder = nn.Embedding(num_user, hidden_dim, max_norm=1)
-        self.item_encoder = nn.Embedding(num_item, hidden_dim, max_norm=1)
 
         # 次元削減
         self.image_encoder = StaticEmbeddingEncoder(input_image_dim, hidden_dim)
@@ -284,7 +283,6 @@ class RecommendationModel(nn.Module):
 
         data.set_value_dict("x", {
             "user": self.user_encoder(data["user"].id),
-            "item": self.item_encoder(data["item"].id),
             "image": self.image_encoder(data["image"].x),
             "intention": self.vlm_caption_encoder(data["intention"].caption),
             "ingredient": self.ingredient_encoder(data["ingredient"].x),
