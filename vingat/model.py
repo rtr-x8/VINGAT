@@ -138,9 +138,13 @@ class MultiModalFusionGAT(nn.Module):
         )
 
     def forward(self, x_dict, edge_index_dict):
+        _x_dict = x_dict
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.gnn(x_dict, edge_index_dict)
+        for k, v in out.items():
+            if v is None:
+                out[k] = _x_dict[k]
         out = self.drop(out)
         return out
 
