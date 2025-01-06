@@ -51,3 +51,20 @@ class SeparationLoss(nn.Module):
 
         # 分離損失（類似度を最小化）
         return self.reg_lambda * loss
+
+
+class ContrastiveLoss(nn.Module):
+    def __init__(self, temperature=0.5):
+        super(ContrastiveLoss, self).__init__()
+        self.temperature = temperature
+        self.cosine_similarity = nn.CosineSimilarity(dim=-1)
+        self.cross_entropy = nn.CrossEntropyLoss()
+
+    def forward(self, z_A, z_B):
+        N = z_A.size(0)
+        # 類似度行列の計算
+        similarity_matrix = torch.matmul(z_A, z_B.T) / self.temperature  # (N, N)
+        # 正のペアは対角線上にある
+        labels = torch.arange(N).to(z_A.device)
+        loss = self.cross_entropy(similarity_matrix, labels)
+        return loss

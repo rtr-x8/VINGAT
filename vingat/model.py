@@ -4,6 +4,7 @@ from torch_geometric.nn import HANConv, HGTConv
 from torch_geometric.nn.norm import BatchNorm
 import torch.nn as nn
 import os
+from vingat.loss import ContrastiveLoss
 
 
 class RepeatTensor(nn.Module):
@@ -21,6 +22,31 @@ class RepeatTensor(nn.Module):
         repeated_tensor = tensor.repeat(1, repeat_count)
         # 必要な次元数にトリム
         return repeated_tensor[:, :output_dim]
+
+
+# 新しいCL
+class NutrientCaptionContrastiveLearning(nn.Module):
+    def __init(self, nutrient_input_dim, caption_input_dim, output_dim, temperature=0.5):
+        super().__init__()
+        self.temperature = temperature
+        self.nutrient_encoder = nn.Sequential(
+            nn.Linear(nutrient_input_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, output_dim)
+        )
+        self.caption_encoder = nn.Sequential(
+            nn.Linear(caption_input_dim, 256),
+            nn.ReLU(),
+            nn.Linear(256, output_dim)
+        )
+        self.cossine_similarity = nn.CosineSimilarity(dim=1)
+        self.loss = ContrastiveLoss(temperature=temperature)
+
+    def forward(self, caption, nutrient):
+        nutrient_emb = self.nutrient_encoder(nutrient)
+        caption_emb = self.caption_encoder(caption)
+        loss = self.loss(nutrient_emb, caption_emb)
+        return F.normalize(caption_emb, p=2, dim=1), F.normalize(nutrient_emb, p=2, dim=1), loss
 
 
 class NutCaptionContrastiveLearning(nn.Module):
