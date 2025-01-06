@@ -248,7 +248,7 @@ class RecommendationModel(nn.Module):
         # Fusion of ingredient and recipe
         self.ing_to_recipe = nn.ModuleList()
         for _ in range(sencing_layers):
-            gnn = TasteGNN(hidden_dim, dropout_rate=dropout_rate)
+            gnn = TasteGNN(hidden_dim, dropout_rate=0.3)
             self.ing_to_recipe.append(gnn)
         self.after_sensing_taste_norm = BatchNorm(hidden_dim)
         self.after_sensing_ingre_norm = BatchNorm(hidden_dim)
