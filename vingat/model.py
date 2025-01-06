@@ -84,7 +84,7 @@ class DictActivate(nn.Module):
 
     def forward(self, x_dict):
         return {
-            k: act(x_dict.get(k)) for k, act in x_dict.items()
+            k: act(x_dict.get(k)) for k, act in self.acts.items()
         }
 
 
@@ -97,7 +97,7 @@ class DictDropout(nn.Module):
 
     def forward(self, x_dict):
         return {
-            k: drop(x_dict.get(k)) for k, drop in self.dropouts
+            k: drop(x_dict.get(k)) for k, drop in self.dropouts.items()
         }
 
 
