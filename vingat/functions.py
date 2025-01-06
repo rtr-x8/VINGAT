@@ -8,7 +8,7 @@ from torch_geometric.data import HeteroData
 from typing import Callable, Dict, List
 import pandas as pd
 from vingat.metrics import ScoreMetricHandler
-from vingat.metrics import MetricsHandler
+from vingat.metrics import MetricsHandler, MetricsHandlerForEval
 from sklearn.preprocessing import LabelEncoder
 
 
@@ -161,7 +161,7 @@ def train_func(
             "main_loss": [],
         }
         node_mean = []
-        mhandler = MetricsHandler(device=device, threshold=0.5)
+        mhandler = MetricsHandlerForEval(device=device, threshold=0.5)
 
         model.train()
 

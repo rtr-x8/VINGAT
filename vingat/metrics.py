@@ -153,9 +153,12 @@ class MetricsHandlerForEval():
         self.device = device
         self.results: Dict[str, List[torch.Tensor]] = {}
 
-    def update(self, probas: torch.Tensor, targets: torch.Tensor, user_id):
+    def update(self,
+               probas: torch.Tensor,
+               targets: torch.Tensor,
+               user_indices: torch.Tensor):
         mh = MetricsHandler(self.device, threshold=self.threshold)
-        mh.update(probas, targets, torch.full_like(targets, user_id))
+        mh.update(probas, targets, user_indices)
         result = mh.compute()
         for k, v in result.items():
             if k not in self.results.keys():
