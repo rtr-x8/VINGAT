@@ -260,7 +260,7 @@ class RecommendationModel(nn.Module):
         self.cl_loss = cl_loss
 
         self.user_encoder = nn.Embedding(num_user, hidden_dim)
-        # self.user_embedding_dropout = nn.Dropout(p=0.3)
+        self.user_embedding_dropout = nn.Dropout(p=0.3)
 
         # 次元削減
         self.image_encoder = StaticEmbeddingEncoder(input_image_dim, hidden_dim)
@@ -291,9 +291,9 @@ class RecommendationModel(nn.Module):
         for _ in range(sencing_layers):
             gnn = TasteGNN(hidden_dim, dropout_rate=0.3, device=device)
             self.ing_to_recipe.append(gnn)
-        # self.after_sensing_norm = DictBatchNorm(hidden_dim, device, ["taste", "ingredient"])
-        # self.after_sensing_act = DictActivate(device, ["taste", "ingredient"])
-        # self.taste_dropout = DictDropout(dropout_rate, device, ["taste"])
+        self.after_sensing_norm = DictBatchNorm(hidden_dim, device, ["taste", "ingredient"])
+        self.after_sensing_act = DictActivate(device, ["taste", "ingredient"])
+        self.taste_dropout = DictDropout(dropout_rate, device, ["taste"])
 
         # HANConv layers
         self.fusion_gnn = nn.ModuleList()
@@ -331,9 +331,9 @@ class RecommendationModel(nn.Module):
             "ingredient": self.ingredient_encoder(data["ingredient"].x),
             "taste": self.cooking_direction_encoder(data["taste"].x)
         })
-        # data.set_value_dict("x", {
-        #     "user": self.user_embedding_dropout(data.x_dict["user"])
-        # })
+        data.set_value_dict("x", {
+            "user": self.user_embedding_dropout(data.x_dict["user"])
+        })
 
         cl_losses = []
         for cl in self.cl_with_caption_and_nutrient:
@@ -352,9 +352,9 @@ class RecommendationModel(nn.Module):
         # Sensing
         for gnn in self.ing_to_recipe:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
-        # data.set_value_dict("x", self.after_sensing_norm(data.x_dict))
-        # data.set_value_dict("x", self.after_sensing_act(data.x_dict))
-        # data.set_value_dict("x", self.taste_dropout(data.x_dict))
+        data.set_value_dict("x", self.after_sensing_norm(data.x_dict))
+        data.set_value_dict("x", self.after_sensing_act(data.x_dict))
+        data.set_value_dict("x", self.taste_dropout(data.x_dict))
 
         # Fusion
         for gnn in self.fusion_gnn:
