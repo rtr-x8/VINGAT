@@ -14,6 +14,7 @@ from torchmetrics.classification import (
     BinaryConfusionMatrix,
     BinaryAUROC
 )
+from typing import List
 
 
 def ndcg_at_k(r: np.ndarray, k: int):
@@ -30,27 +31,29 @@ class ScoreMetricHandler():
         self,
         device: torch.device
     ):
-        self.pos_scores = torch.empty(0, device=device)
-        self.neg_scores = torch.empty(0, device=device)
+        self.pos_scores: List[torch.Tensor] = []
+        self.neg_scores: List[torch.Tensor] = []
         self.is_calculated = False
         self.result = None
         self.device = device
 
     def update(self, pos_scores: torch.Tensor, neg_scores: torch.Tensor):
-        self.pos_scores = torch.cat([self.pos_scores, pos_scores]).to(self.device)
-        self.neg_scores = torch.cat([self.neg_scores, neg_scores]).to(self.device)
+        self.pos_scores.append(pos_scores.clone().detach().to(self.device))
+        self.neg_scores.append(neg_scores.clone().detach().to(self.device))
         self.is_calculated = False
 
     def compute(self):
         if not self.is_calculated:
-            self.pos_mean = self.pos_scores.mean().item()
-            self.pos_min = self.pos_scores.min().item()
-            self.pos_max = self.pos_scores.max().item()
-            self.pos_std = self.pos_scores.std().item()
-            self.neg_mean = self.neg_scores.mean().item()
-            self.neg_min = self.neg_scores.min().item()
-            self.neg_max = self.neg_scores.max().item()
-            self.neg_std = self.neg_scores.std().item()
+            pos_scores = torch.cat(self.pos_scores)
+            neg_scores = torch.cat(self.neg_scores)
+            self.pos_mean = pos_scores.mean().item()
+            self.pos_min = pos_scores.min().item()
+            self.pos_max = pos_scores.max().item()
+            self.pos_std = pos_scores.std().item()
+            self.neg_mean = neg_scores.mean().item()
+            self.neg_min = neg_scores.min().item()
+            self.neg_max = neg_scores.max().item()
+            self.neg_std = neg_scores.std().item()
             self.diff_mean = self.pos_mean - self.neg_mean
 
             self.is_calculated = True
@@ -93,8 +96,8 @@ class MetricsHandler():
                probas: torch.Tensor,
                targets: torch.Tensor,
                user_indices: torch.Tensor):
-        probas = probas.to(self.device)
-        targets = targets.to(self.device)
+        probas = probas.clone().detach().to(self.device)
+        targets = targets.clone().detach().to(self.device)
         user_indices = user_indices.to(self.device)
         self.probas.append(probas)
         self.targets.append(targets)
