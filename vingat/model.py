@@ -71,6 +71,7 @@ class TasteGNN(nn.Module):
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.gnn(x_dict, edge_index_dict)
         out["ingredient"] = ings
+        out["taste"] += x_dict["taste"]  # 残差結合
         out = self.drop(out)
         return {
             k: v for k, v in out.items() if v is not None
@@ -136,6 +137,8 @@ class MultiModalFusionGAT(nn.Module):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.gnn(x_dict, edge_index_dict)
+        for k, v in out.items():  # 残差結合
+            out[k] += x_dict[k]
         out = self.drop(out)
         return {
             k: v for k, v in out.items() if v is not None
@@ -220,7 +223,7 @@ class RecommendationModel(nn.Module):
         self.tiny_hidden_dim = node_embeding_dimmention
         self.cl_loss = cl_loss
 
-        self.user_encoder = nn.Embedding(num_user, hidden_dim, max_norm=1)
+        self.user_encoder = nn.Embedding(num_user, hidden_dim)
         self.user_embedding_dropout = nn.Dropout(p=0.3)
 
         # 次元削減
