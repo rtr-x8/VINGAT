@@ -4,6 +4,7 @@ from torch_geometric.nn import HANConv, HGTConv
 from torch_geometric.nn.norm import BatchNorm
 import torch.nn as nn
 import os
+from vingat.loss import ContrastiveLoss
 
 
 class RepeatTensor(nn.Module):
@@ -21,6 +22,31 @@ class RepeatTensor(nn.Module):
         repeated_tensor = tensor.repeat(1, repeat_count)
         # 必要な次元数にトリム
         return repeated_tensor[:, :output_dim]
+
+
+# 新しいCL
+class NutrientCaptionContrastiveLearning(nn.Module):
+    def __init(self, nutrient_input_dim, caption_input_dim, output_dim, temperature=0.5):
+        super().__init__()
+        self.temperature = temperature
+        self.nutrient_encoder = nn.Sequential(
+            nn.Linear(nutrient_input_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, output_dim)
+        )
+        self.caption_encoder = nn.Sequential(
+            nn.Linear(caption_input_dim, 256),
+            nn.ReLU(),
+            nn.Linear(256, output_dim)
+        )
+        self.cossine_similarity = nn.CosineSimilarity(dim=1)
+        self.loss = ContrastiveLoss(temperature=temperature)
+
+    def forward(self, caption, nutrient):
+        nutrient_emb = self.nutrient_encoder(nutrient)
+        caption_emb = self.caption_encoder(caption)
+        loss = self.loss(nutrient_emb, caption_emb)
+        return F.normalize(caption_emb, p=2, dim=1), F.normalize(nutrient_emb, p=2, dim=1), loss
 
 
 class NutCaptionContrastiveLearning(nn.Module):
@@ -234,7 +260,7 @@ class RecommendationModel(nn.Module):
         self.cl_loss = cl_loss
 
         self.user_encoder = nn.Embedding(num_user, hidden_dim)
-        # self.user_embedding_dropout = nn.Dropout(p=0.3)
+        self.user_embedding_dropout = nn.Dropout(p=0.3)
 
         # 次元削減
         self.image_encoder = StaticEmbeddingEncoder(input_image_dim, hidden_dim)
@@ -250,6 +276,11 @@ class RecommendationModel(nn.Module):
         # Contrastive caption and nutrient
         self.cl_with_caption_and_nutrient = nn.ModuleList()
         for _ in range(intention_layers):
+            """
+            cl = NutrientCaptionContrastiveLearning(
+                nutrient_dim, input_vlm_caption_dim, hidden_dim, temperature
+            )
+            """
             cl = NutCaptionContrastiveLearning(nutrient_dim, hidden_dim, temperature)
             self.cl_with_caption_and_nutrient.append(cl)
         self.cl_dropout = DictDropout(dropout_rate, device, ["intention"])
@@ -260,9 +291,9 @@ class RecommendationModel(nn.Module):
         for _ in range(sencing_layers):
             gnn = TasteGNN(hidden_dim, dropout_rate=0.3, device=device)
             self.ing_to_recipe.append(gnn)
-        # self.after_sensing_norm = DictBatchNorm(hidden_dim, device, ["taste", "ingredient"])
-        # self.after_sensing_act = DictActivate(device, ["taste", "ingredient"])
-        # self.taste_dropout = DictDropout(dropout_rate, device, ["taste"])
+        self.after_sensing_norm = DictBatchNorm(hidden_dim, device, ["taste", "ingredient"])
+        self.after_sensing_act = DictActivate(device, ["taste", "ingredient"])
+        self.taste_dropout = DictDropout(dropout_rate, device, ["taste"])
 
         # HANConv layers
         self.fusion_gnn = nn.ModuleList()
@@ -300,9 +331,9 @@ class RecommendationModel(nn.Module):
             "ingredient": self.ingredient_encoder(data["ingredient"].x),
             "taste": self.cooking_direction_encoder(data["taste"].x)
         })
-        # data.set_value_dict("x", {
-        #     "user": self.user_embedding_dropout(data.x_dict["user"])
-        # })
+        data.set_value_dict("x", {
+            "user": self.user_embedding_dropout(data.x_dict["user"])
+        })
 
         cl_losses = []
         for cl in self.cl_with_caption_and_nutrient:
@@ -321,9 +352,9 @@ class RecommendationModel(nn.Module):
         # Sensing
         for gnn in self.ing_to_recipe:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
-        # data.set_value_dict("x", self.after_sensing_norm(data.x_dict))
-        # data.set_value_dict("x", self.after_sensing_act(data.x_dict))
-        # data.set_value_dict("x", self.taste_dropout(data.x_dict))
+        data.set_value_dict("x", self.after_sensing_norm(data.x_dict))
+        data.set_value_dict("x", self.after_sensing_act(data.x_dict))
+        data.set_value_dict("x", self.taste_dropout(data.x_dict))
 
         # Fusion
         for gnn in self.fusion_gnn:
