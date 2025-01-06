@@ -85,8 +85,9 @@ def evaluate_model(
                 user_indices=torch.full((len(pos_scores) + len(neg_scores),),
                                         user_id, device=device)
             )
-
+    print("Score Statics Computing...")
     shandler.compute()
+    print("Metric Computing...")
     mhandler.compute()
 
     return shandler, mhandler
