@@ -15,7 +15,7 @@ from torchmetrics.classification import (
     BinaryConfusionMatrix,
     BinaryAUROC
 )
-from typing import List
+from typing import Dict, List
 
 
 def ndcg_at_k(r: np.ndarray, k: int):
@@ -129,10 +129,10 @@ class MetricsHandler():
             }).to(self.device)
 
             result = collection(all_probas, all_targets, indexes=all_user_indices)
-            result["tn"] = result["cm"][0][0]
-            result["fp"] = result["cm"][0][1]
-            result["fn"] = result["cm"][1][0]
-            result["tp"] = result["cm"][1][1]
+            result["tn"] = result["cm"][0][0].type(torch.float16)
+            result["fp"] = result["cm"][0][1].type(torch.float16)
+            result["fn"] = result["cm"][1][0].type(torch.float16)
+            result["tp"] = result["cm"][1][1].type(torch.float16)
             del result["cm"]
 
             self.result = result
@@ -143,5 +143,37 @@ class MetricsHandler():
     def log(self, prefix: str = "", separator: str = "/", num_round: int = 8):
         return {
             f"{prefix}{separator}{k}": round(v.item(), num_round)
+            for k, v in self.compute().items()
+        }
+
+
+class MetricsHandlerForUserLoop():
+    def __init__(self, device, threshold: float = 0.5):
+        self.threshold = threshold
+        self.device = device
+        self.results: Dict[str, List[torch.Tensor]] = {}
+
+    def update(self,
+               probas: torch.Tensor,
+               targets: torch.Tensor,
+               user_indices: torch.Tensor):
+        mh = MetricsHandler(self.device, threshold=self.threshold)
+        mh.update(probas, targets, user_indices)
+        result = mh.compute()
+        if len(self.results) == 0:
+            self.results = result
+            return
+        for k, v in result.items():
+            self.results[k] = (self.results[k] + result[k]) / 2
+
+    def compute(self):
+        return {
+            k: v.item()
+            for k, v in self.results.items()
+        }
+
+    def log(self, prefix: str = "", separator: str = "/", num_round: int = 8):
+        return {
+            f"{prefix}{separator}{k}": round(v, num_round)
             for k, v in self.compute().items()
         }
