@@ -181,7 +181,9 @@ def train_func(
             # out, cl_loss = model(batch_data)
             out, loss_entories = model(batch_data)
 
-            main_loss_rate = 1.0 - sum([entry["weight"] for entry in loss_entories])
+            main_loss_rate = 1.0
+            if len(loss_entories) > 0:
+                main_loss_rate -= sum([entry["weight"] for entry in loss_entories])
             if main_loss_rate < 0:
                 raise ValueError("main loss rate is negative")
 
@@ -214,10 +216,12 @@ def train_func(
             # 損失の計算
             main_loss = criterion(pos_scores, neg_scores, model.parameters())
 
-            other_loss = torch.sum(torch.stack(
-                [entry["loss"] * entry["weight"] for entry in loss_entories]
-            ))
-            loss = main_loss_rate * main_loss + other_loss
+            loss = main_loss_rate * main_loss
+            if len(loss_entories) > 0:
+                other_loss = torch.sum(torch.stack(
+                    [entry["loss"] * entry["weight"] for entry in loss_entories]
+                ))
+                loss += other_loss
 
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
