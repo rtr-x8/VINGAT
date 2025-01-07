@@ -197,13 +197,13 @@ def print_layer_outputs(model, input_data, max_elements=10, prefix=""):
         print("-" * 20)
 
 
-class StaticEmbeddingEncoder(nn.Module):
+class StaticEmbeddingEncoder():
     def __init__(self, input_dim, output_dim):
         super().__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
 
-    def forward(self, x):
+    def __call__(self, x):
         with torch.no_grad():
             return x[:, :self.output_dim]
 
@@ -421,10 +421,8 @@ class RecommendationModel(nn.Module):
             nn.Embedding(num_user, hidden_dim),
             nn.Dropout(p=0.3)
         )
-        self.image_encoder = nn.Sequential(
-            StaticEmbeddingEncoder(input_image_dim, hidden_dim),
-            LowRankLinear(input_image_dim, hidden_dim, rank=64)
-        )
+        self.image_encoder = LowRankLinear(input_image_dim, hidden_dim, rank=64)
+
         self.ingredient_encoder = nn.Linear(input_ingredient_dim, hidden_dim)
         self.cooking_direction_encoder = nn.Linear(input_cooking_direction_dim, hidden_dim)
 
