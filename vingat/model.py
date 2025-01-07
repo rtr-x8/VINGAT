@@ -429,11 +429,11 @@ class RecommendationModel(nn.Module):
         self.cooking_direction_encoder = nn.Linear(input_cooking_direction_dim, hidden_dim)
 
         # Taste Level GAT
-        self.ingredient_to_taste_gnn = nn.Sequential(
-            nn.ModuleList(
-                TasteGNN(hidden_dim, dropout_rate=0.3, device=device)
-                for _ in range(sencing_layers)
-            ),
+        self.ingredient_to_taste_gnn = nn.ModuleList(
+            TasteGNN(hidden_dim, dropout_rate=0.3, device=device)
+            for _ in range(sencing_layers)
+        )
+        self.ingredient_to_taste_gnn_after = nn.Sequential(
             DictBatchNorm(hidden_dim, device, ["taste", "ingredient"]),
             DictActivate(device, ["taste", "ingredient"]),
             DictDropout(dropout_rate, device, ["taste"]),
@@ -475,14 +475,15 @@ class RecommendationModel(nn.Module):
         return self.link_predictor(edge_features)
 
     def forward(self, data: HeteroData):
-        self.set_value_dict("x", {
+        data.set_value_dict("x", {
             "user": self.user_encoder(data["user"].user_id),
             "image": self.image_encoder(data["image"].org),
             "ingredient": self.ingredient_encoder(data["ingredient"].org),
             "taste": self.cooking_direction_encoder(data["taste"].org)
         })
 
-        self.set_value_dict("x", self.ingredient_to_taste_gnn(data.x_dict, data.edge_index_dict))
+        data.set_value_dict("x", self.ingredient_to_taste_gnn(data.x_dict, data.edge_index_dict))
+        data.set_value_dict("x", self.ingredient_to_taste_gnn_after(data.x_dict))
 
         # self.set_value_dict("x", self.multi_modal_fusion_gnn(data.x_dict, data.edge_index_dict))
 
