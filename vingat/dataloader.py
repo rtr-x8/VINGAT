@@ -101,7 +101,8 @@ def create_base_hetero(
     image_encoder = StaticEmbeddingLoader(recipe_image_embeddings,
                                           dimention=input_image_dim,
                                           device=device)
-    data["image"].x = image_encoder(torch.tensor(item_lencoder.classes_, dtype=torch.long))
+    data["image"].org = image_encoder(torch.tensor(item_lencoder.classes_, dtype=torch.long))
+    data["image"].x = torch.zeros((len(item_lencoder.classes_), hidden_dim), dtype=torch.float32)
 
     data["intention"].num_nodes = len(item_lencoder.classes_)
     data["intention"].item_id = torch.tensor(item_lencoder.classes_)
@@ -111,6 +112,7 @@ def create_base_hetero(
     caption_encoder = StaticEmbeddingLoader(recipe_image_vlm_caption_embeddings,
                                             dimention=input_vlm_caption_dim,
                                             device=device)
+    # caption.x, nutrientはCLで埋め込まれるためここでは読み込み時のままでOK
     data["intention"].caption = caption_encoder(torch.tensor(item_lencoder.classes_,
                                                              dtype=torch.long))
     data["intention"].x = torch.rand(
@@ -121,14 +123,17 @@ def create_base_hetero(
     vlm_encoder = StaticEmbeddingLoader(
         recipe_cooking_directions_embeddings,
         dimention=input_cooking_direction_dim, device=device)
-    data["taste"].x = vlm_encoder(torch.tensor(item_lencoder.classes_, dtype=torch.long))
+    data["taste"].org = vlm_encoder(torch.tensor(item_lencoder.classes_, dtype=torch.long))
+    data["taste"].x = torch.zeros((len(item_lencoder.classes_), hidden_dim), dtype=torch.float32)
 
     data["ingredient"].num_nodes = len(ing_lencoder.classes_)
     data["ingredient"].ingredient_id = torch.tensor(ing_lencoder.classes_)
     ingre_encoder = StaticEmbeddingLoader(ingredients_with_embeddings,
                                           dimention=input_ingredient_dim,
                                           device=device)
-    data["ingredient"].x = ingre_encoder(torch.tensor(ing_lencoder.classes_, dtype=torch.long))
+    data["ingredient"].org = ingre_encoder(torch.tensor(ing_lencoder.classes_, dtype=torch.long))
+    data["ingredient"].x = torch.zeros((len(ing_lencoder.classes_), hidden_dim),
+                                       dtype=torch.float32)
 
     # Edge
     ei_attr_item = torch.stack([
