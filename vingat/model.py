@@ -282,6 +282,7 @@ class RecommendationModel(nn.Module):
             self.cl_with_caption_and_nutrient.append(cl)
         self.cl_dropout = DictDropout(dropout_rate, device, ["intention"])
         self.cl_norm = BatchNorm(hidden_dim)
+        self.cl_act = nn.ReLU()
 
         # Fusion of ingredient and recipe
         self.ing_to_recipe = nn.ModuleList()
@@ -341,6 +342,9 @@ class RecommendationModel(nn.Module):
         cl_loss = torch.stack(cl_losses).mean()
         data.set_value_dict("x", {
             "intention": self.cl_norm(data.x_dict["intention"])
+        })
+        data.set_value_dict("x", {
+            "intention": self.cl_act(data.x_dict["intention"])
         })
         data.set_value_dict("x", self.cl_dropout(data.x_dict))
 
