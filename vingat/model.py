@@ -266,7 +266,7 @@ class RecommendationModel(nn.Module):
         self.image_encoder = StaticEmbeddingEncoder(input_image_dim, hidden_dim)
 
         # 次元はこのまま使う
-        self.vlm_caption_encoder = StaticEmbeddingEncoder(input_vlm_caption_dim, hidden_dim)
+        # self.vlm_caption_encoder = StaticEmbeddingEncoder(input_vlm_caption_dim, hidden_dim)
         self.ingredient_encoder = StaticEmbeddingEncoder(input_ingredient_dim, hidden_dim)
         self.cooking_direction_encoder = StaticEmbeddingEncoder(input_cooking_direction_dim,
                                                                 hidden_dim)
@@ -323,7 +323,7 @@ class RecommendationModel(nn.Module):
         data.set_value_dict("x", {
             "user": self.user_encoder(data["user"].id),
             "image": self.image_encoder(data["image"].x),
-            "intention": self.vlm_caption_encoder(data["intention"].caption),
+            # "intention": self.vlm_caption_encoder(data["intention"].caption),
             "ingredient": self.ingredient_encoder(data["ingredient"].x),
             "taste": self.cooking_direction_encoder(data["taste"].x)
         })
@@ -333,7 +333,7 @@ class RecommendationModel(nn.Module):
 
         cl_losses = []
         for cl in self.cl_with_caption_and_nutrient:
-            intention_x, _, cl_loss = cl(data["intention"].x, data["intention"].nutrient)
+            intention_x, _, cl_loss = cl(data["intention"].caption, data["intention"].nutrient)
             cl_losses.append(cl_loss)
             data.set_value_dict("x", {
                 "intention": intention_x
