@@ -375,10 +375,11 @@ class RecommendationModel(nn.Module):
         self.cooking_direction_encoder = nn.Linear(input_cooking_direction_dim, hidden_dim)
 
         # Taste Level GAT
-        self.ingredient_to_taste_gnn = nn.Sequential(**[
-            TasteGNN(hidden_dim, dropout_rate=0.3, device=device)
-            for _ in range(sencing_layers)
-        ])
+        self.ingredient_to_taste_gnn = nn.ModuleList()
+        for _ in range(sencing_layers):
+            self.ingredient_to_taste_gnn.append(
+                TasteGNN(hidden_dim, dropout_rate=0.3, device=device)
+            )
         self.ingredient_to_taste_gnn_after = nn.Sequential(
             DictBatchNorm(hidden_dim, device, ["taste", "ingredient"]),
             DictActivate(device, ["taste", "ingredient"]),
@@ -428,9 +429,10 @@ class RecommendationModel(nn.Module):
             "taste": self.cooking_direction_encoder(data["taste"].org)
         })
 
-        data.set_value_dict("x", self.ingredient_to_taste_gnn(data.x_dict, data.edge_index_dict))
+        for gnn in self.ingredient_to_taste_gnn:
+            data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
         data.set_value_dict("x", self.ingredient_to_taste_gnn_after(data.x_dict))
 
         # self.set_value_dict("x", self.multi_modal_fusion_gnn(data.x_dict, data.edge_index_dict))
 
-        return self, []
+        return data, []
