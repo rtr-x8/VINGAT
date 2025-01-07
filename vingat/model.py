@@ -427,7 +427,7 @@ class RecommendationModel(nn.Module):
         self.cooking_direction_encoder = nn.Linear(input_cooking_direction_dim, hidden_dim)
 
         # Taste Level GAT
-        self.ingredient_to_taste_gnn = nn.ModuleList(
+        self.ingredient_to_taste_gnn = nn.Sequential(
             TasteGNN(hidden_dim, dropout_rate=0.3, device=device)
             for _ in range(sencing_layers)
         )
