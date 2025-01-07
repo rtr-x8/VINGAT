@@ -35,14 +35,9 @@ def filter_recipe_ingredient(
     """
     レシピと食材のデータフレームを受け取り、代替食材の数が閾値を超えるレシピを返す
     """
-    merged = pd.merge(recip_ing, alternative_ing, on='ingredient_id')
-    update_mask = (
-        merged['score'].notna() &
-        (merged['score'] > threshold) &
-        (merged['ingredient_id'] != merged['alternative_ingredient'])
-    )
-
-    merged.loc[update_mask, 'ingredient_id'] = merged.loc[update_mask, 'alternative_ingredient']
-    merged = merged.drop(columns=['alternative_ingredient', 'score'])
-    merged = merged.drop_duplicates(subset=['recipe_id', 'ingredient_id']).reset_index(drop=True)
-    return merged
+    _key = 'ingredient_id'
+    alternative = alternative_ing[alternative_ing["score"] > threshold]
+    mapping_dict = dict(zip(alternative['alternative_ingredient'], alternative[_key]))
+    recip_ing[_key] = recip_ing[_key].map(mapping_dict).fillna(recip_ing[_key]).astype(int)
+    recip_ing.drop_duplicates(subset=['recipe_id', _key]).reset_index(drop=True)
+    return recip_ing
