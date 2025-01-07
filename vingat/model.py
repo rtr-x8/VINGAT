@@ -8,23 +8,6 @@ import os
 from vingat.loss import ContrastiveLoss
 
 
-class RepeatTensor(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, tensor, output_dim):
-        input_dim = tensor.size(1)
-        if input_dim > output_dim:
-            raise ValueError("input_dim が output_dim を超えることはできません。")
-
-        # 必要な繰り返し回数を計算
-        repeat_count = (output_dim + input_dim - 1) // input_dim  # 切り上げ
-        # 自身を繰り返し結合して次元を増加
-        repeated_tensor = tensor.repeat(1, repeat_count)
-        # 必要な次元数にトリム
-        return repeated_tensor[:, :output_dim]
-
-
 # 新しいCL
 class NutrientCaptionContrastiveLearning(nn.Module):
     def __init__(self, nutrient_input_dim, caption_input_dim, output_dim, temperature=0.5):
@@ -48,32 +31,6 @@ class NutrientCaptionContrastiveLearning(nn.Module):
         caption_emb = self.caption_encoder(caption)
         loss = self.loss(nutrient_emb, caption_emb)
         return F.normalize(caption_emb, p=2, dim=1), F.normalize(nutrient_emb, p=2, dim=1), loss
-
-
-class NutCaptionContrastiveLearning(nn.Module):
-    """
-    InfoNCE lossを用いたContrastive Learningのモジュール
-    """
-    def __init__(self, nutrient_dim, output_dim, temperature):
-        super().__init__()
-        self.output_dim = output_dim
-        self.temperature = temperature
-        self.nutrient_encoder = nn.Linear(nutrient_dim, output_dim)
-
-    def info_nce_loss(self, text_emb, nut_emb):
-        batch_size = text_emb.size(0)
-        text_emb_norm = F.normalize(text_emb, p=2, dim=1)
-        nut_emb_norm = F.normalize(nut_emb, p=2, dim=1)
-        # (B, B)の類似度行列
-        logits = torch.matmul(text_emb_norm, nut_emb_norm.t()) / self.temperature
-        labels = torch.arange(batch_size).long().to(text_emb.device)
-        loss = F.cross_entropy(logits, labels)
-        return loss
-
-    def forward(self, text_emb, nut_emb):
-        updated_nut = self.nutrient_encoder(nut_emb)
-        loss = self.info_nce_loss(text_emb, updated_nut)
-        return text_emb, updated_nut, loss
 
 
 class TasteGNN(nn.Module):
@@ -206,15 +163,6 @@ class StaticEmbeddingEncoder():
     def __call__(self, x):
         with torch.no_grad():
             return x[:, :self.output_dim]
-
-
-class StaticEmbeddingLinearEncoder(nn.Module):
-    def __init__(self, input_dim, output_dim):
-        super().__init__()
-        self.encoder = nn.Linear(input_dim, output_dim)
-
-    def forward(self, x):
-        return self.encoder(x)
 
 
 class LowRankLinear(nn.Module):
@@ -427,10 +375,10 @@ class RecommendationModel(nn.Module):
         self.cooking_direction_encoder = nn.Linear(input_cooking_direction_dim, hidden_dim)
 
         # Taste Level GAT
-        self.ingredient_to_taste_gnn = nn.Sequential(
+        self.ingredient_to_taste_gnn = nn.Sequential(**[
             TasteGNN(hidden_dim, dropout_rate=0.3, device=device)
             for _ in range(sencing_layers)
-        )
+        ])
         self.ingredient_to_taste_gnn_after = nn.Sequential(
             DictBatchNorm(hidden_dim, device, ["taste", "ingredient"]),
             DictActivate(device, ["taste", "ingredient"]),
