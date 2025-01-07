@@ -342,6 +342,8 @@ class RecommendationModel(nn.Module):
         input_vlm_caption_dim: int,
         input_ingredient_dim: int,
         input_cooking_direction_dim: int,
+        user_encoder_low_rank_dim: int,
+        item_encoder_low_rank_dim: int,
     ):
         super().__init__()
         os.environ['TORCH_USE_CUDA_DSA'] = '1'
@@ -366,38 +368,49 @@ class RecommendationModel(nn.Module):
 
         # Node Encoder
         self.user_encoder = nn.Sequential(
-            nn.Embedding(num_user, hidden_dim),
-            nn.Dropout(p=0.3)
+            nn.Embedding(num_user, user_encoder_low_rank_dim),
+            nn.Linear(user_encoder_low_rank_dim, hidden_dim),
+            nn.Dropout(p=0.4)
         )
+        self.item_encoder = nn.Sequential(
+            nn.Embedding(num_item, item_encoder_low_rank_dim),
+            nn.Linear(item_encoder_low_rank_dim, hidden_dim),
+            nn.Dropout(p=0.4)
+        )
+        """
         self.image_encoder = LowRankLinear(input_image_dim, hidden_dim, rank=64)
 
         self.ingredient_encoder = nn.Linear(input_ingredient_dim, hidden_dim)
         self.cooking_direction_encoder = nn.Linear(input_cooking_direction_dim, hidden_dim)
-
+        """
         # Taste Level GAT
-        self.ingredient_to_taste_gnn = nn.Sequential(**[
-            TasteGNN(hidden_dim, dropout_rate=0.3, device=device)
-            for _ in range(sencing_layers)
-        ])
+        """
+        self.ingredient_to_taste_gnn = nn.ModuleList()
+        for _ in range(sencing_layers):
+            self.ingredient_to_taste_gnn.append(
+                TasteGNN(hidden_dim, dropout_rate=0.3, device=device)
+            )
         self.ingredient_to_taste_gnn_after = nn.Sequential(
             DictBatchNorm(hidden_dim, device, ["taste", "ingredient"]),
             DictActivate(device, ["taste", "ingredient"]),
             DictDropout(dropout_rate, device, ["taste"]),
         )
+        """
 
         # Fusion GAT
         """
         fusion_nodes = ["user", "item", "taste", "image", "intention"]
-        self.multi_modal_fusion_gnn = nn.Sequential(
-            nn.ModuleList(
+        self.multi_modal_fusion_gnn = nn.ModuleList()
+        for _ in range(fusion_layers):
+            self.multi_modal_fusion_gnn.append(
                 MultiModalFusionGAT(
                     hidden_dim=hidden_dim,
                     num_heads=num_heads,
                     dropout_rate=dropout_rate,
                     device=device
                 )
-                for _ in range(fusion_layers)
-            ),
+            )
+        self.multi_modal_fusion_gnn_after = nn.Sequential(
             DictBatchNorm(hidden_dim, device, fusion_nodes),
             DictActivate(device, fusion_nodes),
             DictDropout(dropout_rate, device, fusion_nodes),
@@ -423,14 +436,21 @@ class RecommendationModel(nn.Module):
     def forward(self, data: HeteroData):
         data.set_value_dict("x", {
             "user": self.user_encoder(data["user"].id),
-            "image": self.image_encoder(data["image"].org),
-            "ingredient": self.ingredient_encoder(data["ingredient"].org),
-            "taste": self.cooking_direction_encoder(data["taste"].org)
+            "item": self.item_encoder(data["item"].id),
+            # "image": self.image_encoder(data["image"].org),
+            # "ingredient": self.ingredient_encoder(data["ingredient"].org),
+            # "taste": self.cooking_direction_encoder(data["taste"].org)
         })
 
-        data.set_value_dict("x", self.ingredient_to_taste_gnn(data.x_dict, data.edge_index_dict))
+        """
+        for gnn in self.ingredient_to_taste_gnn:
+            data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
         data.set_value_dict("x", self.ingredient_to_taste_gnn_after(data.x_dict))
+        """
 
-        # self.set_value_dict("x", self.multi_modal_fusion_gnn(data.x_dict, data.edge_index_dict))
+        """
+        for gnn in self.multi_modal_fusion_gnn:
+            data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
+        """
 
-        return self, []
+        return data, []
