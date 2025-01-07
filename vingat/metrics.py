@@ -39,8 +39,8 @@ class ScoreMetricHandler():
         self.device = device
 
     def update(self, pos_scores: torch.Tensor, neg_scores: torch.Tensor):
-        self.pos_scores.append(pos_scores.clone().detach().to(self.device))
-        self.neg_scores.append(neg_scores.clone().detach().to(self.device))
+        self.pos_scores.append(pos_scores.to(self.device))
+        self.neg_scores.append(neg_scores.to(self.device))
         self.is_calculated = False
 
     def compute(self):
@@ -97,8 +97,8 @@ class MetricsHandler():
                probas: torch.Tensor,
                targets: torch.Tensor,
                user_indices: torch.Tensor):
-        probas = probas.clone().detach().to(self.device)
-        targets = targets.clone().detach().to(self.device)
+        probas = probas.to(self.device)
+        targets = targets.to(self.device)
         user_indices = user_indices.to(self.device)
         self.probas.append(probas)
         self.targets.append(targets)
