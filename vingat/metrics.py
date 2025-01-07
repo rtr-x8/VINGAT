@@ -129,10 +129,10 @@ class MetricsHandler():
             }).to(self.device)
 
             result = collection(all_probas, all_targets, indexes=all_user_indices)
-            result["tn"] = result["cm"][0][0].type(torch.float16)
-            result["fp"] = result["cm"][0][1].type(torch.float16)
-            result["fn"] = result["cm"][1][0].type(torch.float16)
-            result["tp"] = result["cm"][1][1].type(torch.float16)
+            result["tn"] = result["cm"][0][0]
+            result["fp"] = result["cm"][0][1]
+            result["fn"] = result["cm"][1][0]
+            result["tp"] = result["cm"][1][1]
             del result["cm"]
 
             self.result = result
