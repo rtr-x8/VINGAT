@@ -387,23 +387,22 @@ class RecommendationModel(nn.Module):
         )
 
         # Fusion GAT
-        """
         fusion_nodes = ["user", "item", "taste", "image", "intention"]
-        self.multi_modal_fusion_gnn = nn.Sequential(
-            nn.ModuleList(
+        self.multi_modal_fusion_gnn = nn.ModuleList()
+        for _ in range(fusion_layers):
+            self.multi_modal_fusion_gnn.append(
                 MultiModalFusionGAT(
                     hidden_dim=hidden_dim,
                     num_heads=num_heads,
                     dropout_rate=dropout_rate,
                     device=device
                 )
-                for _ in range(fusion_layers)
-            ),
+            )
+        self.multi_modal_fusion_gnn_after = nn.Sequential(
             DictBatchNorm(hidden_dim, device, fusion_nodes),
             DictActivate(device, fusion_nodes),
             DictDropout(dropout_rate, device, fusion_nodes),
         )
-        """
 
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
@@ -433,6 +432,9 @@ class RecommendationModel(nn.Module):
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
         data.set_value_dict("x", self.ingredient_to_taste_gnn_after(data.x_dict))
 
-        # self.set_value_dict("x", self.multi_modal_fusion_gnn(data.x_dict, data.edge_index_dict))
+        """
+        for gnn in self.multi_modal_fusion_gnn:
+            data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
+        """
 
         return data, []
