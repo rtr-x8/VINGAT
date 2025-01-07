@@ -424,7 +424,7 @@ class RecommendationModel(nn.Module):
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
             nn.Linear(hidden_dim + hidden_dim, hidden_dim),
-            nn.BatchNorm1d(hidden_dim),
+            # nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, 1),
             nn.Sigmoid()
