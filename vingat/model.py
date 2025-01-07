@@ -197,13 +197,13 @@ def print_layer_outputs(model, input_data, max_elements=10, prefix=""):
         print("-" * 20)
 
 
-class StaticEmbeddingEncoder(nn.Module):
+class StaticEmbeddingEncoder():
     def __init__(self, input_dim, output_dim):
         super().__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
 
-    def forward(self, x):
+    def __call__(self, x):
         with torch.no_grad():
             return x[:, :self.output_dim]
 
