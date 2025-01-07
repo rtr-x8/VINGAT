@@ -39,5 +39,5 @@ def filter_recipe_ingredient(
     alternative = alternative_ing[alternative_ing["score"] > threshold]
     mapping_dict = dict(zip(alternative['alternative_ingredient'], alternative[_key]))
     recip_ing[_key] = recip_ing[_key].map(mapping_dict).fillna(recip_ing[_key]).astype(int)
-    recip_ing = recip_ing.drop_duplicates(subset=['recipe_id', _key]).reset_index(drop=True)
+    recip_ing = recip_ing.drop_duplicates(subset=['recipe_id', _key])
     return recip_ing
