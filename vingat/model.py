@@ -302,13 +302,12 @@ class RecommendationModel(nn.Module):
                 device=device
             )
             self.fusion_gnn.append(gnn)
-        # self.after_fusion_norm = DictBatchNorm(
-        #    hidden_dim, device, ["user", "item", "taste", "image", "intention"]
-        # )
-        # self.after_fusion_act = DictActivate(
-        #    device, ["user", "item", "taste", "image", "intention"])
-        # self.fusion_dropout =
-        # DictDropout(dropout_rate, device, ["user", "item", "taste", "image"])
+        self.after_fusion_norm = DictBatchNorm(
+           hidden_dim, device, ["user", "item", "taste", "image", "intention"]
+        )
+        self.after_fusion_act = DictActivate(
+           device, ["user", "item", "taste", "image", "intention"])
+        self.fusion_dropout = DictDropout(dropout_rate, device, ["user", "item", "taste", "image"])
 
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
@@ -356,9 +355,9 @@ class RecommendationModel(nn.Module):
         # Fusion
         for gnn in self.fusion_gnn:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
-        # data.set_value_dict("x", self.after_fusion_norm(data.x_dict))
-        # data.set_value_dict("x", self.after_fusion_act(data.x_dict))
-        # data.set_value_dict("x", self.fusion_dropout(data.x_dict))
+        data.set_value_dict("x", self.after_fusion_norm(data.x_dict))
+        data.set_value_dict("x", self.after_fusion_act(data.x_dict))
+        data.set_value_dict("x", self.fusion_dropout(data.x_dict))
 
         return data, [
             {"name": "cl_loss", "loss": cl_loss, "weight": self.cl_loss}
