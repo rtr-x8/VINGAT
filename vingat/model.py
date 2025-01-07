@@ -398,7 +398,6 @@ class RecommendationModel(nn.Module):
         super().__init__()
         os.environ['TORCH_USE_CUDA_DSA'] = '1'
 
-        self.self = self
         self.dropout_rate = dropout_rate
         self.device = device
         self.hidden_dim = hidden_dim
