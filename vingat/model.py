@@ -476,7 +476,7 @@ class RecommendationModel(nn.Module):
 
     def forward(self, data: HeteroData):
         data.set_value_dict("x", {
-            "user": self.user_encoder(data["user"].user_id),
+            "user": self.user_encoder(data["user"].id),
             "image": self.image_encoder(data["image"].org),
             "ingredient": self.ingredient_encoder(data["ingredient"].org),
             "taste": self.cooking_direction_encoder(data["taste"].org)
