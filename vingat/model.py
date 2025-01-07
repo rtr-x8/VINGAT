@@ -421,10 +421,8 @@ class RecommendationModel(nn.Module):
             nn.Embedding(num_user, hidden_dim),
             nn.Dropout(p=0.3)
         )
-        self.image_encoder = nn.Sequential(
-            StaticEmbeddingEncoder(input_image_dim, hidden_dim),
-            LowRankLinear(input_image_dim, hidden_dim, rank=64)
-        )
+        self.image_encoder = LowRankLinear(input_image_dim, hidden_dim, rank=64)
+
         self.ingredient_encoder = nn.Linear(input_ingredient_dim, hidden_dim)
         self.cooking_direction_encoder = nn.Linear(input_cooking_direction_dim, hidden_dim)
 
