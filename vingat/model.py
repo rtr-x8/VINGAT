@@ -342,6 +342,8 @@ class RecommendationModel(nn.Module):
         input_vlm_caption_dim: int,
         input_ingredient_dim: int,
         input_cooking_direction_dim: int,
+        user_encoder_low_rank_dim: int,
+        item_encoder_low_rank_dim: int,
     ):
         super().__init__()
         os.environ['TORCH_USE_CUDA_DSA'] = '1'
@@ -366,18 +368,21 @@ class RecommendationModel(nn.Module):
 
         # Node Encoder
         self.user_encoder = nn.Sequential(
-            nn.Embedding(num_user, hidden_dim),
+            nn.Embedding(num_user, user_encoder_low_rank_dim),
+            nn.Linear(user_encoder_low_rank_dim, hidden_dim),
             nn.Dropout(p=0.4)
         )
         self.item_encoder = nn.Sequential(
-            nn.Embedding(num_item, hidden_dim),
+            nn.Embedding(num_item, item_encoder_low_rank_dim),
+            nn.Linear(item_encoder_low_rank_dim, hidden_dim),
             nn.Dropout(p=0.4)
         )
+        """
         self.image_encoder = LowRankLinear(input_image_dim, hidden_dim, rank=64)
 
         self.ingredient_encoder = nn.Linear(input_ingredient_dim, hidden_dim)
         self.cooking_direction_encoder = nn.Linear(input_cooking_direction_dim, hidden_dim)
-
+        """
         # Taste Level GAT
         """
         self.ingredient_to_taste_gnn = nn.ModuleList()
@@ -432,9 +437,9 @@ class RecommendationModel(nn.Module):
         data.set_value_dict("x", {
             "user": self.user_encoder(data["user"].id),
             "item": self.item_encoder(data["item"].id),
-            "image": self.image_encoder(data["image"].org),
-            "ingredient": self.ingredient_encoder(data["ingredient"].org),
-            "taste": self.cooking_direction_encoder(data["taste"].org)
+            # "image": self.image_encoder(data["image"].org),
+            # "ingredient": self.ingredient_encoder(data["ingredient"].org),
+            # "taste": self.cooking_direction_encoder(data["taste"].org)
         })
 
         """
