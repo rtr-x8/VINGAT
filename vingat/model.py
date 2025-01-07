@@ -367,7 +367,11 @@ class RecommendationModel(nn.Module):
         # Node Encoder
         self.user_encoder = nn.Sequential(
             nn.Embedding(num_user, hidden_dim),
-            nn.Dropout(p=0.3)
+            nn.Dropout(p=0.4)
+        )
+        self.item_encoder = nn.Sequential(
+            nn.Embedding(num_item, hidden_dim),
+            nn.Dropout(p=0.4)
         )
         self.image_encoder = LowRankLinear(input_image_dim, hidden_dim, rank=64)
 
@@ -375,6 +379,7 @@ class RecommendationModel(nn.Module):
         self.cooking_direction_encoder = nn.Linear(input_cooking_direction_dim, hidden_dim)
 
         # Taste Level GAT
+        """
         self.ingredient_to_taste_gnn = nn.ModuleList()
         for _ in range(sencing_layers):
             self.ingredient_to_taste_gnn.append(
@@ -385,8 +390,10 @@ class RecommendationModel(nn.Module):
             DictActivate(device, ["taste", "ingredient"]),
             DictDropout(dropout_rate, device, ["taste"]),
         )
+        """
 
         # Fusion GAT
+        """
         fusion_nodes = ["user", "item", "taste", "image", "intention"]
         self.multi_modal_fusion_gnn = nn.ModuleList()
         for _ in range(fusion_layers):
@@ -403,6 +410,7 @@ class RecommendationModel(nn.Module):
             DictActivate(device, fusion_nodes),
             DictDropout(dropout_rate, device, fusion_nodes),
         )
+        """
 
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
@@ -423,14 +431,17 @@ class RecommendationModel(nn.Module):
     def forward(self, data: HeteroData):
         data.set_value_dict("x", {
             "user": self.user_encoder(data["user"].id),
+            "item": self.item_encoder(data["item"].id),
             "image": self.image_encoder(data["image"].org),
             "ingredient": self.ingredient_encoder(data["ingredient"].org),
             "taste": self.cooking_direction_encoder(data["taste"].org)
         })
 
+        """
         for gnn in self.ingredient_to_taste_gnn:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
         data.set_value_dict("x", self.ingredient_to_taste_gnn_after(data.x_dict))
+        """
 
         """
         for gnn in self.multi_modal_fusion_gnn:
