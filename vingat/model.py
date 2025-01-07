@@ -334,9 +334,9 @@ class RecommendationModel(nn.Module):
             "ingredient": self.ingredient_encoder(data["ingredient"].x),
             "taste": self.cooking_direction_encoder(data["taste"].x)
         })
-        data.set_value_dict("x", {
-            "user": self.user_embedding_dropout(data.x_dict["user"])
-        })
+        # data.set_value_dict("x", {
+        #     "user": self.user_embedding_dropout(data.x_dict["user"])
+        # })
 
         cl_losses = []
         for cl in self.cl_with_caption_and_nutrient:
