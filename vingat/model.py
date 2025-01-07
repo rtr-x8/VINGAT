@@ -26,7 +26,7 @@ class RepeatTensor(nn.Module):
 
 # 新しいCL
 class NutrientCaptionContrastiveLearning(nn.Module):
-    def __init(self, nutrient_input_dim, caption_input_dim, output_dim, temperature=0.5):
+    def __init__(self, nutrient_input_dim, caption_input_dim, output_dim, temperature=0.5):
         super().__init__()
         self.temperature = temperature
         self.nutrient_encoder = nn.Sequential(
