@@ -35,8 +35,9 @@ def filter_recipe_ingredient(
     """
     レシピと食材のデータフレームを受け取り、代替食材の数が閾値を超えるレシピを返す
     """
+    _key = 'ingredient_id'
     alternative = alternative_ing[alternative_ing["score"] > threshold]
-    mapping_dict = dict(zip(alternative['alternative_ingredient'], alternative['ingredient_id']))
-    recip_ing['ingredient_id'] = recip_ing['ingredient_id'].map(mapping_dict).fillna(recip_ing['ingredient_id']).astype(int)
-    recip_ing.drop_duplicates(subset=['recipe_id', 'ingredient_id']).reset_index(drop=True)
+    mapping_dict = dict(zip(alternative['alternative_ingredient'], alternative[_key]))
+    recip_ing[_key] = recip_ing[_key].map(mapping_dict).fillna(recip_ing[_key]).astype(int)
+    recip_ing.drop_duplicates(subset=['recipe_id', _key]).reset_index(drop=True)
     return recip_ing
