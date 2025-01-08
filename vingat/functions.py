@@ -271,6 +271,7 @@ def show_model_parameters(model: nn.Module, threshold=0.2):
     lower_threshold = average - threshold
 
     if len(not_null_params) > 0:
+        print("Parameters Describe: ")
         print(pd.DataFrame(not_null_norms).describe().T)
         for not_null_param, not_null_norm in zip(not_null_params, not_null_norms):
             if not (lower_threshold <= not_null_norm <= upper_threshold):
