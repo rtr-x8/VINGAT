@@ -434,8 +434,8 @@ class RecommendationModel(nn.Module):
 
     def predict(self, user_nodes, recipe_nodes):
         # ユーザーとレシピの埋め込みを連結
-        # user_nodes = F.normalize(user_nodes, p=2, dim=1)
-        # recipe_nodes = F.normalize(recipe_nodes, p=2, dim=1)
+        user_nodes = F.normalize(user_nodes, p=2, dim=1)
+        recipe_nodes = F.normalize(recipe_nodes, p=2, dim=1)
         edge_features = torch.cat([user_nodes, recipe_nodes], dim=1)
         return self.link_predictor(edge_features)
 
