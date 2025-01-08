@@ -386,8 +386,8 @@ class RecommendationModel(nn.Module):
         self.intention_encoder = nn.Linear(nutrient_dim, hidden_dim)
 
         """
-        self.ingredient_encoder = nn.Linear(input_ingredient_dim, hidden_dim)
         self.cooking_direction_encoder = nn.Linear(input_cooking_direction_dim, hidden_dim)
+        self.ingredient_encoder = nn.Linear(input_ingredient_dim, hidden_dim)
         """
         # Taste Level GAT
         """
@@ -442,8 +442,8 @@ class RecommendationModel(nn.Module):
             "user": self.user_encoder(data["user"].id),
             "item": self.item_encoder(data["item"].id),
             "image": self.image_encoder(data["image"].org),
-            "ingredient": self.ingredient_encoder(data["ingredient"].org),
-            "taste": self.cooking_direction_encoder(data["taste"].org),
+            # "ingredient": self.ingredient_encoder(data["ingredient"].org),
+            "taste": self.taste_encoder(data["taste"].org),
             "intention": self.intention_encoder(data["intention"].nutrient),
         })
 
