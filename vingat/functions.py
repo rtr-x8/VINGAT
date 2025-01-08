@@ -126,7 +126,9 @@ def calculate_statistics(data):
     for item in items:
         values = [d[item] for d in data]
         values_minmax = min_max(np.array(values))
-        hist, bins = np.histogram(values_minmax, range=(0, 1))
+        hist, bins = np.histogram(values_minmax,
+                                  range=(0, 1),
+                                  bins=np.linspace(0, 1, 6))
         statistics[item] = {
             'min': np.min(values),
             'max': np.max(values),
