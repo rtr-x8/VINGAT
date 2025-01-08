@@ -345,7 +345,6 @@ def train_func(
                 data=val_data,
                 device=device,
                 desc=f"[Valid] Epoch {epoch}/{epochs}"
-
             )
 
             val_metrics = {
