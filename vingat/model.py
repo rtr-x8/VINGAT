@@ -345,6 +345,8 @@ class RecommendationModel(nn.Module):
         input_cooking_direction_dim: int,
         user_encoder_low_rank_dim: int,
         item_encoder_low_rank_dim: int,
+        user_encoder_dropout_rate: float,
+        item_encoder_dropout_rate: float,
     ):
         super().__init__()
         os.environ['TORCH_USE_CUDA_DSA'] = '1'
@@ -456,8 +458,8 @@ class RecommendationModel(nn.Module):
         cl_losses = []
         for cl in self.intention_cl:
             intention_x, _, cl_loss = cl(
-                caption=data["intention"].caption,
-                nutrient=data["intention"].nutrient)
+                data["intention"].caption,
+                data["intention"].nutrient)
             data.set_value_dict("x", {
                 "intention": intention_x
             })
