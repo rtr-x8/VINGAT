@@ -101,7 +101,7 @@ def create_base_hetero(
     image_encoder = StaticEmbeddingLoader(recipe_image_embeddings,
                                           dimention=input_image_dim,
                                           device=device)
-    data["image"].org = image_encoder(torch.tensor(item_lencoder.classes_, dtype=torch.long))
+    data["image"].org = image_encoder(torch.tensor(item_lencoder.classes_, dtype=torch.float32))
     data["image"].x = torch.zeros((len(item_lencoder.classes_), hidden_dim), dtype=torch.float32)
 
     data["intention"].num_nodes = len(item_lencoder.classes_)
@@ -114,7 +114,7 @@ def create_base_hetero(
                                             device=device)
     # caption.x, nutrientはCLで埋め込まれるためここでは読み込み時のままでOK
     data["intention"].caption = caption_encoder(torch.tensor(item_lencoder.classes_,
-                                                             dtype=torch.long))
+                                                             dtype=torch.float32))
     data["intention"].x = torch.rand(
         (len(item_lencoder.classes_), hidden_dim), dtype=torch.float32)
 
@@ -123,7 +123,7 @@ def create_base_hetero(
     vlm_encoder = StaticEmbeddingLoader(
         recipe_cooking_directions_embeddings,
         dimention=input_cooking_direction_dim, device=device)
-    data["taste"].org = vlm_encoder(torch.tensor(item_lencoder.classes_, dtype=torch.long))
+    data["taste"].org = vlm_encoder(torch.tensor(item_lencoder.classes_, dtype=torch.float32))
     data["taste"].x = torch.zeros((len(item_lencoder.classes_), hidden_dim), dtype=torch.float32)
 
     data["ingredient"].num_nodes = len(ing_lencoder.classes_)
@@ -131,7 +131,7 @@ def create_base_hetero(
     ingre_encoder = StaticEmbeddingLoader(ingredients_with_embeddings,
                                           dimention=input_ingredient_dim,
                                           device=device)
-    data["ingredient"].org = ingre_encoder(torch.tensor(ing_lencoder.classes_, dtype=torch.long))
+    data["ingredient"].org = ingre_encoder(torch.tensor(ing_lencoder.classes_, dtype=torch.float32))
     data["ingredient"].x = torch.zeros((len(ing_lencoder.classes_), hidden_dim),
                                        dtype=torch.float32)
 
