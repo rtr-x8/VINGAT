@@ -183,7 +183,7 @@ def train_func(
 
         model.train()
 
-        print(f"Epoch {epoch}/{epochs} ======================", now())
+        print(f"\nEpoch {epoch}/{epochs} \n======================", now())
 
         for batch_data in tqdm(train_loader, desc=f"[Train] Epoch {epoch}/{epochs}"):
             optimizer.zero_grad()
@@ -237,6 +237,7 @@ def train_func(
 
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
+
             optimizer.step()
 
             loss_histories["total_loss"].append(loss.item())
