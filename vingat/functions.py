@@ -115,7 +115,7 @@ def calculate_statistics(data):
     def min_max(x, axis=None):
         min = x.min(axis=axis, keepdims=True)
         max = x.max(axis=axis, keepdims=True)
-        result = (x-min)/(max-min)
+        result = (x-min)/(max-min+1e-8)
         return result
 
     # 項目名を取得
@@ -271,8 +271,8 @@ def show_model_parameters(model: nn.Module, threshold=0.2):
     lower_threshold = average - threshold
 
     if len(not_null_params) > 0:
-        print("NOT Null Parameters Average: {average}")
-        print(f"NOT Null parameters: {len(not_null_params)}")
+        print("Parameters Describe: ")
+        print(pd.DataFrame(not_null_norms).describe().T)
         for not_null_param, not_null_norm in zip(not_null_params, not_null_norms):
             if not (lower_threshold <= not_null_norm <= upper_threshold):
                 print(f"[{not_null_param}] is out of average range: {not_null_norm}")
