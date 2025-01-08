@@ -144,6 +144,126 @@ def calculate_statistics(data):
     return df
 
 
+def train_one_epoch(
+    model: nn.Module,
+    device: torch.device,
+    optimizer: torch.optim.Optimizer,
+    train_loader: torch.utils.data.DataLoader,
+    criterion: Callable,
+    max_grad_norm: float,
+):
+    model.to(device)
+
+    loss_histories: Dict[str, List[torch.Tensor]] = {
+        "total_loss": [],
+        "main_loss": [],
+    }
+    node_mean = []
+    mhandler = MetricsHandler(device=device, threshold=0.5)
+    shandler = ScoreMetricHandler(device=device)
+
+    model.train()
+
+    for batch_data in tqdm(train_loader, desc="[Train]"):
+        optimizer.zero_grad()
+        batch_data = batch_data.to(device)
+
+        out, loss_entories = model(batch_data)
+
+        main_loss_rate = 1.0
+        if len(loss_entories) > 0:
+            main_loss_rate -= sum([entry["weight"] for entry in loss_entories])
+
+        if main_loss_rate < 0:
+            raise ValueError("main loss rate is negative")
+
+        # エッジのラベルとエッジインデックスを取得
+        edge_label_index = batch_data['user', 'buys', 'item'].edge_label_index
+
+        # ユーザーとレシピの埋め込みを取得
+        user_embeddings = out['user'].x
+        recipe_embeddings = out['item'].x
+
+        # 正例と負例のマスクを取得
+        pos_mask = batch_data['user', 'buys', 'item'].edge_label == 1
+        neg_mask = batch_data['user', 'buys', 'item'].edge_label == 0
+
+        # エッジインデックスからノードの埋め込みを取得
+        user_embed = user_embeddings[edge_label_index[0]]
+        recipe_embed = recipe_embeddings[edge_label_index[1]]
+
+        # 正例のスコアを計算
+        pos_user_embed = user_embed[pos_mask]
+        pos_recipe_embed = recipe_embed[pos_mask]
+        pos_scores = model.predict(pos_user_embed, pos_recipe_embed).squeeze()
+
+        # 負例のスコアを計算
+        neg_user_embed = user_embed[neg_mask]
+        neg_recipe_embed = recipe_embed[neg_mask]
+        neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
+
+        # 損失の計算
+        main_loss = criterion(pos_scores, neg_scores, model.parameters())
+
+        loss = main_loss_rate * main_loss
+        if len(loss_entories) > 0:
+            other_loss = torch.sum(torch.stack(
+                [entry["loss"] * entry["weight"] for entry in loss_entories]
+            ))
+            loss += other_loss
+
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
+
+        optimizer.step()
+
+        loss_histories["total_loss"].append(loss.item())
+        loss_histories["main_loss"].append((main_loss_rate * main_loss).item())
+        for entry in loss_entories:
+            if entry["name"] not in loss_histories.keys():
+                loss_histories[entry["name"]] = []
+            loss_histories[entry["name"]].append(
+                (entry["loss"] * entry["weight"]).item()
+            )
+
+        mhandler.update(
+            probas=torch.cat([pos_scores, neg_scores]),
+            targets=torch.cat([
+                torch.ones_like(pos_scores, device=device),
+                torch.zeros_like(neg_scores, device=device)
+            ]),
+            user_indices=torch.cat([
+                edge_label_index[0][pos_mask],
+                edge_label_index[0][neg_mask]
+            ])
+        )
+        shandler.update(pos_scores, neg_scores)
+
+        # check
+        node_mean.append({
+            key: val.mean().mean().item()
+            for key, val in out.x_dict.items()
+        })
+
+    node_stats = calculate_statistics(node_mean)
+
+    return (
+        model,
+        loss_histories,
+        node_stats,
+        mhandler,
+        shandler,
+    )
+
+
+def show_model_parameters(model: nn.Module):
+    for name, param in model.named_parameters():
+        if param.grad is None:
+            print(f"[WARNING] No grad for {name}")
+        else:
+            print(f"{name} grad norm: {param.grad.norm()}")
+
+
 def train_func(
     train_loader,
     val_data,
@@ -165,7 +285,7 @@ def train_func(
     pca_cols=["user", "item", "intention", "taste", "image"],
 ):
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
-    model.to(device)
+
     best_val_metric = 0    # 現時点での最良のバリデーションメトリクスを初期化
     patience_counter = 0    # Early Stoppingのカウンターを初期化
     best_model_epoch = 0
@@ -173,137 +293,45 @@ def train_func(
     save_dir = f"{directory_path}/models/{project_name}/{experiment_name}"
 
     for epoch in range(1, epochs+1):
-        loss_histories: Dict[str, List[torch.Tensor]] = {
-            "total_loss": [],
-            "main_loss": [],
-        }
-        node_mean = []
-        mhandler = MetricsHandler(device=device, threshold=0.5)
-        shandler = ScoreMetricHandler(device=device)
 
-        model.train()
+        print("\n======================\n", f"Epoch {epoch}/{epochs}", now())
+        model, loss_histories, node_stats, mhandler, shandler = train_one_epoch(
+            model=model,
+            device=device,
+            optimizer=optimizer,
+            criterion=criterion,
+            train_loader=train_loader,
+            max_grad_norm=max_grad_norm
+        )
 
-        print(f"\nEpoch {epoch}/{epochs} \n======================", now())
-
-        for batch_data in tqdm(train_loader, desc=f"[Train] Epoch {epoch}/{epochs}"):
-            optimizer.zero_grad()
-            batch_data = batch_data.to(device)
-
-            # モデルのフォワードパス
-            # out, cl_loss = model(batch_data)
-            out, loss_entories = model(batch_data)
-
-            main_loss_rate = 1.0
-            if len(loss_entories) > 0:
-                main_loss_rate -= sum([entry["weight"] for entry in loss_entories])
-            if main_loss_rate < 0:
-                raise ValueError("main loss rate is negative")
-
-            # エッジのラベルとエッジインデックスを取得
-            # edge_label = batch_data['user', 'buys', 'item'].edge_label
-            edge_label_index = batch_data['user', 'buys', 'item'].edge_label_index
-
-            # ユーザーとレシピの埋め込みを取得
-            user_embeddings = out['user'].x
-            recipe_embeddings = out['item'].x
-
-            # 正例と負例のマスクを取得
-            pos_mask = batch_data['user', 'buys', 'item'].edge_label == 1
-            neg_mask = batch_data['user', 'buys', 'item'].edge_label == 0
-
-            # エッジインデックスからノードの埋め込みを取得
-            user_embed = user_embeddings[edge_label_index[0]]
-            recipe_embed = recipe_embeddings[edge_label_index[1]]
-
-            # 正例のスコアを計算
-            pos_user_embed = user_embed[pos_mask]
-            pos_recipe_embed = recipe_embed[pos_mask]
-            pos_scores = model.predict(pos_user_embed, pos_recipe_embed).squeeze()
-
-            # 負例のスコアを計算
-            neg_user_embed = user_embed[neg_mask]
-            neg_recipe_embed = recipe_embed[neg_mask]
-            neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
-
-            # 損失の計算
-            main_loss = criterion(pos_scores, neg_scores, model.parameters())
-
-            loss = main_loss_rate * main_loss
-            if len(loss_entories) > 0:
-                other_loss = torch.sum(torch.stack(
-                    [entry["loss"] * entry["weight"] for entry in loss_entories]
-                ))
-                loss += other_loss
-
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
-
-            optimizer.step()
-
-            loss_histories["total_loss"].append(loss.item())
-            loss_histories["main_loss"].append((main_loss_rate * main_loss).item())
-            for entry in loss_entories:
-                if entry["name"] not in loss_histories.keys():
-                    loss_histories[entry["name"]] = []
-                loss_histories[entry["name"]].append(
-                    (entry["loss"] * entry["weight"]).item()
-                )
-
-            mhandler.update(
-                probas=torch.cat([pos_scores, neg_scores]),
-                targets=torch.cat([
-                    torch.ones_like(pos_scores, device=device),
-                    torch.zeros_like(neg_scores, device=device)
-                ]),
-                user_indices=torch.cat([
-                    edge_label_index[0][pos_mask],
-                    edge_label_index[0][neg_mask]
-                ])
-            )
-            shandler.update(pos_scores, neg_scores)
-
-            # check
-            node_mean.append({
-                key: val.mean().mean().item()
-                for key, val in out.x_dict.items()
-            })
-
-        df = calculate_statistics(node_mean)
         print("[Train] Node Statics: ")
-        print(df)
+        print(node_stats)
 
-        tr_metrics = {
+        tr_loss = {
             f"train-loss/{k}": np.mean(v)
             for k, v in loss_histories.items()
         }
-        print(now(), "Loss: ")
-        print(tr_metrics)
+        print("\n[Train] Loss: ", "\n", tr_loss)
         wbLogger(
-            data=tr_metrics,
+            data=tr_loss,
             step=epoch
         )
 
-        wbLogger(data=mhandler.log("train-handler"), step=epoch)
-        print(now(), "[Train] handler Result: ")
+        print("\n[Train] Metrics: ")
         print(mhandler.log(prefix="train-handler", num_round=4))
-        # print("Pos Count :", sum(torch.count_nonzero(t == 1).item() for t in mhandler.targets))
-        # print("Neg Count :", sum(torch.count_nonzero(t == 0).item() for t in mhandler.targets))
+        wbLogger(data=mhandler.log("train-handler"), step=epoch)
 
-        print("[Train] Score Statics: ")
+        print("\n[Train] Score Statics: ")
         print(shandler.log(prefix="train-score-statics", num_round=4))
         wbLogger(data=shandler.log(prefix="train-score-statics"), step=epoch)
 
-        print("[Train] Model Parameters: ")
-        for name, param in model.named_parameters():
-            if param.grad is None:
-                print(f"[WARNING] No grad for {name}")
-            else:
-                print(f"{name} grad norm: {param.grad.norm()}")
+        print("\n[Train] Model Parameters: ")
+        show_model_parameters(model)
 
         # Valid
         if epoch % validation_interval == 0:
 
-            print(now(), "Validation -------------------")
+            print("\nValidation -------------------")
 
             """
             _df = visualize_node_pca(batch_data,
