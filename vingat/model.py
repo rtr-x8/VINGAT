@@ -10,7 +10,13 @@ from vingat.loss import ContrastiveLoss
 
 # 新しいCL
 class NutrientCaptionContrastiveLearning(nn.Module):
-    def __init__(self, nutrient_input_dim, caption_input_dim, output_dim, temperature=0.5):
+    def __init__(
+        self,
+        nutrient_input_dim,
+        caption_input_dim,
+        output_dim,
+        temperature=0.5
+    ):
         super().__init__()
         self.temperature = temperature
         self.nutrient_encoder = nn.Sequential(
@@ -379,21 +385,19 @@ class RecommendationModel(nn.Module):
         self.ingredient_encoder = nn.Linear(input_ingredient_dim, hidden_dim)
 
         # Contrastive caption and nutrient
-        self.cl_with_caption_and_nutrient = nn.ModuleList()
-        for _ in range(intention_layers):
-            self.cl_with_caption_and_nutrient.append(
+        self.intention_cl = nn.ModuleList([
+            nn.Sequential(
                 NutrientCaptionContrastiveLearning(
                     nutrient_input_dim=nutrient_dim,
                     caption_input_dim=input_vlm_caption_dim,
                     output_dim=hidden_dim,
                     temperature=temperature
-                )
+                ),
+                DictBatchNorm(hidden_dim, device, ["intention"]),
+                DictActivate(device, ["intention"]),
+                DictDropout(dropout_rate, device, ["intention"])
             )
-        self.cl_after = nn.Sequential(
-            DictBatchNorm(hidden_dim, device, ["intention"]),
-            DictActivate(device, ["intention"]),
-            DictDropout(dropout_rate, device, ["intention"])
-        )
+        ])
 
         # Taste Level GAT
         self.sensing_gnn = nn.ModuleList([
@@ -448,12 +452,16 @@ class RecommendationModel(nn.Module):
             "taste": self.taste_encoder(data["taste"].org),
         })
 
-        for cl in self.cl_with_caption_and_nutrient:
-            intention_x, _, cl_loss = cl(data["intention"].caption, data["intention"].nutrient)
+        cl_losses = []
+        for cl in self.intention_cl:
+            intention_x, _, cl_loss = cl(
+                caption=data["intention"].caption,
+                nutrient=data["intention"].nutrient)
             data.set_value_dict("x", {
                 "intention": intention_x
             })
-        data.set_value_dict("x", self.cl_after(data.x_dict))
+            cl_losses.append(cl_loss)
+        cl_loss = torch.stack(cl_losses).mean()
 
         for gnn in self.sensing_gnn:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
@@ -461,4 +469,6 @@ class RecommendationModel(nn.Module):
         for gnn in self.fusion_gnn:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
 
-        return data, []
+        return data, [
+            {"name": "cl_loss", "loss": cl_loss, "weight": self.cl_loss}
+        ]
