@@ -270,10 +270,12 @@ def show_model_parameters(model: nn.Module, threshold=0.2):
     upper_threshold = average + threshold
     lower_threshold = average - threshold
 
-    print(f"NOT Null parameters: {len(not_null_params)}")
-    for not_null_param, not_null_norm in zip(not_null_params, not_null_norms):
-        if not (lower_threshold <= not_null_norm <= upper_threshold):
-            print(f"[{not_null_param}] is out of average range: {not_null_norm}")
+    if len(not_null_params) > 0:
+        print("NOT Null Parameters Average: {average}")
+        print(f"NOT Null parameters: {len(not_null_params)}")
+        for not_null_param, not_null_norm in zip(not_null_params, not_null_norms):
+            if not (lower_threshold <= not_null_norm <= upper_threshold):
+                print(f"[{not_null_param}] is out of average range: {not_null_norm}")
 
     if len(null_params) > 0:
         print("Null Parameters: ")
