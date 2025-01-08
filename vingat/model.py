@@ -174,6 +174,7 @@ class LowRankLinear(nn.Module):
         return self.v(self.u(x))
 
 
+"""
 class __bk_RecommendationModel(nn.Module):
     def __init__(
         self,
@@ -319,6 +320,7 @@ class __bk_RecommendationModel(nn.Module):
         edge_features = torch.cat([user_nodes, recipe_nodes], dim=1)
         # print_layer_outputs(self.link_predictor, edge_features)
         return self.link_predictor(edge_features)
+"""
 
 
 class RecommendationModel(nn.Module):
@@ -437,7 +439,6 @@ class RecommendationModel(nn.Module):
         )
 
     def predict(self, user_nodes, recipe_nodes):
-        # ユーザーとレシピの埋め込みを連結
         user_nodes = F.normalize(user_nodes, p=2, dim=1)
         recipe_nodes = F.normalize(recipe_nodes, p=2, dim=1)
         edge_features = torch.cat([user_nodes, recipe_nodes], dim=1)
