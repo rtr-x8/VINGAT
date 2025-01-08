@@ -385,7 +385,7 @@ class RecommendationModel(nn.Module):
             "taste": self.taste_encoder(data["taste"].org),
         })
 
-        data.set_value_dict("x", self.layer_norm.initial_forward(data.x_dict))
+        # data.set_value_dict("x", self.layer_norm.initial_forward(data.x_dict))
 
         cl_losses = []
         for cl in self.intention_cl:
@@ -405,7 +405,7 @@ class RecommendationModel(nn.Module):
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
             data.set_value_dict("x", self.fusion_gnn_after(data.x_dict))
 
-        # data.set_value_dict("x", self.layer_norm.main_forward(data.x_dict))
+        data.set_value_dict("x", self.layer_norm.main_forward(data.x_dict))
 
         return data, [
             {"name": "cl_loss", "loss": cl_loss, "weight": self.cl_loss_rate}
