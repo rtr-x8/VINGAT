@@ -283,13 +283,13 @@ class RecommendationModel(nn.Module):
             nn.Embedding(num_user, user_encoder_low_rank_dim),
             nn.Linear(user_encoder_low_rank_dim, hidden_dim),
             # nn.ReLU(),
-            # nn.Dropout(p=user_encoder_dropout_rate)
+            nn.Dropout(p=user_encoder_dropout_rate)
         )
         self.item_encoder = nn.Sequential(
             nn.Embedding(num_item, item_encoder_low_rank_dim),
             nn.Linear(item_encoder_low_rank_dim, hidden_dim),
             # nn.ReLU(),
-            # nn.Dropout(p=item_encoder_dropout_rate)
+            nn.Dropout(p=item_encoder_dropout_rate)
         )
         self.image_encoder = LowRankLinear(input_image_dim, hidden_dim, rank=32)
         self.taste_encoder = nn.Linear(input_cooking_direction_dim, hidden_dim)
@@ -308,7 +308,7 @@ class RecommendationModel(nn.Module):
         self.intention_cl_after = nn.Sequential(
             # DictBatchNorm(hidden_dim, device, ["intention"]),
             DictActivate(device, ["intention"]),
-            # DictDropout(dropout_rate, device, ["intention"])
+            DictDropout(intention_cl_after_dropout_rate, device, ["intention"])
         )
 
         # Taste Level GAT
@@ -319,7 +319,7 @@ class RecommendationModel(nn.Module):
         self.sensing_gnn_after = nn.Sequential(
             # DictBatchNorm(hidden_dim, device, ["taste", "ingredient"]),
             DictActivate(device, ["taste", "ingredient"]),
-            # DictDropout(taste_gnn_after_dropout_rate, device, ["taste"]),
+            DictDropout(taste_gnn_after_dropout_rate, device, ["taste"]),
         )
 
         # Fusion GAT
@@ -335,14 +335,14 @@ class RecommendationModel(nn.Module):
         self.fusion_gnn_after = nn.Sequential(
             # DictLayerNorm(hidden_dim, device, ["user", "item"]),
             DictActivate(device, ["user", "item"]),
-            # DictDropout(fusion_gnn_after_dropout_rate, device, ["user", "item"]),
+            DictDropout(fusion_gnn_after_dropout_rate, device, ["user", "item"]),
         )
 
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
             nn.Linear(hidden_dim * 2, hidden_dim),  # 中間層を広げる
             nn.LeakyReLU(link_predictor_leaky_relu_slope),  # 追加の活性化層
-            # nn.Dropout(link_predictor_dropout_rate),  # ドロップアウトを少し緩める
+            nn.Dropout(link_predictor_dropout_rate),  # ドロップアウトを少し緩める
             nn.Linear(hidden_dim, 1),
         )
 
