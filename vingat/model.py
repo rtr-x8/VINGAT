@@ -32,9 +32,10 @@ class NutrientCaptionContrastiveLearning(nn.Module):
         self.cossine_similarity = nn.CosineSimilarity(dim=1)
         self.loss = ContrastiveLoss(temperature=temperature)
 
-    def forward(self, intention):
-        nutrient_emb = self.nutrient_encoder(intention.nutrient)
-        caption_emb = self.caption_encoder(intention.caption)
+    def forward(self, data):
+        nutrient_emb = self.nutrient_encoder(data["intention"].nutrient)
+        caption_emb = self.caption_encoder(data["intention"].caption)
+        loss = self.loss(nutrient_emb, caption_emb)
         loss = self.loss(nutrient_emb, caption_emb)
         return (
             F.normalize(caption_emb, p=2, dim=1),
@@ -394,45 +395,46 @@ class RecommendationModel(nn.Module):
 
         # Contrastive caption and nutrient
         self.intention_cl = nn.ModuleList([
-            nn.Sequential(
-                NutrientCaptionContrastiveLearning(
-                    nutrient_input_dim=nutrient_dim,
-                    caption_input_dim=input_vlm_caption_dim,
-                    output_dim=hidden_dim,
-                    temperature=temperature
-                ),
-                DictBatchNorm(hidden_dim, device, ["intention"]),
-                DictActivate(device, ["intention"]),
-                DictDropout(dropout_rate, device, ["intention"])
+            NutrientCaptionContrastiveLearning(
+                nutrient_input_dim=nutrient_dim,
+                caption_input_dim=input_vlm_caption_dim,
+                output_dim=hidden_dim,
+                temperature=temperature
             )
+            for _ in range(intention_layers)
         ])
+        self.intention_cl_after = nn.Sequential(
+            DictBatchNorm(hidden_dim, device, ["intention"]),
+            DictActivate(device, ["intention"]),
+            DictDropout(dropout_rate, device, ["intention"])
+        )
 
         # Taste Level GAT
         self.sensing_gnn = nn.ModuleList([
-            nn.Sequential(
-                TasteGNN(hidden_dim, dropout_rate=0.3),
-                DictBatchNorm(hidden_dim, device, ["taste", "ingredient"]),
-                DictActivate(device, ["taste", "ingredient"]),
-                DictDropout(dropout_rate, device, ["taste"]),
-            )
+            TasteGNN(hidden_dim, dropout_rate=0.3)
             for _ in range(sencing_layers)
         ])
+        self.sensing_gnn_after = nn.Sequential(
+            DictBatchNorm(hidden_dim, device, ["taste", "ingredient"]),
+            DictActivate(device, ["taste", "ingredient"]),
+            DictDropout(dropout_rate, device, ["taste"]),
+        )
 
         # Fusion GAT
         self.fusion_gnn = nn.ModuleList([
-            nn.Sequential(
-                MultiModalFusionGAT(
-                    hidden_dim=hidden_dim,
-                    num_heads=num_heads,
-                    dropout_rate=dropout_rate,
-                    device=device
-                ),
-                DictBatchNorm(hidden_dim, device, ["user", "item"]),
-                DictActivate(device, ["user", "item"]),
-                DictDropout(dropout_rate, device, ["user", "item"]),
+            MultiModalFusionGAT(
+                hidden_dim=hidden_dim,
+                num_heads=num_heads,
+                dropout_rate=dropout_rate,
+                device=device
             )
             for _ in range(fusion_layers)
         ])
+        self.fusion_gnn_after = nn.Sequential(
+            DictBatchNorm(hidden_dim, device, ["user", "item"]),
+            DictActivate(device, ["user", "item"]),
+            DictDropout(dropout_rate, device, ["user", "item"]),
+        )
 
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
@@ -461,19 +463,22 @@ class RecommendationModel(nn.Module):
 
         cl_losses = []
         for cl in self.intention_cl:
-            intention_x, _, cl_loss = cl(data["intention"])
+            intention_x, _, cl_loss = cl(data)
             data.set_value_dict("x", {
                 "intention": intention_x
             })
             cl_losses.append(cl_loss)
+            data.set_value_dict("x", self.intention_cl_after(data.x_dict))
         cl_loss = torch.stack(cl_losses).mean()
 
         for gnn in self.sensing_gnn:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
+            data.set_value_dict("x", self.sensing_gnn_after(data.x_dict))
 
         for gnn in self.fusion_gnn:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
+            data.set_value_dict("x", self.fusion_gnn_after(data.x_dict))
 
         return data, [
-            {"name": "cl_loss", "loss": cl_loss, "weight": self.cl_loss}
+            {"name": "cl_loss", "loss": cl_loss, "weight": self.cl_loss_rate}
         ]
