@@ -306,7 +306,7 @@ class RecommendationModel(nn.Module):
             for _ in range(intention_layers)
         ])
         self.intention_cl_after = nn.Sequential(
-            # DictBatchNorm(hidden_dim, device, ["intention"]),
+            DictBatchNorm(hidden_dim, device, ["intention"]),
             DictActivate(device, ["intention"]),
             DictDropout(intention_cl_after_dropout_rate, device, ["intention"])
         )
@@ -317,7 +317,7 @@ class RecommendationModel(nn.Module):
             for _ in range(sencing_layers)
         ])
         self.sensing_gnn_after = nn.Sequential(
-            # DictBatchNorm(hidden_dim, device, ["taste", "ingredient"]),
+            DictBatchNorm(hidden_dim, device, ["taste", "ingredient"]),
             DictActivate(device, ["taste", "ingredient"]),
             DictDropout(taste_gnn_after_dropout_rate, device, ["taste"]),
         )
@@ -333,7 +333,7 @@ class RecommendationModel(nn.Module):
             for _ in range(fusion_layers)
         ])
         self.fusion_gnn_after = nn.Sequential(
-            # DictLayerNorm(hidden_dim, device, ["user", "item"]),
+            DictLayerNorm(hidden_dim, device, ["user", "item"]),
             DictActivate(device, ["user", "item"]),
             DictDropout(fusion_gnn_after_dropout_rate, device, ["user", "item"]),
         )
