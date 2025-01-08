@@ -368,17 +368,15 @@ class RecommendationModel(nn.Module):
 
         # Node Encoder
         self.user_encoder = nn.Sequential(
-            # nn.Embedding(num_user, user_encoder_low_rank_dim),
-            # nn.Linear(user_encoder_low_rank_dim, hidden_dim),
-            nn.Embedding(num_user, hidden_dim),
+            nn.Embedding(num_user, user_encoder_low_rank_dim),
+            nn.Linear(user_encoder_low_rank_dim, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
             nn.Dropout(p=0.2)
         )
         self.item_encoder = nn.Sequential(
-            # nn.Embedding(num_item, item_encoder_low_rank_dim),
-            # nn.Linear(item_encoder_low_rank_dim, hidden_dim),
-            nn.Embedding(num_item, hidden_dim),
+            nn.Embedding(num_item, item_encoder_low_rank_dim),
+            nn.Linear(item_encoder_low_rank_dim, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
             nn.Dropout(p=0.2)
