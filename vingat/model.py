@@ -381,9 +381,11 @@ class RecommendationModel(nn.Module):
             nn.ReLU(),
             nn.Dropout(p=0.2)
         )
-        """
         self.image_encoder = LowRankLinear(input_image_dim, hidden_dim, rank=64)
+        self.taste_encoder = nn.Linear(input_cooking_direction_dim, hidden_dim)
+        self.intention_encoder = nn.Linear(nutrient_dim, hidden_dim)
 
+        """
         self.ingredient_encoder = nn.Linear(input_ingredient_dim, hidden_dim)
         self.cooking_direction_encoder = nn.Linear(input_cooking_direction_dim, hidden_dim)
         """
@@ -402,7 +404,6 @@ class RecommendationModel(nn.Module):
         """
 
         # Fusion GAT
-        """
         fusion_nodes = ["user", "item", "taste", "image", "intention"]
         self.multi_modal_fusion_gnn = nn.ModuleList()
         for _ in range(fusion_layers):
@@ -419,7 +420,6 @@ class RecommendationModel(nn.Module):
             DictActivate(device, fusion_nodes),
             DictDropout(dropout_rate, device, fusion_nodes),
         )
-        """
 
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
@@ -441,9 +441,10 @@ class RecommendationModel(nn.Module):
         data.set_value_dict("x", {
             "user": self.user_encoder(data["user"].id),
             "item": self.item_encoder(data["item"].id),
-            # "image": self.image_encoder(data["image"].org),
-            # "ingredient": self.ingredient_encoder(data["ingredient"].org),
-            # "taste": self.cooking_direction_encoder(data["taste"].org)
+            "image": self.image_encoder(data["image"].org),
+            "ingredient": self.ingredient_encoder(data["ingredient"].org),
+            "taste": self.cooking_direction_encoder(data["taste"].org),
+            "intention": self.intention_encoder(data["intention"].nutrient),
         })
 
         """
@@ -452,9 +453,7 @@ class RecommendationModel(nn.Module):
         data.set_value_dict("x", self.ingredient_to_taste_gnn_after(data.x_dict))
         """
 
-        """
         for gnn in self.multi_modal_fusion_gnn:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
-        """
 
         return data, []
