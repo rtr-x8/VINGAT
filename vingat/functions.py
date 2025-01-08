@@ -112,6 +112,11 @@ def calculate_statistics(data):
     Returns:
         pandas.DataFrame: 統計量をまとめたDataFrame
     """
+    def min_max(x, axis=None):
+        min = x.min(axis=axis, keepdims=True)
+        max = x.max(axis=axis, keepdims=True)
+        result = (x-min)/(max-min)
+        return result
 
     # 項目名を取得
     items = list(data[0].keys())
@@ -120,11 +125,14 @@ def calculate_statistics(data):
     statistics = {}
     for item in items:
         values = [d[item] for d in data]
+        values_minmax = min_max(np.array(values))
+        hist, bins = np.histogram(values_minmax, range=(0, 1))
         statistics[item] = {
             'min': np.min(values),
             'max': np.max(values),
             'mean': np.mean(values),
             'std': np.std(values),
+            **{f"vin_{v}": h for h, v in zip(hist, bins)}
         }
 
     # DataFrameに変換
