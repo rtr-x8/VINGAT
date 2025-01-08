@@ -183,7 +183,7 @@ def train_func(
 
         model.train()
 
-        print(now(), f"Epoch {epoch}/{epochs} ======================")
+        print(f"Epoch {epoch}/{epochs} ======================", now())
 
         for batch_data in tqdm(train_loader, desc=f"[Train] Epoch {epoch}/{epochs}"):
             optimizer.zero_grad()
@@ -236,8 +236,7 @@ def train_func(
                 loss += other_loss
 
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.user_encoder.parameters(), max_grad_norm)
-            torch.nn.utils.clip_grad_norm_(model.item_encoder.parameters(), max_grad_norm)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             optimizer.step()
 
             loss_histories["total_loss"].append(loss.item())
@@ -269,7 +268,7 @@ def train_func(
             })
 
         df = calculate_statistics(node_mean)
-        print(now(), "[Train] Score Statics: ")
+        print("[Train] Node Statics: ")
         print(df)
 
         tr_metrics = {
@@ -292,6 +291,13 @@ def train_func(
         print("[Train] Score Statics: ")
         print(shandler.log(prefix="train-score-statics", num_round=4))
         wbLogger(data=shandler.log(prefix="train-score-statics"), step=epoch)
+
+        print("[Train] Model Parameters: ")
+        for name, param in model.named_parameters():
+            if param.grad is None:
+                print(f"[WARNING] No grad for {name}")
+            else:
+                print(f"{name} grad norm: {param.grad.norm()}")
 
         # Valid
         if epoch % validation_interval == 0:
