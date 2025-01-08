@@ -132,7 +132,7 @@ def calculate_statistics(data):
             'max': np.max(values),
             'mean': np.mean(values),
             'std': np.std(values),
-            **{f"vin_{v}": h for h, v in zip(hist, bins)}
+            **{f"vin_{round(v, 1)}": h for h, v in zip(hist, bins)}
         }
 
     # DataFrameに変換
