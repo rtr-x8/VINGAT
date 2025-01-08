@@ -279,8 +279,8 @@ def train_func(
         # print("Neg Count :", sum(torch.count_nonzero(t == 0).item() for t in mhandler.targets))
 
         print("[Train] Score Statics: ")
-        print(shandler.log(prefix="val-score-statics", num_round=4))
-        wbLogger(data=shandler.log(prefix="val-score-statics"), step=epoch)
+        print(shandler.log(prefix="train-score-statics", num_round=4))
+        wbLogger(data=shandler.log(prefix="train-score-statics"), step=epoch)
 
         # Valid
         if epoch % validation_interval == 0:
