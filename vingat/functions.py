@@ -168,6 +168,7 @@ def train_func(
         }
         node_mean = []
         mhandler = MetricsHandler(device=device, threshold=0.5)
+        shandler = ScoreMetricHandler(device=device)
 
         model.train()
 
@@ -248,6 +249,7 @@ def train_func(
                     edge_label_index[0][neg_mask]
                 ])
             )
+            shandler.update(pos_scores, neg_scores)
 
             # check
             node_mean.append({
@@ -256,7 +258,7 @@ def train_func(
             })
 
         df = calculate_statistics(node_mean)
-        print(now(), "Score Statics: ")
+        print(now(), "[Train] Score Statics: ")
         print(df)
 
         tr_metrics = {
@@ -271,10 +273,14 @@ def train_func(
         )
 
         wbLogger(data=mhandler.log("train-handler"), step=epoch)
-        print(now(), "handler Result: ")
+        print(now(), "[Train] handler Result: ")
         print(mhandler.log(prefix="train-handler", num_round=4))
-        print("Pos Count :", sum(torch.count_nonzero(t == 1).item() for t in mhandler.targets))
-        print("Neg Count :", sum(torch.count_nonzero(t == 0).item() for t in mhandler.targets))
+        # print("Pos Count :", sum(torch.count_nonzero(t == 1).item() for t in mhandler.targets))
+        # print("Neg Count :", sum(torch.count_nonzero(t == 0).item() for t in mhandler.targets))
+
+        print("[Train] Score Statics: ")
+        print(shandler.log(prefix="val-score-statics", num_round=4))
+        wbLogger(data=shandler.log(prefix="val-score-statics"), step=epoch)
 
         # Valid
         if epoch % validation_interval == 0:
