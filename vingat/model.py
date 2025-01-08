@@ -368,15 +368,17 @@ class RecommendationModel(nn.Module):
 
         # Node Encoder
         self.user_encoder = nn.Sequential(
-            nn.Embedding(num_user, user_encoder_low_rank_dim),
-            nn.Linear(user_encoder_low_rank_dim, hidden_dim),
+            # nn.Embedding(num_user, user_encoder_low_rank_dim),
+            # nn.Linear(user_encoder_low_rank_dim, hidden_dim),
+            nn.Embedding(num_user, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
             nn.Dropout(p=0.2)
         )
         self.item_encoder = nn.Sequential(
-            nn.Embedding(num_item, item_encoder_low_rank_dim),
-            nn.Linear(item_encoder_low_rank_dim, hidden_dim),
+            # nn.Embedding(num_item, item_encoder_low_rank_dim),
+            # nn.Linear(item_encoder_low_rank_dim, hidden_dim),
+            nn.Embedding(num_item, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
             nn.Dropout(p=0.2)
@@ -427,7 +429,6 @@ class RecommendationModel(nn.Module):
             # nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()
         )
 
     def predict(self, user_nodes, recipe_nodes):
@@ -435,7 +436,9 @@ class RecommendationModel(nn.Module):
         user_nodes = F.normalize(user_nodes, p=2, dim=1)
         recipe_nodes = F.normalize(recipe_nodes, p=2, dim=1)
         edge_features = torch.cat([user_nodes, recipe_nodes], dim=1)
-        return self.link_predictor(edge_features)
+        logi = self.link_predictor(edge_features)
+        print("predict score logi", logi.shape, logi.mean(), logi.std())
+        return torch.sigmoid(logi)
 
     def forward(self, data: HeteroData):
         data.set_value_dict("x", {

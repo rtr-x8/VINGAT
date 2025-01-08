@@ -224,8 +224,8 @@ def train_func(
                 loss += other_loss
 
             loss.backward()
-            # torch.nn.utils.clip_grad_norm_(model.user_encoder.parameters(), max_grad_norm)
-            # torch.nn.utils.clip_grad_norm_(model.item_encoder.parameters(), max_grad_norm)
+            torch.nn.utils.clip_grad_norm_(model.user_encoder.parameters(), max_grad_norm)
+            torch.nn.utils.clip_grad_norm_(model.item_encoder.parameters(), max_grad_norm)
             optimizer.step()
 
             loss_histories["total_loss"].append(loss.item())
