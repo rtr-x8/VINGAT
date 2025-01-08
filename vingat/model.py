@@ -126,7 +126,10 @@ class MultiModalFusionGAT(nn.Module):
         )
 
     def forward(self, x_dict, edge_index_dict):
-        out = self.gnn(x_dict, edge_index_dict)
+        out = self.gnn(
+            {k: v for k, v in x_dict.items() if k in self.NODES},
+            {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
+        )
         for k, v in x_dict.items():  # 残差結合
             out[k] += v
         out.update(self.norm(out))
