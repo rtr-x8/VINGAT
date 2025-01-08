@@ -282,7 +282,7 @@ def show_model_parameters(model: nn.Module, threshold=0.2):
             if not (lower_threshold <= not_null_norm <= upper_threshold)
         ]
         if len(warnings) > 0:
-            print(f"Warning Parameters: {lower_threshold} <= x <= {upper_threshold}")
+            print(f"Warning Parameters(Out of Range): {len(warnings)}")
             for warning in warnings:
                 print(warning)
 
