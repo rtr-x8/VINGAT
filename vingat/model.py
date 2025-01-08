@@ -179,155 +179,6 @@ class LowRankLinear(nn.Module):
         return self.v(self.u(x))
 
 
-"""
-class __bk_RecommendationModel(nn.Module):
-    def __init__(
-        self,
-        dropout_rate,
-        device,
-        hidden_dim,
-        node_embeding_dimmention: int,
-        num_user: int,
-        num_item: int,
-        nutrient_dim=20,
-        num_heads=2,
-        sencing_layers=10,
-        fusion_layers=10,
-        intention_layers=10,
-        temperature=0.05,
-        cl_loss=0.5,
-        input_image_dim=1024,
-        input_vlm_caption_dim=384,
-        input_ingredient_dim=384,
-        input_cooking_direction_dim=384,
-    ):
-        super().__init__()
-
-        os.environ['TORCH_USE_CUDA_DSA'] = '1'
-
-        self.device = device
-        self.hidden_dim = hidden_dim
-        self.tiny_hidden_dim = node_embeding_dimmention
-        self.cl_loss = cl_loss
-
-        self.user_encoder = nn.Embedding(num_user, hidden_dim)
-        self.user_embedding_dropout = nn.Dropout(p=0.3)
-
-        # 次元削減
-        self.image_encoder = StaticEmbeddingEncoder(input_image_dim, hidden_dim)
-
-        # 次元はこのまま使う
-        # self.vlm_caption_encoder = StaticEmbeddingEncoder(input_vlm_caption_dim, hidden_dim)
-        self.ingredient_encoder = StaticEmbeddingEncoder(input_ingredient_dim, hidden_dim)
-        self.cooking_direction_encoder = StaticEmbeddingEncoder(input_cooking_direction_dim,
-                                                                hidden_dim)
-
-        # self.image_encoder = LowRankLinear(input_image_dim, hidden_dim, rank=64)
-
-        # Contrastive caption and nutrient
-        self.cl_with_caption_and_nutrient = nn.ModuleList()
-        for _ in range(intention_layers):
-            cl = NutrientCaptionContrastiveLearning(
-                nutrient_dim, input_vlm_caption_dim, hidden_dim, temperature
-            )
-            self.cl_with_caption_and_nutrient.append(cl)
-        self.cl_dropout = DictDropout(dropout_rate, device, ["intention"])
-        self.cl_norm = BatchNorm(hidden_dim)
-        self.cl_act = nn.ReLU()
-
-        # Fusion of ingredient and recipe
-        self.ing_to_recipe = nn.ModuleList()
-        for _ in range(sencing_layers):
-            gnn = TasteGNN(hidden_dim, dropout_rate=0.3, device=device)
-            self.ing_to_recipe.append(gnn)
-        self.after_sensing_norm = DictBatchNorm(hidden_dim, device, ["taste", "ingredient"])
-        self.after_sensing_act = DictActivate(device, ["taste", "ingredient"])
-        self.taste_dropout = DictDropout(dropout_rate, device, ["taste"])
-
-        # HANConv layers
-        self.fusion_gnn = nn.ModuleList()
-        for _ in range(fusion_layers):
-            gnn = MultiModalFusionGAT(
-                hidden_dim=hidden_dim,
-                num_heads=num_heads,
-                dropout_rate=dropout_rate,
-                device=device
-            )
-            self.fusion_gnn.append(gnn)
-        self.after_fusion_norm = DictBatchNorm(
-           hidden_dim, device, ["user", "item", "taste", "image", "intention"]
-        )
-        self.after_fusion_act = DictActivate(
-           device, ["user", "item", "taste", "image", "intention"])
-        self.fusion_dropout = DictDropout(dropout_rate, device, ["user", "item", "taste", "image"])
-
-        # リンク予測のためのMLP
-        self.link_predictor = nn.Sequential(
-            nn.Linear(hidden_dim + hidden_dim, hidden_dim),
-            nn.BatchNorm1d(hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()
-        )
-
-    def forward(self, data):
-
-        data.set_value_dict("x", {
-            "user": self.user_encoder(data["user"].id),
-            "image": self.image_encoder(data["image"].x),
-            # "intention": self.vlm_caption_encoder(data["intention"].caption),
-            "ingredient": self.ingredient_encoder(data["ingredient"].x),
-            "taste": self.cooking_direction_encoder(data["taste"].x)
-        })
-        data.set_value_dict("x", {
-            "user": self.user_embedding_dropout(data.x_dict["user"])
-        })
-
-        cl_losses = []
-        for cl in self.cl_with_caption_and_nutrient:
-            intention_x, _, cl_loss = cl(data["intention"].caption, data["intention"].nutrient)
-            cl_losses.append(cl_loss)
-            data.set_value_dict("x", {
-                "intention": intention_x
-            })
-        cl_loss = torch.stack(cl_losses).mean()
-        data.set_value_dict("x", {
-            "intention": self.cl_norm(data.x_dict["intention"])
-        })
-        data.set_value_dict("x", {
-            "intention": self.cl_act(data.x_dict["intention"])
-        })
-        data.set_value_dict("x", self.cl_dropout(data.x_dict))
-
-        # Message passing
-        # Sensing
-        for gnn in self.ing_to_recipe:
-            data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
-        data.set_value_dict("x", self.after_sensing_norm(data.x_dict))
-        data.set_value_dict("x", self.after_sensing_act(data.x_dict))
-        data.set_value_dict("x", self.taste_dropout(data.x_dict))
-
-        # Fusion
-        for gnn in self.fusion_gnn:
-            data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
-        data.set_value_dict("x", self.after_fusion_norm(data.x_dict))
-        data.set_value_dict("x", self.after_fusion_act(data.x_dict))
-        data.set_value_dict("x", self.fusion_dropout(data.x_dict))
-
-        return data, [
-            {"name": "cl_loss", "loss": cl_loss, "weight": self.cl_loss}
-        ]
-
-    def predict(self, user_nodes, recipe_nodes):
-        # ユーザーとレシピの埋め込みを連結
-        user_nodes = F.normalize(user_nodes, p=2, dim=1)
-        recipe_nodes = F.normalize(recipe_nodes, p=2, dim=1)
-        edge_features = torch.cat([user_nodes, recipe_nodes], dim=1)
-        # print_layer_outputs(self.link_predictor, edge_features)
-        return self.link_predictor(edge_features)
-"""
-
-
 class RecommendationModel(nn.Module):
     def __init__(
         self,
@@ -380,14 +231,14 @@ class RecommendationModel(nn.Module):
             nn.Linear(user_encoder_low_rank_dim, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
-            nn.Dropout(p=0.2)
+            nn.Dropout(p=user_encoder_dropout_rate)
         )
         self.item_encoder = nn.Sequential(
             nn.Embedding(num_item, item_encoder_low_rank_dim),
             nn.Linear(item_encoder_low_rank_dim, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
-            nn.Dropout(p=0.2)
+            nn.Dropout(p=item_encoder_dropout_rate)
         )
         self.image_encoder = LowRankLinear(input_image_dim, hidden_dim, rank=64)
         self.taste_encoder = nn.Linear(input_cooking_direction_dim, hidden_dim)
