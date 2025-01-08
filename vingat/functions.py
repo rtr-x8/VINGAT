@@ -270,6 +270,8 @@ def show_model_parameters(model: nn.Module, threshold=0.2):
     upper_threshold = average * (1 + threshold)
     lower_threshold = average * (1 - threshold)
 
+    print(f"Parameter Count: {len(not_null_params) + len(null_params)}")
+
     if len(not_null_params) > 0:
         print("Parameters Describe: ")
         print(pd.DataFrame(not_null_norms).describe().T)
@@ -288,8 +290,6 @@ def show_model_parameters(model: nn.Module, threshold=0.2):
         print("Null Parameters: ")
         for null_param in null_params:
             print(f"[{null_param}] is Null.")
-
-    print(f"Parameter Count: {len(not_null_params) + len(null_params)}")
 
 
 def train_func(
