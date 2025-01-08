@@ -129,15 +129,16 @@ class MultiModalFusionGAT(nn.Module):
         out = self.gnn(
             {k: v for k, v in x_dict.items() if k in self.NODES},
             {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
-        )
-        for k, v in x_dict.items():  # 残差結合
-            out[k] += v
+        )  # Only User, Item node
         out.update(self.norm(out))
         out.update(self.act(out))
         out.update(self.drop(out))
-        return {
-            k: v for k, v in out.items() if v is not None
-        }
+        for k, v in x_dict.items():
+            if out.get(k) is None:
+                out[k] = v
+            else:
+                out[k] += v
+        return out
 
 
 def print_layer_outputs(model, input_data, max_elements=10, prefix=""):
