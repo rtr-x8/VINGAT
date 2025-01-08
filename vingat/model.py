@@ -61,21 +61,22 @@ class TasteGNN(nn.Module):
 
     def forward(self, x_dict, edge_index_dict):
         x_dict = {k: v for k, v in x_dict.items() if k in self.NODES}
-        ings = x_dict.get("ingredient")
         edge_index_dict = {k: v for k, v in edge_index_dict.items() if k in self.EDGES}
         out = self.gnn(x_dict, edge_index_dict)
-        out["ingredient"] = ings
-        out["taste"] += x_dict["taste"]  # 残差結合
-        return {
-            k: v for k, v in out.items() if v is not None
-        }
+
+        for k, v in x_dict.items():
+            if out.get(k) is None:
+                out[k] = v
+            else:
+                out[k] = out[k] * 0.5 + v * 0.5
+        return out
 
 
 class DictActivate(nn.Module):
     def __init__(self, device, keys=[]):
         super().__init__()
         self.acts = {
-            k: nn.ReLU().to(device) for k in keys
+            k: nn.GELU().to(device) for k in keys
         }
 
     def forward(self, x_dict):
@@ -102,6 +103,19 @@ class DictBatchNorm(nn.Module):
         super().__init__()
         self.norms = {
             k: BatchNorm(hidden_dim).to(device) for k in keys
+        }
+
+    def forward(self, x_dict):
+        return {
+            k: norm(x_dict.get(k)) for k, norm in self.norms.items()
+        }
+
+
+class DictLayerNorm(nn.Module):
+    def __init__(self, hidden_dim, device, keys=[]):
+        super().__init__()
+        self.norms = {
+            k: nn.LayerNorm(hidden_dim).to(device) for k in keys
         }
 
     def forward(self, x_dict):
@@ -137,7 +151,7 @@ class MultiModalFusionGAT(nn.Module):
             if out.get(k) is None:
                 out[k] = v
             else:
-                out[k] += v
+                out[k] = out[k] * 0.5 + v * 0.5
         return out
 
 
@@ -179,6 +193,38 @@ class LowRankLinear(nn.Module):
         return self.v(self.u(x))
 
 
+class DictLayerNorm(nn.Module):  # noqa F811 下の方で使ってるがコメントアウトしているので
+    def __init__(self, node_types, hidden_dim):
+        super().__init__()
+        # 初期の軽いrescaling
+        self.initial_rescaling = nn.ModuleDict({
+            node_type: nn.LayerNorm(hidden_dim)
+            for node_type in node_types
+        })
+
+        # メインのrescaling
+        self.main_rescaling = nn.ModuleDict({
+            node_type: nn.Sequential(
+                nn.LayerNorm(hidden_dim),
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.ReLU(),
+                nn.Linear(hidden_dim, hidden_dim)
+            ) for node_type in node_types
+        })
+
+    def initial_forward(self, x_dict):
+        return {
+            node_type: self.initial_rescaling[node_type](x)
+            for node_type, x in x_dict.items()
+        }
+
+    def main_forward(self, x_dict):
+        return {
+            node_type: self.main_rescaling[node_type](x)
+            for node_type, x in x_dict.items()
+        }
+
+
 class RecommendationModel(nn.Module):
     def __init__(
         self,
@@ -203,6 +249,13 @@ class RecommendationModel(nn.Module):
         item_encoder_low_rank_dim: int,
         user_encoder_dropout_rate: float,
         item_encoder_dropout_rate: float,
+        intention_cl_after_dropout_rate: float,
+        taste_gnn_dropout_rate: float,
+        taste_gnn_after_dropout_rate: float,
+        fusion_gnn_dropout_rate: float,
+        fusion_gnn_after_dropout_rate: float,
+        link_predictor_dropout_rate: float,
+        link_predictor_leaky_relu_slope: float,
     ):
         super().__init__()
         os.environ['TORCH_USE_CUDA_DSA'] = '1'
@@ -229,18 +282,16 @@ class RecommendationModel(nn.Module):
         self.user_encoder = nn.Sequential(
             nn.Embedding(num_user, user_encoder_low_rank_dim),
             nn.Linear(user_encoder_low_rank_dim, hidden_dim),
-            nn.BatchNorm1d(hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(p=user_encoder_dropout_rate)
+            # nn.ReLU(),
+            # nn.Dropout(p=user_encoder_dropout_rate)
         )
         self.item_encoder = nn.Sequential(
             nn.Embedding(num_item, item_encoder_low_rank_dim),
             nn.Linear(item_encoder_low_rank_dim, hidden_dim),
-            nn.BatchNorm1d(hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(p=item_encoder_dropout_rate)
+            # nn.ReLU(),
+            # nn.Dropout(p=item_encoder_dropout_rate)
         )
-        self.image_encoder = LowRankLinear(input_image_dim, hidden_dim, rank=64)
+        self.image_encoder = LowRankLinear(input_image_dim, hidden_dim, rank=32)
         self.taste_encoder = nn.Linear(input_cooking_direction_dim, hidden_dim)
         self.ingredient_encoder = nn.Linear(input_ingredient_dim, hidden_dim)
 
@@ -255,20 +306,20 @@ class RecommendationModel(nn.Module):
             for _ in range(intention_layers)
         ])
         self.intention_cl_after = nn.Sequential(
-            DictBatchNorm(hidden_dim, device, ["intention"]),
+            # DictBatchNorm(hidden_dim, device, ["intention"]),
             DictActivate(device, ["intention"]),
-            DictDropout(dropout_rate, device, ["intention"])
+            # DictDropout(dropout_rate, device, ["intention"])
         )
 
         # Taste Level GAT
         self.sensing_gnn = nn.ModuleList([
-            TasteGNN(hidden_dim, dropout_rate=0.3)
+            TasteGNN(hidden_dim, dropout_rate=taste_gnn_dropout_rate)
             for _ in range(sencing_layers)
         ])
         self.sensing_gnn_after = nn.Sequential(
-            DictBatchNorm(hidden_dim, device, ["taste", "ingredient"]),
+            # DictBatchNorm(hidden_dim, device, ["taste", "ingredient"]),
             DictActivate(device, ["taste", "ingredient"]),
-            DictDropout(dropout_rate, device, ["taste"]),
+            # DictDropout(taste_gnn_after_dropout_rate, device, ["taste"]),
         )
 
         # Fusion GAT
@@ -276,32 +327,54 @@ class RecommendationModel(nn.Module):
             MultiModalFusionGAT(
                 hidden_dim=hidden_dim,
                 num_heads=num_heads,
-                dropout_rate=dropout_rate,
+                dropout_rate=fusion_gnn_dropout_rate,
                 device=device
             )
             for _ in range(fusion_layers)
         ])
         self.fusion_gnn_after = nn.Sequential(
-            DictBatchNorm(hidden_dim, device, ["user", "item"]),
+            # DictLayerNorm(hidden_dim, device, ["user", "item"]),
             DictActivate(device, ["user", "item"]),
-            DictDropout(dropout_rate, device, ["user", "item"]),
+            # DictDropout(fusion_gnn_after_dropout_rate, device, ["user", "item"]),
         )
 
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
-            nn.Linear(hidden_dim + hidden_dim, hidden_dim),
-            nn.BatchNorm1d(hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(p=0.3),
+            nn.Linear(hidden_dim * 2, hidden_dim),  # 中間層を広げる
+            nn.LeakyReLU(link_predictor_leaky_relu_slope),  # 追加の活性化層
+            # nn.Dropout(link_predictor_dropout_rate),  # ドロップアウトを少し緩める
             nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()
         )
+
+        self.layer_norm = DictLayerNorm(
+            node_types=["user", "item", "image", "ingredient", "taste", "intention"],
+            hidden_dim=hidden_dim
+        )
+
+        self.init_weights()
 
     def predict(self, user_nodes, recipe_nodes):
         user_nodes = F.normalize(user_nodes, p=2, dim=1)
         recipe_nodes = F.normalize(recipe_nodes, p=2, dim=1)
         edge_features = torch.cat([user_nodes, recipe_nodes], dim=1)
-        return self.link_predictor(edge_features)
+        logits = self.link_predictor(edge_features)
+
+        # lの平均と標準偏差を計算
+        # l_mean = torch.mean(l)
+        # l_std = torch.std(l)
+        # print(f"mean: {round(l_mean.item(), 4)}, std: {round(l_std.item(), 4)}")  # 平均と標準偏差を表示
+
+        return torch.sigmoid(logits)
+
+    def init_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+            elif isinstance(m, nn.BatchNorm1d):
+                nn.init.ones_(m.weight)
+                nn.init.zeros_(m.bias)
 
     def forward(self, data: HeteroData):
         data.set_value_dict("x", {
@@ -311,6 +384,8 @@ class RecommendationModel(nn.Module):
             "ingredient": self.ingredient_encoder(data["ingredient"].org),
             "taste": self.taste_encoder(data["taste"].org),
         })
+
+        # data.set_value_dict("x", self.layer_norm.initial_forward(data.x_dict))
 
         cl_losses = []
         for cl in self.intention_cl:
@@ -329,6 +404,8 @@ class RecommendationModel(nn.Module):
         for gnn in self.fusion_gnn:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
             data.set_value_dict("x", self.fusion_gnn_after(data.x_dict))
+
+        # data.set_value_dict("x", self.layer_norm.main_forward(data.x_dict))
 
         return data, [
             {"name": "cl_loss", "loss": cl_loss, "weight": self.cl_loss_rate}
