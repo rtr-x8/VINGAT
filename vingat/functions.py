@@ -256,12 +256,31 @@ def train_one_epoch(
     )
 
 
-def show_model_parameters(model: nn.Module):
+def show_model_parameters(model: nn.Module, threshold=0.2):
+    not_null_norms = []
+    not_null_params = []
+    null_params = []
     for name, param in model.named_parameters():
         if param.grad is None:
-            print(f"[WARNING] No grad for {name}")
+            null_params.append(name)
         else:
-            print(f"{name} grad norm: {param.grad.norm()}")
+            not_null_params.append(name)
+            not_null_norms.append(param.grad.norm().item())
+    average = sum(not_null_norms) / len(not_null_norms)
+    upper_threshold = average + threshold
+    lower_threshold = average - threshold
+
+    print(f"NOT Null parameters: {len(not_null_params)}")
+    for not_null_param, not_null_norm in zip(not_null_params, not_null_norms):
+        if not (lower_threshold <= not_null_norm <= upper_threshold):
+            print(f"[{not_null_param}] is out of average range: {not_null_norm}")
+
+    if len(null_params) > 0:
+        print("Null Parameters: ")
+        for null_param in null_params:
+            print(f"[{null_param}] is Null.")
+
+    print(f"Parameter Count: {len(not_null_params) + len(null_params)}")
 
 
 def train_func(
