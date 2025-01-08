@@ -193,7 +193,7 @@ class LowRankLinear(nn.Module):
         return self.v(self.u(x))
 
 
-class DictLayerNorm(nn.Module):  # noqa F811 下の方で使ってるがコメントアウトしているので
+class DictLayerNormForLayer(nn.Module):  # noqa F811 下の方で使ってるがコメントアウトしているので
     def __init__(self, node_types, hidden_dim):
         super().__init__()
         # 初期の軽いrescaling
@@ -346,7 +346,7 @@ class RecommendationModel(nn.Module):
             nn.Linear(hidden_dim, 1),
         )
 
-        self.layer_norm = DictLayerNorm(
+        self.layer_norm = DictLayerNormForLayer(
             node_types=["user", "item", "image", "ingredient", "taste", "intention"],
             hidden_dim=hidden_dim
         )
