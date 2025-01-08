@@ -32,11 +32,15 @@ class NutrientCaptionContrastiveLearning(nn.Module):
         self.cossine_similarity = nn.CosineSimilarity(dim=1)
         self.loss = ContrastiveLoss(temperature=temperature)
 
-    def forward(self, caption, nutrient):
-        nutrient_emb = self.nutrient_encoder(nutrient)
-        caption_emb = self.caption_encoder(caption)
+    def forward(self, intention):
+        nutrient_emb = self.nutrient_encoder(intention.nutrient)
+        caption_emb = self.caption_encoder(intention.caption)
         loss = self.loss(nutrient_emb, caption_emb)
-        return F.normalize(caption_emb, p=2, dim=1), F.normalize(nutrient_emb, p=2, dim=1), loss
+        return (
+            F.normalize(caption_emb, p=2, dim=1),
+            F.normalize(nutrient_emb, p=2, dim=1),
+            loss
+        )
 
 
 class TasteGNN(nn.Module):
@@ -457,9 +461,7 @@ class RecommendationModel(nn.Module):
 
         cl_losses = []
         for cl in self.intention_cl:
-            intention_x, _, cl_loss = cl(
-                data["intention"].caption,
-                data["intention"].nutrient)
+            intention_x, _, cl_loss = cl(data["intention"])
             data.set_value_dict("x", {
                 "intention": intention_x
             })
