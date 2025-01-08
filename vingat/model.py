@@ -426,19 +426,18 @@ class RecommendationModel(nn.Module):
         # リンク予測のためのMLP
         self.link_predictor = nn.Sequential(
             nn.Linear(hidden_dim + hidden_dim, hidden_dim),
-            # nn.BatchNorm1d(hidden_dim),
+            nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, 1),
+            nn.Sigmoid()
         )
 
     def predict(self, user_nodes, recipe_nodes):
         # ユーザーとレシピの埋め込みを連結
-        user_nodes = F.normalize(user_nodes, p=2, dim=1)
-        recipe_nodes = F.normalize(recipe_nodes, p=2, dim=1)
+        # user_nodes = F.normalize(user_nodes, p=2, dim=1)
+        # recipe_nodes = F.normalize(recipe_nodes, p=2, dim=1)
         edge_features = torch.cat([user_nodes, recipe_nodes], dim=1)
-        logi = self.link_predictor(edge_features)
-        print("predict score logi", logi.shape, logi.mean(), logi.std())
-        return torch.sigmoid(logi)
+        return self.link_predictor(edge_features)
 
     def forward(self, data: HeteroData):
         data.set_value_dict("x", {
