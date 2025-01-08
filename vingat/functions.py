@@ -267,8 +267,8 @@ def show_model_parameters(model: nn.Module, threshold=0.2):
             not_null_params.append(name)
             not_null_norms.append(param.grad.norm().item())
     average = sum(not_null_norms) / len(not_null_norms)
-    upper_threshold = average + threshold
-    lower_threshold = average - threshold
+    upper_threshold = average * (1 + threshold)
+    lower_threshold = average * (1 - threshold)
 
     if len(not_null_params) > 0:
         print("Parameters Describe: ")
