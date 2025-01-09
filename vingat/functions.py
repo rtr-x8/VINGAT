@@ -453,7 +453,9 @@ def negative_sampling_with_popularity(
             # replace=Trueで許容するか、サンプル数を減らすかは要件次第
             chosen_indices = candidate_indices
         else:
-            chosen_indices = candidate_indices[torch.randperm(candidate_indices.shape[0])[:num_neg_samples]]
+            chosen_indices = candidate_indices[
+                torch.randperm(candidate_indices.shape[0])[:num_neg_samples]
+            ]
     else:
         # 確率分布として正規化してサンプリング
         probs = weights / sum_w
