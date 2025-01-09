@@ -22,8 +22,7 @@ def evaluate_model(
     model: nn.Module,
     data: HeteroData,
     device: torch.device,
-    freq_dict: dict,
-    r: float = 0.7,
+    freq_tensor: dict,
     desc: str = "",
 ):
     model.eval()
@@ -59,10 +58,8 @@ def evaluate_model(
             user_neg_indices, negative_edge_index = negative_sampling_with_popularity(
                 user_id=user_id,
                 user_pos_indices=user_pos_indices,
-                recipe_embeddings=recipe_embeddings,
-                freq_dict=freq_dict,
+                freq_tensor=freq_tensor,
                 num_neg_samples=num_neg_samples,
-                r=r,
                 device=device
             )
 
@@ -358,8 +355,7 @@ def train_func(
                 model=model,
                 data=val_data,
                 device=device,
-                freq_dict=popularities,
-                r=0.7,
+                freq_tensor=popularities,
                 desc=f"[Valid] Epoch {epoch}/{epochs}"
             )
 
@@ -412,67 +408,61 @@ def train_func(
 
 
 def get_item_popularity(
+    device: torch.device,
     item_lencoder: LabelEncoder,
     directory_path: str,
-    rating_threshold: float = 0.0
+    rating_threshold: float = 0.0,
+    r=0.7
 ) -> Dict:
     _, core_train_rating, _, _ = core_file_loader(directory_path, rating_threshold)
     core_train_rating["recipe_id"] = item_lencoder.transform(core_train_rating["recipe_id"])
     res = core_train_rating.groupby("recipe_id").count()["rating"].to_dict()
-    return res
+    tensor = np.zeros(len(item_lencoder.classes_), dtype=np.float32)
+    for k, v in res.items():
+        tensor[k] = v ** r
+    return torch.tensor(tensor, device=device)
 
 
 def negative_sampling_with_popularity(
     user_id: int,
-    user_pos_indices: torch.Tensor,
-    recipe_embeddings: torch.Tensor,
-    freq_dict: dict,
-    num_neg_samples: int = 500,
-    r: float = 0.7,
-    device: torch.device = torch.device("cpu")
+    user_pos_indices: torch.Tensor,      # shape=(num_pos_samples,)
+    freq_tensor: torch.Tensor,           # shape=(item_count,), freq^r (GPU上)
+    num_neg_samples: int,
+    device: torch.device = torch.device("cuda")
 ):
     """
-    人気度 (freq_dict) に基づいてネガティブサンプリングを行う関数。
-
-    Args:
-        user_id (int): 現在のユーザーID
-        user_pos_indices (torch.Tensor): ユーザー user_id に対応する正例アイテムのindex集合
-        recipe_embeddings (torch.Tensor): レシピ埋め込み (itemノード数 x 埋め込み次元)
-        freq_dict (dict): { item_idx(int): 出現回数(int) } の辞書
-        num_neg_samples (int): 負例のサンプル数
-        r (float): freq^r する際のパラメータ
-        device (torch.device): テンソルを配置するデバイス
-
-    Returns:
-        (torch.Tensor, torch.Tensor):
-            user_neg_indices: shape=(num_neg_samples,)
-            negative_edge_index: shape=(2, num_neg_samples)
+    freq_tensor を使ってネガティブサンプリングをGPU上で完結させる。
+    user_pos_indices は user_id の正例アイテムindex (GPU上).
     """
 
-    # 全 item_idx (0 ~ item数-1) をリスト化
-    all_items = list(range(recipe_embeddings.shape[0]))
+    # freq_tensor をコピー（clone）し、正例に対応する index を 0 にして除外
+    # （cloneしないと他のユーザの処理に影響が出る恐れがある）
+    weights = freq_tensor.clone()
+    weights[user_pos_indices] = 0.0
 
-    # 学習セットで集計した人気度 freq_dict を参照して freq^r を計算
-    freq_r = np.array([freq_dict.get(i, 0)**r for i in all_items], dtype=np.float32)
-
-    # ユーザーが既に持つ正例アイテムは候補から除外(重みを0に)
-    freq_r[user_pos_indices.cpu().numpy()] = 0.0
-
-    # 確率分布を正規化してサンプリング
-    sum_w = freq_r.sum()
-    if sum_w == 0:
-        # 万が一すべて0なら一様ランダムにフォールバック
-        chosen_indices = np.random.choice(all_items, size=num_neg_samples, replace=False)
+    sum_w = weights.sum()
+    if sum_w <= 0:
+        # すべて 0 の場合は一様サンプリングにフォールバック
+        # まず正例以外を取得
+        item_count = freq_tensor.shape[0]
+        all_indices = torch.arange(item_count, device=device)
+        mask = torch.ones(item_count, dtype=torch.bool, device=device)
+        mask[user_pos_indices] = False
+        candidate_indices = all_indices[mask]
+        if candidate_indices.shape[0] < num_neg_samples:
+            # replace=Trueで許容するか、サンプル数を減らすかは要件次第
+            chosen_indices = candidate_indices
+        else:
+            chosen_indices = candidate_indices[torch.randperm(candidate_indices.shape[0])[:num_neg_samples]]
     else:
-        p = freq_r / sum_w
-        chosen_indices = np.random.choice(all_items, size=num_neg_samples, replace=False, p=p)
+        # 確率分布として正規化してサンプリング
+        probs = weights / sum_w
+        chosen_indices = torch.multinomial(probs, num_neg_samples, replacement=False)
 
-    user_neg_indices = torch.tensor(chosen_indices, device=device)
-
-    # negative_edge_indexを作成 (shape=(2, num_neg_samples))
+    # negative_edge_index もGPU上で作成
     negative_edge_index = torch.stack([
         torch.full((num_neg_samples,), user_id, dtype=torch.long, device=device),
-        user_neg_indices
-    ])
+        chosen_indices
+    ], dim=0)
 
-    return user_neg_indices, negative_edge_index
+    return chosen_indices, negative_edge_index
