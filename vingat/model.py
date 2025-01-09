@@ -186,8 +186,8 @@ class StaticEmbeddingEncoder():
 class LowRankLinear(nn.Module):
     def __init__(self, input_dim, output_dim, rank, bias=True):
         super(LowRankLinear, self).__init__()
-        self.u = nn.Linear(input_dim, rank, bias=False)
-        self.v = nn.Linear(rank, output_dim, bias=bias)
+        self.u = nn.Linear(input_dim, rank)
+        self.v = nn.Linear(rank, output_dim)
 
     def forward(self, x):
         return self.v(self.u(x))
