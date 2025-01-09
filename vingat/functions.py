@@ -259,8 +259,8 @@ def train_one_epoch_by_negativesampling(
                 torch.zeros_like(neg_scores, device=device)
             ]),
             user_indices=torch.cat([
-                edge_label_index[0][pos_mask],
-                edge_label_index[0][neg_mask]
+                pos_user_ids,
+                neg_user_ids_tensor
             ])
         )
         shandler.update(pos_scores, neg_scores)
