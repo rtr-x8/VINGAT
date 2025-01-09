@@ -217,9 +217,16 @@ def train_one_epoch_by_negativesampling(
         neg_recipe_ids_tensor = torch.cat(all_neg_recipe_ids, dim=0)
 
         # 負例のスコアを計算
+        print("user", user_id)
+        print("neg_recipe_ids_tensor", neg_recipe_ids_tensor.shape, neg_recipe_ids_tensor.max())
+        print("neg_recipe_ids_tensor", neg_user_ids_tensor.shape, neg_user_ids_tensor.max())
+        print("recipe_embed", recipe_embed.shape)
         neg_user_embed = user_embed[neg_user_ids_tensor]
         neg_recipe_embed = recipe_embed[neg_recipe_ids_tensor]
         neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
+
+        if len(pos_scores) == len(neg_scores):
+            raise ValueError("Positive scores and Negative scores are same length")
 
         # 損失の計算
         main_loss = criterion(pos_scores, neg_scores, model.parameters())
@@ -318,6 +325,12 @@ def train_one_epoch(
         # 正例と負例のマスクを取得
         pos_mask = batch_data['user', 'buys', 'item'].edge_label == 1
         neg_mask = batch_data['user', 'buys', 'item'].edge_label == 0
+
+        if len(neg_mask) == 0:
+            raise ValueError("Negative mask is empty")
+
+        if len(pos_mask) == len(neg_mask):
+            raise ValueError("Positive mask and Negative mask are same length")
 
         # エッジインデックスからノードの埋め込みを取得
         user_embed = user_embeddings[edge_label_index[0]]
