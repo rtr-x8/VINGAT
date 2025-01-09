@@ -1,36 +1,35 @@
 from sklearn.preprocessing import StandardScaler
 import torch
 import pandas as pd
-from typing import Dict
+from typing import Tuple, List
 from torch_geometric.data import HeteroData
 
 
 class ScalarPreprocess:
-    def __init__(self, mapping_dict: Dict[str, str]):
+    def __init__(self, mapping: List[Tuple[str, str]]):
         """
         mapping_dict: Dict[str, str]
             ノード名と属性の対応を示す辞書
         """
-        self.mapping = mapping_dict
-        self.device = device
-        self.standard_scaler_dict = {
-            node: StandardScaler()
-            for node in mapping_dict.keys()
+        self.mapping = mapping
+        self.standard_scaler = {
+            map: StandardScaler()
+            for map in mapping
         }
 
     def fit(self, data: HeteroData):
-        for node, attr in self.mapping.items():
-            self.standard_scaler_dict[node].fit(
+        for node, attr in self.mapping:
+            self.standard_scaler[(node, attr)].fit(
                 data[node][attr].cpu().numpy()
             )
         return self
 
     def transform(self, data: HeteroData):
-        for node, attr in self.mapping.items():
+        for node, attr in self.mapping:
             data[node][attr] = torch.tensor(
-                self.standard_scaler_dict[node].transform(data[node][attr].cpu().numpy()),
+                self.standard_scaler[(node, attr)].transform(data[node][attr].cpu().numpy()),
                 dtype=data[node][attr].dtype
-            ).to(self.device)
+            ).to(data[node][attr].device)
         return data
 
 
@@ -44,7 +43,7 @@ def filter_recipe_ingredient(
     """
     _key = 'ingredient_id'
     alternative = alternative_ing[alternative_ing["score"] > threshold]
-    mapping_dict = dict(zip(alternative['alternative_ingredient'], alternative[_key]))
+    mapping = dict(zip(alternative['alternative_ingredient'], alternative[_key]))
     recip_ing[_key] = recip_ing[_key].map(mapping_dict).fillna(recip_ing[_key]).astype(int)
     recip_ing = recip_ing.drop_duplicates(subset=['recipe_id', _key])
     return recip_ing
