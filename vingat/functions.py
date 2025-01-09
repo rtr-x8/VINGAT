@@ -195,68 +195,32 @@ def train_one_epoch_by_negativesampling(
         pos_scores = model.predict(pos_user_embed, pos_recipe_embed).squeeze()
 
         unique_user_ids = pos_user_ids.unique()
-
-        # 1) GPU上で freq_tensor を clone
-        weights = freq_tensor.clone()  # (item_count,) on GPU
-        # 2) バッチ内の正例アイテムを 0 にして除外
-        #    (pos_recipe_ids の重複を避けるため unique 取っておく)
-        unique_pos_recipe_ids = pos_recipe_ids.unique()
-        weights[unique_pos_recipe_ids] = 0.0
-
-        # 3) ユーザごとのネガティブ数を計算
-        #    - ここでは「user_idごとに pos数 と同じ neg数」にする場合
-        #    - total_neg_samples = pos_recipe_ids の総数
-        total_neg_samples = len(pos_recipe_ids)
-
-        sum_w = weights.sum()
-        if sum_w <= 0:
-            # 万が一全部0なら fallback
-            # 例: valid_candidates = 全item - posレシピ
-            valid_indices = torch.arange(weights.shape[0], device=device)[weights > 0]
-            if len(valid_indices) < total_neg_samples:
-                chosen_indices = valid_indices
-            else:
-                chosen_indices = valid_indices[
-                    torch.randperm(len(valid_indices))[:total_neg_samples]
-                ]
-        else:
-            probs = weights / sum_w
-            chosen_indices = torch.multinomial(probs, total_neg_samples, replacement=False)
-
-        # 4) chosen_indices の長さ = pos_recipe_ids の長さ
-        #    -> pos_user_ids と 1:1に対応づけたい
-        #    たとえば pos_user_ids = [U1, U1, U2, U2, U2, U3, ...]
-        #            chosen_indices = [i1, i2, i3, i4, i5, i6, ...]
-        #    これを user_id とペアにしたい
-        #    -> 順序対応にするには shuffle せずに "ユーザごとにサンプリング数" を積み重ねる必要あり
-        #    (ここでは簡単に pos_user_ids 順序を崩さない方法として "for ループで分割" する例を示す)
-        #    ただし分割して user_id に合体するためにもループは発生するが、サンプリングは一度だけ
-
-        offset = 0
-        neg_user_ids_list = []
-        neg_recipe_ids_list = []
+        all_neg_user_ids = []
+        all_neg_recipe_ids = []
 
         for user_id in unique_user_ids:
-            # ユーザ user_id の posアイテム数
-            mask = (pos_user_ids == user_id)
-            k = mask.sum().item()  # このユーザがposアイテムを持つ数
-            if k == 0:
-                continue
-            # chosen_indices の offset ~ offset+k をこのユーザに対応づけ
-            neg_items_for_user = chosen_indices[offset: offset + k]
-            offset += k
+            mask = pos_user_ids == user_id
+            user_pos_items = pos_recipe_ids[mask]
 
-            user_vec = torch.full_like(neg_items_for_user, user_id, device=device)
-            neg_user_ids_list.append(user_vec)
-            neg_recipe_ids_list.append(neg_items_for_user)
+            neg_item_indices, neg_edge_index = negative_sampling_with_popularity(
+                user_id=user_id,
+                user_pos_indices=user_pos_items,
+                freq_tensor=freq_tensor,
+                num_neg_samples=len(user_pos_items),
+                device=device,
+                candidate_items=pos_recipe_ids.unique()
+            )
 
-        neg_user_ids_tensor = torch.cat(neg_user_ids_list, dim=0)
-        neg_recipe_ids_tensor = torch.cat(neg_recipe_ids_list, dim=0)
+            all_neg_user_ids.append(torch.full_like(neg_item_indices, user_id, device=device))
+            all_neg_recipe_ids.append(neg_item_indices)
+
+        neg_user_ids_tensor = torch.cat(all_neg_user_ids, dim=0)
+        neg_recipe_ids_tensor = torch.cat(all_neg_recipe_ids, dim=0)
 
         # 負例のスコアを計算
         try:
-            neg_user_embed = user_embeddings[neg_user_ids_tensor]
-            neg_recipe_embed = recipe_embeddings[neg_recipe_ids_tensor]
+            neg_user_embed = user_embed[neg_user_ids_tensor]
+            neg_recipe_embed = recipe_embed[neg_recipe_ids_tensor]
             neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
         except Exception as e:
             print("e", e)
