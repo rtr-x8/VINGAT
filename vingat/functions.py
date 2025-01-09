@@ -370,8 +370,8 @@ def train_one_epoch(
         if len(neg_mask) == 0:
             raise ValueError("Negative mask is empty")
 
-        if len(pos_mask) == len(neg_mask):
-            raise ValueError("Positive mask and Negative mask are same length")
+        if len(pos_mask) != len(neg_mask):
+            raise ValueError("Positive mask and Negative mask are not same length")
 
         # エッジインデックスからノードの埋め込みを取得
         user_embed = user_embeddings[edge_label_index[0]]
