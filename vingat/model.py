@@ -368,10 +368,14 @@ class RecommendationModel(nn.Module):
 
     def init_weights(self):
         for m in self.modules():
+            if isinstance(m, nn.Embedding):
+                nn.init.uniform_(m.weight, a=-0.01, b=0.01)
+
             if isinstance(m, nn.Linear):
                 nn.init.xavier_uniform_(m.weight)
                 if m.bias is not None:
                     nn.init.zeros_(m.bias)
+
             elif isinstance(m, nn.BatchNorm1d):
                 nn.init.ones_(m.weight)
                 nn.init.zeros_(m.bias)
