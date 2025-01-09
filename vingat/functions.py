@@ -4,7 +4,6 @@ from tqdm.notebook import tqdm
 import os
 import numpy as np
 from torch_geometric.data import HeteroData
-from torch_geometric.utils import negative_sampling
 from typing import Callable, Dict, List, Optional
 import pandas as pd
 from vingat.metrics import ScoreMetricHandler
