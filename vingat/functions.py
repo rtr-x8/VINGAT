@@ -230,8 +230,8 @@ def train_one_epoch_by_negativesampling(
             print("recipe_embed", recipe_embed.shape)
             raise Exception(e)
 
-        if len(pos_scores) == len(neg_scores):
-            raise ValueError("Positive scores and Negative scores are same length")
+        if len(pos_scores) != len(neg_scores):
+            raise ValueError("Positive scores and Negative scores are not same length")
 
         # 損失の計算
         main_loss = criterion(pos_scores, neg_scores, model.parameters())
