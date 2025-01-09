@@ -26,12 +26,6 @@ class ScalarPreprocess:
 
     def transform(self, data: HeteroData):
         for node, attr in self.mapping:
-            print("node: ", node, "attr: ", attr)
-            print(data)
-            print('---')
-            print(data[node])
-            print('---')
-            print(data[node][attr])
             data[node][attr] = torch.tensor(
                 self.standard_scaler[(node, attr)].transform(data[node][attr].cpu().numpy()),
                 dtype=data[node][attr].dtype
