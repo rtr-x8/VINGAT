@@ -137,6 +137,144 @@ def calculate_statistics(data):
     return df
 
 
+def train_one_epoch_by_negativesampling(
+    model: nn.Module,
+    device: torch.device,
+    optimizer: torch.optim.Optimizer,
+    train_loader: torch.utils.data.DataLoader,
+    criterion: Callable,
+    max_grad_norm: float,
+    freq_tensor: torch.Tensor,
+):
+    model.to(device)
+
+    loss_histories: Dict[str, List[torch.Tensor]] = {
+        "total_loss": [],
+        "main_loss": [],
+    }
+    node_mean = []
+    mhandler = MetricsHandler(device=device, threshold=0.5)
+    shandler = ScoreMetricHandler(device=device)
+
+    model.train()
+
+    for batch_data in tqdm(train_loader, desc="[Train]"):
+        optimizer.zero_grad()
+        batch_data = batch_data.to(device)
+
+        out, loss_entories = model(batch_data)
+
+        main_loss_rate = 1.0
+        if len(loss_entories) > 0:
+            main_loss_rate -= sum([entry["weight"] for entry in loss_entories])
+
+        if main_loss_rate < 0:
+            raise ValueError("main loss rate is negative")
+
+        # エッジのラベルとエッジインデックスを取得
+        edge_label_index = batch_data['user', 'buys', 'item'].edge_label_index
+
+        # ユーザーとレシピの埋め込みを取得
+        user_embeddings = out['user'].x
+        recipe_embeddings = out['item'].x
+
+        neg_mask = batch_data['user', 'buys', 'item'].edge_label == 0
+        if neg_mask.sum() > 0:
+            raise ValueError("Negative mask is not empty")
+
+        # エッジインデックスからノードの埋め込みを取得
+        user_embed = user_embeddings[edge_label_index[0]]
+        recipe_embed = recipe_embeddings[edge_label_index[1]]
+
+        pos_user_ids = edge_label_index[0]
+        pos_recipe_ids = edge_label_index[1]
+
+        # 正例のスコアを計算
+        pos_user_embed = user_embed[pos_user_ids]
+        pos_recipe_embed = recipe_embed[pos_recipe_ids]
+        pos_scores = model.predict(pos_user_embed, pos_recipe_embed).squeeze()
+
+        unique_user_ids = pos_user_ids.unique()
+        all_neg_user_ids = []
+        all_neg_recipe_ids = []
+
+        for user_id in unique_user_ids:
+            mask = pos_user_ids == user_id
+            user_pos_items = pos_recipe_ids[mask]
+
+            neg_item_indices, neg_edge_index = negative_sampling_with_popularity(
+                user_id=user_id,
+                user_pos_indices=user_pos_items,
+                freq_tensor=freq_tensor,
+                num_neg_samples=len(user_pos_items),
+                device=device
+            )
+
+            all_neg_user_ids.append(torch.full_like(neg_item_indices, user_id, device=device))
+            all_neg_recipe_ids.append(neg_item_indices)
+
+        neg_user_ids_tensor = torch.cat(all_neg_user_ids, dim=0)
+        neg_recipe_ids_tensor = torch.cat(all_neg_recipe_ids, dim=0)
+
+        # 負例のスコアを計算
+        neg_user_embed = user_embed[neg_user_ids_tensor]
+        neg_recipe_embed = recipe_embed[neg_recipe_ids_tensor]
+        neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
+
+        # 損失の計算
+        main_loss = criterion(pos_scores, neg_scores, model.parameters())
+
+        loss = main_loss_rate * main_loss
+        if len(loss_entories) > 0:
+            other_loss = torch.sum(torch.stack(
+                [entry["loss"] * entry["weight"] for entry in loss_entories]
+            ))
+            loss += other_loss
+
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
+
+        optimizer.step()
+
+        loss_histories["total_loss"].append(loss.item())
+        loss_histories["main_loss"].append((main_loss_rate * main_loss).item())
+        for entry in loss_entories:
+            if entry["name"] not in loss_histories.keys():
+                loss_histories[entry["name"]] = []
+            loss_histories[entry["name"]].append(
+                (entry["loss"] * entry["weight"]).item()
+            )
+
+        mhandler.update(
+            probas=torch.cat([pos_scores, neg_scores]),
+            targets=torch.cat([
+                torch.ones_like(pos_scores, device=device),
+                torch.zeros_like(neg_scores, device=device)
+            ]),
+            user_indices=torch.cat([
+                edge_label_index[0][pos_mask],
+                edge_label_index[0][neg_mask]
+            ])
+        )
+        shandler.update(pos_scores, neg_scores)
+
+        # check
+        node_mean.append({
+            key: val.mean().mean().item()
+            for key, val in out.x_dict.items()
+        })
+
+    node_stats = calculate_statistics(node_mean)
+
+    return (
+        model,
+        loss_histories,
+        node_stats,
+        mhandler,
+        shandler,
+    )
+
+
 def train_one_epoch(
     model: nn.Module,
     device: torch.device,
@@ -306,13 +444,14 @@ def train_func(
     for epoch in range(1, epochs+1):
 
         print("\n======================\n", f"Epoch {epoch}/{epochs}", now())
-        model, loss_histories, node_stats, mhandler, shandler = train_one_epoch(
+        model, loss_histories, node_stats, mhandler, shandler = train_one_epoch_by_negativesampling(
             model=model,
             device=device,
             optimizer=optimizer,
             criterion=criterion,
             train_loader=train_loader,
-            max_grad_norm=max_grad_norm
+            max_grad_norm=max_grad_norm,
+            freq_tensor=popularities
         )
 
         print("[Train] Node Statics: ")
