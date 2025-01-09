@@ -4,7 +4,7 @@ from tqdm.notebook import tqdm
 import os
 import numpy as np
 from torch_geometric.data import HeteroData
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Optional
 import pandas as pd
 from vingat.metrics import ScoreMetricHandler
 from vingat.metrics import MetricsHandler
@@ -207,7 +207,8 @@ def train_one_epoch_by_negativesampling(
                 user_pos_indices=user_pos_items,
                 freq_tensor=freq_tensor,
                 num_neg_samples=len(user_pos_items),
-                device=device
+                device=device,
+                candidate_items=pos_recipe_ids.unique()
             )
 
             all_neg_user_ids.append(torch.full_like(neg_item_indices, user_id, device=device))
@@ -217,13 +218,17 @@ def train_one_epoch_by_negativesampling(
         neg_recipe_ids_tensor = torch.cat(all_neg_recipe_ids, dim=0)
 
         # 負例のスコアを計算
-        print("user", user_id)
-        print("neg_recipe_ids_tensor", neg_recipe_ids_tensor.shape, neg_recipe_ids_tensor.max())
-        print("neg_recipe_ids_tensor", neg_user_ids_tensor.shape, neg_user_ids_tensor.max())
-        print("recipe_embed", recipe_embed.shape)
-        neg_user_embed = user_embed[neg_user_ids_tensor]
-        neg_recipe_embed = recipe_embed[neg_recipe_ids_tensor]
-        neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
+        try:
+            neg_user_embed = user_embed[neg_user_ids_tensor]
+            neg_recipe_embed = recipe_embed[neg_recipe_ids_tensor]
+            neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
+        except Exception as e:
+            print("e", e)
+            print("user", user_id)
+            print("neg_recipe_ids_tensor", neg_recipe_ids_tensor.shape, neg_recipe_ids_tensor.max())
+            print("neg_recipe_ids_tensor", neg_user_ids_tensor.shape, neg_user_ids_tensor.max())
+            print("recipe_embed", recipe_embed.shape)
+            raise Exception(e)
 
         if len(pos_scores) == len(neg_scores):
             raise ValueError("Positive scores and Negative scores are same length")
@@ -580,38 +585,91 @@ def negative_sampling_with_popularity(
     user_pos_indices: torch.Tensor,      # shape=(num_pos_samples,)
     freq_tensor: torch.Tensor,           # shape=(item_count,), freq^r (GPU上)
     num_neg_samples: int,
-    device: torch.device = torch.device("cuda")
+    device: torch.device = torch.device("cuda"),
+    candidate_items: Optional[torch.Tensor] = None,
 ):
     """
     freq_tensor を使ってネガティブサンプリングをGPU上で完結させる。
     user_pos_indices は user_id の正例アイテムindex (GPU上).
+
+    Args:
+        user_id (int): ユーザID
+        user_pos_indices (torch.Tensor): shape=(num_pos_samples,)
+            このユーザが正例として持つアイテムのインデックス (GPU上)
+        freq_tensor (torch.Tensor): shape=(item_count,)
+            グローバルに freq^r を格納した Tensor (GPU上)
+        num_neg_samples (int): サンプリングしたい負例数
+        device (torch.device): 実行デバイス
+        candidate_items (torch.Tensor, optional): shape=(subset_count,)
+            サブセットとしてサンプリング対象にするアイテムID一覧 (GPU上).
+            指定がなければ全アイテム (freq_tensor.shape[0]) が対象。
+
+    Returns:
+        chosen_indices (torch.Tensor): shape=(<= num_neg_samples,)
+            サンプリングされた負例アイテムのID
+        negative_edge_index (torch.Tensor): shape=(2, <= num_neg_samples)
+            [[user_id, ..., user_id],
+             [chosen_item_1, ..., chosen_item_N]]
     """
+    if candidate_items is None:
+        # freq_tensor をコピー（clone）し、正例に対応する index を 0 にして除外
+        # （cloneしないと他のユーザの処理に影響が出る恐れがある）
+        weights = freq_tensor.clone()
+        weights[user_pos_indices] = 0.0
 
-    # freq_tensor をコピー（clone）し、正例に対応する index を 0 にして除外
-    # （cloneしないと他のユーザの処理に影響が出る恐れがある）
-    weights = freq_tensor.clone()
-    weights[user_pos_indices] = 0.0
-
-    sum_w = weights.sum()
-    if sum_w <= 0:
-        # すべて 0 の場合は一様サンプリングにフォールバック
-        # まず正例以外を取得
-        item_count = freq_tensor.shape[0]
-        all_indices = torch.arange(item_count, device=device)
-        mask = torch.ones(item_count, dtype=torch.bool, device=device)
-        mask[user_pos_indices] = False
-        candidate_indices = all_indices[mask]
-        if candidate_indices.shape[0] < num_neg_samples:
-            # replace=Trueで許容するか、サンプル数を減らすかは要件次第
-            chosen_indices = candidate_indices
+        sum_w = weights.sum()
+        if sum_w <= 0:
+            # すべて 0 の場合は一様サンプリングにフォールバック
+            # まず正例以外を取得
+            item_count = freq_tensor.shape[0]
+            all_indices = torch.arange(item_count, device=device)
+            mask = torch.ones(item_count, dtype=torch.bool, device=device)
+            mask[user_pos_indices] = False
+            candidate_indices = all_indices[mask]
+            if candidate_indices.shape[0] < num_neg_samples:
+                # replace=Trueで許容するか、サンプル数を減らすかは要件次第
+                chosen_indices = candidate_indices
+            else:
+                chosen_indices = candidate_indices[
+                    torch.randperm(candidate_indices.shape[0])[:num_neg_samples]
+                ]
         else:
-            chosen_indices = candidate_indices[
-                torch.randperm(candidate_indices.shape[0])[:num_neg_samples]
-            ]
+            # 確率分布として正規化してサンプリング
+            probs = weights / sum_w
+            chosen_indices = torch.multinomial(probs, num_neg_samples, replacement=False)
     else:
-        # 確率分布として正規化してサンプリング
-        probs = weights / sum_w
-        chosen_indices = torch.multinomial(probs, num_neg_samples, replacement=False)
+        # freq_tensor をコピーし、まず全て 0 にする (サブセット以外はサンプリングしない)
+        # もしくは candidate_items だけを抜き出したウェイトを作るアプローチもOK
+        weights = torch.zeros_like(freq_tensor, device=device)
+        # candidate_items の要素だけ freq_tensor の値をコピー
+        weights[candidate_items] = freq_tensor[candidate_items]
+
+        # 正例アイテムは weight=0 で除外
+        weights[user_pos_indices] = 0.0
+
+        sum_w = weights.sum()
+        if sum_w <= 0:
+            # 一様ランダムフォールバック (candidate_items から pos を除いたもの)
+            mask = torch.ones_like(candidate_items, dtype=torch.bool, device=device)
+            # pos に含まれる要素を除外
+            pos_set = set(user_pos_indices.tolist())
+            for i, cid in enumerate(candidate_items):
+                if cid.item() in pos_set:
+                    mask[i] = False
+            valid_candidates = candidate_items[mask]
+
+            if valid_candidates.shape[0] == 0:
+                # 極端ケース: サブセット内が全て正例
+                chosen_indices = torch.empty(0, dtype=torch.long, device=device)
+            elif valid_candidates.shape[0] < num_neg_samples:
+                chosen_indices = valid_candidates
+            else:
+                chosen_indices = valid_candidates[
+                    torch.randperm(valid_candidates.shape[0], device=device)[:num_neg_samples]
+                ]
+        else:
+            probs = weights / sum_w
+            chosen_indices = torch.multinomial(probs, num_neg_samples, replacement=False)
 
     # negative_edge_index もGPU上で作成
     negative_edge_index = torch.stack([
