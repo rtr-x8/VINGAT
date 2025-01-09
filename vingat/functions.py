@@ -212,11 +212,13 @@ def train_one_epoch_by_negativesampling(
         if sum_w <= 0:
             # 万が一全部0なら fallback
             # 例: valid_candidates = 全item - posレシピ
-            valid_indices = torch.arange(weights.shape[0], device=device)[weights>0]
+            valid_indices = torch.arange(weights.shape[0], device=device)[weights > 0]
             if len(valid_indices) < total_neg_samples:
                 chosen_indices = valid_indices
             else:
-                chosen_indices = valid_indices[torch.randperm(len(valid_indices))[:total_neg_samples]]
+                chosen_indices = valid_indices[
+                    torch.randperm(len(valid_indices))[:total_neg_samples]
+                ]
         else:
             probs = weights / sum_w
             chosen_indices = torch.multinomial(probs, total_neg_samples, replacement=False)
@@ -241,7 +243,7 @@ def train_one_epoch_by_negativesampling(
             if k == 0:
                 continue
             # chosen_indices の offset ~ offset+k をこのユーザに対応づけ
-            neg_items_for_user = chosen_indices[offset : offset + k]
+            neg_items_for_user = chosen_indices[offset: offset + k]
             offset += k
 
             user_vec = torch.full_like(neg_items_for_user, user_id, device=device)
