@@ -3,7 +3,6 @@ import torch.nn as nn
 from tqdm.notebook import tqdm
 import os
 import numpy as np
-from torch_geometric.utils import negative_sampling
 from torch_geometric.data import HeteroData
 from typing import Callable, Dict, List
 import pandas as pd
