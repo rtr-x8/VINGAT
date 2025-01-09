@@ -254,10 +254,10 @@ def train_one_epoch(
 
 def show_model_parameters(model: nn.Module):
     model.eval()
-    res = []
+    _res = []
     for name, param in model.named_parameters():
-        res.append({"name": name, "param": param.norm().item()})
-    res = pd.DataFrame(res)
+        _res.append({"name": name, "param": param.norm().item()})
+    res = pd.DataFrame(_res)
     mean = res["param"].mean()
     std = res["param"].std()
     upper = mean + 2 * std
