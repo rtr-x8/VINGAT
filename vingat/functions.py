@@ -253,40 +253,29 @@ def train_one_epoch(
     )
 
 
-def show_model_parameters(model: nn.Module, threshold=0.2):
-    not_null_norms = []
-    not_null_params = []
-    null_params = []
+def show_model_parameters(model: nn.Module):
+    model.eval()
+    res = []
     for name, param in model.named_parameters():
-        if param.grad is None:
-            null_params.append(name)
-        else:
-            not_null_params.append(name)
-            not_null_norms.append(param.grad.norm().item())
-    average = sum(not_null_norms) / len(not_null_norms)
-    upper_threshold = average * (1 + threshold)
-    lower_threshold = average * (1 - threshold)
+        res.append({"name": name, "param": param.norm().item()})
+    res = pd.DataFrame(res)
+    mean = res["param"].mean()
+    std = res["param"].std()
+    upper = mean + 2 * std
+    lower = mean - 2 * std
+    outer_val = res[(res['param'] > upper) | (res['param'] < lower)]
+    na_val = res.loc[res["param"].isna()]
 
-    print(f"Parameter Count: {len(not_null_params) + len(null_params)}")
+    print("Model Parameters Describe: ")
+    print(res.describe())
 
-    if len(not_null_params) > 0:
-        print("Parameters Describe: ")
-        print(pd.DataFrame(not_null_norms).describe().T)
+    if len(outer_val) > 0:
+        print("Outer Value of Model Params (2σ): ")
+        print(outer_val)
 
-        warnings = [
-            f"[{not_null_param}] is out of average range: {not_null_norm}"
-            for not_null_param, not_null_norm in zip(not_null_params, not_null_norms)
-            if not (lower_threshold <= not_null_norm <= upper_threshold)
-        ]
-        if len(warnings) > 0:
-            print(f"Warning Parameters(Out of Range): {len(warnings)}")
-            for warning in warnings:
-                print(warning)
-
-    if len(null_params) > 0:
-        print("Null Parameters: ")
-        for null_param in null_params:
-            print(f"[{null_param}] is Null.")
+    if len(na_val) > 0:
+        print("Nan Value of Model Params: ")
+        print(na_val)
 
 
 def train_func(
