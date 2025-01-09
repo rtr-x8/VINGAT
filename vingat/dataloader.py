@@ -192,14 +192,14 @@ def mask_hetero(
     # 標準化
     if scalar_preprocess is None:
         if is_train:
-            scalar_preprocess = ScalarPreprocess(data, {
+            scalar_preprocess = ScalarPreprocess([
                 ("image", "org"),
                 ("intention", "nutrient"),
                 ("intention", "caption"),
                 ("taste", "org"),
                 ("ingredient", "org"),
-            })
-            scalar_preprocess.fit()
+            ])
+            scalar_preprocess.fit(data)
         else:
             raise ValueError("scalar_preprocess must be provided when is_train is False.")
     data.set_value_dict("x", scalar_preprocess.transform(data.x_dict))
