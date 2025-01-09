@@ -1,30 +1,37 @@
 from sklearn.preprocessing import StandardScaler
 import torch
 import pandas as pd
+from typing import Dict
+from torch_geometric.data import HeteroData
 
 
 class ScalarPreprocess:
-    def __init__(self, x_dict):
-        self.x_dict = x_dict
+    def __init__(self, mapping_dict: Dict[str, str]):
+        """
+        mapping_dict: Dict[str, str]
+            ノード名と属性の対応を示す辞書
+        """
+        self.mapping = mapping_dict
+        self.device = device
         self.standard_scaler_dict = {
             node: StandardScaler()
-            for node in self.x_dict.keys()
+            for node in mapping_dict.keys()
         }
 
-    def fit(self):
-        for node, scaler in self.standard_scaler_dict.items():
-            # 各ノードの属性 (x) に対して fit を適用
-            self.standard_scaler_dict[node].fit(self.x_dict[node].cpu().numpy())
+    def fit(self, data: HeteroData):
+        for node, attr in self.mapping.items():
+            self.standard_scaler_dict[node].fit(
+                data[node][attr].cpu().numpy()
+            )
         return self
 
-    def transform(self, x_dict):
-        for node, val in x_dict.items():
-            # 各ノードの属性 (x) に対して transform を適用
-            x_dict[node].x = torch.tensor(
-                self.standard_scaler_dict[node].transform(val.cpu().numpy()),
-                dtype=val.dtype
-            )
-        return x_dict
+    def transform(self, data: HeteroData):
+        for node, attr in self.mapping.items():
+            data[node][attr] = torch.tensor(
+                self.standard_scaler_dict[node].transform(data[node][attr].cpu().numpy()),
+                dtype=data[node][attr].dtype
+            ).to(self.device)
+        return data
 
 
 def filter_recipe_ingredient(
