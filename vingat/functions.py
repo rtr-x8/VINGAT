@@ -4,6 +4,7 @@ from tqdm.notebook import tqdm
 import os
 import numpy as np
 from torch_geometric.data import HeteroData
+from torch_geometric.utils import negative_sampling
 from typing import Callable, Dict, List, Optional
 import pandas as pd
 from vingat.metrics import ScoreMetricHandler
@@ -462,14 +463,14 @@ def train_func(
     for epoch in range(1, epochs+1):
 
         print("\n======================\n", f"Epoch {epoch}/{epochs}", now())
-        model, loss_histories, node_stats, mhandler, shandler = train_one_epoch_by_negativesampling(
+        model, loss_histories, node_stats, mhandler, shandler = train_one_epoch(
             model=model,
             device=device,
             optimizer=optimizer,
             criterion=criterion,
             train_loader=train_loader,
             max_grad_norm=max_grad_norm,
-            freq_tensor=popularities
+            # freq_tensor=popularities  # For Negative Sampling
         )
 
         print("[Train] Node Statics: ")
