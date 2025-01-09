@@ -186,8 +186,8 @@ class StaticEmbeddingEncoder():
 class LowRankLinear(nn.Module):
     def __init__(self, input_dim, output_dim, rank, bias=True):
         super(LowRankLinear, self).__init__()
-        self.u = nn.Linear(input_dim, rank)
-        self.v = nn.Linear(rank, output_dim)
+        self.u = nn.Linear(input_dim, rank, bias=False)
+        self.v = nn.Linear(rank, output_dim, bias=bias)
 
     def forward(self, x):
         return self.v(self.u(x))
@@ -282,13 +282,13 @@ class RecommendationModel(nn.Module):
         self.user_encoder = nn.Sequential(
             nn.Embedding(num_user, user_encoder_low_rank_dim),
             nn.Linear(user_encoder_low_rank_dim, hidden_dim),
-            nn.ReLU(),
+            # nn.ReLU(),
             nn.Dropout(p=user_encoder_dropout_rate)
         )
         self.item_encoder = nn.Sequential(
             nn.Embedding(num_item, item_encoder_low_rank_dim),
             nn.Linear(item_encoder_low_rank_dim, hidden_dim),
-            nn.ReLU(),
+            # nn.ReLU(),
             nn.Dropout(p=item_encoder_dropout_rate)
         )
         self.image_encoder = LowRankLinear(input_image_dim, hidden_dim, rank=32)
