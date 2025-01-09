@@ -3,7 +3,6 @@ import torch.nn as nn
 from tqdm.notebook import tqdm
 import os
 import numpy as np
-from torch_geometric.utils import negative_sampling
 from torch_geometric.data import HeteroData
 from typing import Callable, Dict, List
 import pandas as pd
@@ -12,6 +11,7 @@ from vingat.metrics import MetricsHandler
 from sklearn.preprocessing import LabelEncoder
 from datetime import datetime
 import pytz
+from vingat.loader import core_file_loader
 
 
 def now():
@@ -22,7 +22,9 @@ def evaluate_model(
     model: nn.Module,
     data: HeteroData,
     device: torch.device,
-    desc: str = ""
+    freq_dict: dict,
+    r: float = 0.7,
+    desc: str = "",
 ):
     model.eval()
 
@@ -53,22 +55,16 @@ def evaluate_model(
             if num_pos_samples == 0:
                 continue
 
-            # 既存エッジのセットを生成
-            user_edge_label_index = torch.stack([
-                torch.full((num_pos_samples,), user_id, dtype=torch.long, device=device),
-                user_pos_indices
-            ])
-
-            num_neg_samples = 500    # 負例ペアの数 HAFR, HCGAN
-            negative_edge_index = negative_sampling(
-                edge_index=user_edge_label_index,
-                num_nodes=(1, recipe_embeddings.shape[0]),    # (ユーザーのノード数, レシピのノード数)
+            num_neg_samples = 500
+            user_neg_indices, negative_edge_index = negative_sampling_with_popularity(
+                user_id=user_id,
+                user_pos_indices=user_pos_indices,
+                recipe_embeddings=recipe_embeddings,
+                freq_dict=freq_dict,
                 num_neg_samples=num_neg_samples,
-                force_undirected=False
+                r=r,
+                device=device
             )
-
-            # 負例のインデックスを取得
-            user_neg_indices = negative_edge_index[1]
 
             # 正例と負例のユーザーとレシピの埋め込みを作成
             pos_user_embed = user_embeddings[user_id].expand(num_pos_samples, -1)
@@ -256,40 +252,29 @@ def train_one_epoch(
     )
 
 
-def show_model_parameters(model: nn.Module, threshold=0.2):
-    not_null_norms = []
-    not_null_params = []
-    null_params = []
+def show_model_parameters(model: nn.Module):
+    model.eval()
+    _res = []
     for name, param in model.named_parameters():
-        if param.grad is None:
-            null_params.append(name)
-        else:
-            not_null_params.append(name)
-            not_null_norms.append(param.grad.norm().item())
-    average = sum(not_null_norms) / len(not_null_norms)
-    upper_threshold = average * (1 + threshold)
-    lower_threshold = average * (1 - threshold)
+        _res.append({"name": name, "param": param.norm().item()})
+    res = pd.DataFrame(_res)
+    mean = res["param"].mean()
+    std = res["param"].std()
+    upper = mean + 2 * std
+    lower = mean - 2 * std
+    outer_val = res[(res['param'] > upper) | (res['param'] < lower)]
+    na_val = res.loc[res["param"].isna()]
 
-    print(f"Parameter Count: {len(not_null_params) + len(null_params)}")
+    print("Model Parameters Describe: ")
+    print(res.describe())
 
-    if len(not_null_params) > 0:
-        print("Parameters Describe: ")
-        print(pd.DataFrame(not_null_norms).describe().T)
+    if len(outer_val) > 0:
+        print("Outer Value of Model Params (2σ): ")
+        print(outer_val)
 
-        warnings = [
-            f"[{not_null_param}] is out of average range: {not_null_norm}"
-            for not_null_param, not_null_norm in zip(not_null_params, not_null_norms)
-            if not (lower_threshold <= not_null_norm <= upper_threshold)
-        ]
-        if len(warnings) > 0:
-            print(f"Warning Parameters(Out of Range): {len(warnings)}")
-            for warning in warnings:
-                print(warning)
-
-    if len(null_params) > 0:
-        print("Null Parameters: ")
-        for null_param in null_params:
-            print(f"[{null_param}] is Null.")
+    if len(na_val) > 0:
+        print("Nan Value of Model Params: ")
+        print(na_val)
 
 
 def train_func(
@@ -307,6 +292,7 @@ def train_func(
     directory_path: str,
     project_name: str,
     experiment_name: str,
+    popularities: dict,
     patience=4,
     validation_interval=5,
     max_grad_norm=1.0,
@@ -372,6 +358,8 @@ def train_func(
                 model=model,
                 data=val_data,
                 device=device,
+                freq_dict=popularities,
+                r=0.7,
                 desc=f"[Valid] Epoch {epoch}/{epochs}"
             )
 
@@ -423,45 +411,68 @@ def train_func(
     return model
 
 
-def get_popularity(
-    all_rating: pd.DataFrame,
-    device: torch.device,
-    item_lencoder: LabelEncoder
-) -> torch.Tensor:
-    res = all_rating.groupby("recipe_id").sum()
-    res["idx"] = item_lencoder.transform(res.index)
-    res = res[["idx", "rating"]].reset_index(drop=True).set_index("idx")
-    return torch.tensor(res.rating.to_numpy()).to(device)
-
-
-def get_available_indices(
-    rating: pd.DataFrame,
+def get_item_popularity(
     item_lencoder: LabelEncoder,
-    device: torch.device
-) -> torch.Tensor:
-    recipe_ids = item_lencoder.transform(rating["recipe_id"].unique())
-    indeices = torch.tensor(recipe_ids).to(device)
-    mask = torch.zeros(item_lencoder.classes_.shape[0], dtype=torch.bool).to(device)
-    mask[indeices] = True
-    return mask
+    directory_path: str,
+    rating_threshold: float = 0.0
+) -> Dict:
+    _, core_train_rating, _, _ = core_file_loader(directory_path, rating_threshold)
+    core_train_rating["recipe_id"] = item_lencoder.transform(core_train_rating["recipe_id"])
+    res = core_train_rating.groupby("recipe_id").count()["rating"].to_dict()
+    return res
 
 
-def negative_sampling_by_popularity(
-    positive_edge_index: torch.Tensor,
-    popularity: torch.Tensor,
-    user_index: int,
-    availabel_item_mask: torch.Tensor,
-    num_neg_samples: int,
-    device: torch.device
-) -> torch.Tensor:
-    positive_edge_index = positive_edge_index[:, positive_edge_index[0] == user_index]
-    positive_item_indices = positive_edge_index[1]
-    popularity[positive_item_indices] = 0
-    popularity[~availabel_item_mask] = 0
-    popularity_sum = popularity.sum()
-    proba = popularity / popularity_sum
-    sample = torch.multinomial(proba, num_neg_samples, replacement=False)
-    return torch.stack([
-        torch.full((num_neg_samples,), user_index, dtype=torch.long),
-        sample
-    ]).to(device)
+def negative_sampling_with_popularity(
+    user_id: int,
+    user_pos_indices: torch.Tensor,
+    recipe_embeddings: torch.Tensor,
+    freq_dict: dict,
+    num_neg_samples: int = 500,
+    r: float = 0.7,
+    device: torch.device = torch.device("cpu")
+):
+    """
+    人気度 (freq_dict) に基づいてネガティブサンプリングを行う関数。
+
+    Args:
+        user_id (int): 現在のユーザーID
+        user_pos_indices (torch.Tensor): ユーザー user_id に対応する正例アイテムのindex集合
+        recipe_embeddings (torch.Tensor): レシピ埋め込み (itemノード数 x 埋め込み次元)
+        freq_dict (dict): { item_idx(int): 出現回数(int) } の辞書
+        num_neg_samples (int): 負例のサンプル数
+        r (float): freq^r する際のパラメータ
+        device (torch.device): テンソルを配置するデバイス
+
+    Returns:
+        (torch.Tensor, torch.Tensor):
+            user_neg_indices: shape=(num_neg_samples,)
+            negative_edge_index: shape=(2, num_neg_samples)
+    """
+
+    # 全 item_idx (0 ~ item数-1) をリスト化
+    all_items = list(range(recipe_embeddings.shape[0]))
+
+    # 学習セットで集計した人気度 freq_dict を参照して freq^r を計算
+    freq_r = np.array([freq_dict.get(i, 0)**r for i in all_items], dtype=np.float32)
+
+    # ユーザーが既に持つ正例アイテムは候補から除外(重みを0に)
+    freq_r[user_pos_indices.cpu().numpy()] = 0.0
+
+    # 確率分布を正規化してサンプリング
+    sum_w = freq_r.sum()
+    if sum_w == 0:
+        # 万が一すべて0なら一様ランダムにフォールバック
+        chosen_indices = np.random.choice(all_items, size=num_neg_samples, replace=False)
+    else:
+        p = freq_r / sum_w
+        chosen_indices = np.random.choice(all_items, size=num_neg_samples, replace=False, p=p)
+
+    user_neg_indices = torch.tensor(chosen_indices, device=device)
+
+    # negative_edge_indexを作成 (shape=(2, num_neg_samples))
+    negative_edge_index = torch.stack([
+        torch.full((num_neg_samples,), user_id, dtype=torch.long, device=device),
+        user_neg_indices
+    ])
+
+    return user_neg_indices, negative_edge_index
