@@ -225,3 +225,40 @@ def mask_hetero(
     data["ingredient", "part_of", "taste"].edge_index = ei_ing_item
 
     return data, scalar_preprocess
+
+
+def make_abration_dataloader_wo_cl(
+    data: HeteroData,
+    batch_size,
+    shuffle=True,
+    neg_sampling_ratio=1.0,
+    num_workers=0
+) -> LinkNeighborLoader:
+    _data = data.clone()
+    del _data["intention"]
+    del _data["intention", "associated_with", "item"]
+    del _data["intention", "associated_with", "item"]
+    return create_dataloader(
+        _data,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        neg_sampling_ratio=neg_sampling_ratio,
+        num_workers=num_workers)
+
+
+def make_abration_dataloader_wo_cd(
+    data: HeteroData,
+    batch_size,
+    shuffle=True,
+    neg_sampling_ratio=1.0,
+    num_workers=0
+) -> LinkNeighborLoader:
+    _data = data.clone()
+    _data["taste"].x = torch.zeros_like(_data["taste"].x)
+    del _data["taste"].org
+    return create_dataloader(
+        _data,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        neg_sampling_ratio=neg_sampling_ratio,
+        num_workers=num_workers)
