@@ -238,12 +238,12 @@ def make_abration_dataloader_wo_cl(
     shuffle=True,
     neg_sampling_ratio=1.0,
     num_workers=0,
-) -> LinkNeighborLoader:
+) -> Tuple[HeteroData, LinkNeighborLoader]:
     _data = data.clone()
     del _data["intention"]
     del _data["intention", "associated_with", "item"]
     del _data["intention", "associated_with", "item"]
-    return create_dataloader(
+    return _data, create_dataloader(
         _data,
         batch_size=batch_size,
         shuffle=shuffle,
@@ -258,11 +258,11 @@ def make_abration_dataloader_wo_cd(
     shuffle=True,
     neg_sampling_ratio=1.0,
     num_workers=0,
-) -> LinkNeighborLoader:
+) -> Tuple[HeteroData, LinkNeighborLoader]:
     _data = data.clone()
     _data["taste"].x = torch.rand(_data["taste"].x, dtype=torch.float32)
     del _data["taste"].org
-    return create_dataloader(
+    return _data, create_dataloader(
         _data,
         batch_size=batch_size,
         shuffle=shuffle,
