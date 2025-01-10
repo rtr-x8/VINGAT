@@ -541,6 +541,7 @@ def train_func(
             if v_base_metric > best_val_metric:
                 best_val_metric = v_base_metric    # 最良のバリデーションメトリクスを更新
                 patience_counter = 0    # 改善が見られたためカウンターをリセット
+                best_model_epoch = epoch
             else:
                 patience_counter += 1    # 改善がなければカウンターを増やす
 
