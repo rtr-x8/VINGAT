@@ -48,7 +48,6 @@ class TasteGNN(nn.Module):
     NODES = ['ingredient', 'taste']
     EDGES = [
         ('ingredient', 'part_of', 'taste'),
-        ('taste', 'associated_with', 'item'),
     ]
 
     def __init__(self, hidden_dim, dropout_rate, resisual_alpha):
@@ -131,9 +130,6 @@ class MultiModalFusionGAT(nn.Module):
     EDGES = [('taste', 'associated_with', 'item'),
              ('intention', 'associated_with', 'item'),
              ('image', 'associated_with', 'item'),
-             ('item', 'has_image', 'image'),
-             ('item', 'has_intention', 'intention'),
-             ('item', 'has_taste', 'taste'),
              ('user', 'buys', 'item'),
              ('item', 'bought_by', 'user')]
 
