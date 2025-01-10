@@ -48,10 +48,12 @@ class TasteGNN(nn.Module):
     NODES = ['ingredient', 'taste']
     EDGES = [
         ('ingredient', 'part_of', 'taste'),
+        ('taste', 'associated_with', 'item'),
     ]
 
-    def __init__(self, hidden_dim, dropout_rate):
+    def __init__(self, hidden_dim, dropout_rate, resisual_alpha):
         super().__init__()
+        self.r_alpha = resisual_alpha
         self.gnn = HANConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
@@ -68,7 +70,7 @@ class TasteGNN(nn.Module):
             if out.get(k) is None:
                 out[k] = v
             else:
-                out[k] = out[k] * 0.5 + v * 0.5
+                out[k] = out[k] * (1-self.r_alpha) + v * self.r_alpha
         return out
 
 
@@ -129,11 +131,15 @@ class MultiModalFusionGAT(nn.Module):
     EDGES = [('taste', 'associated_with', 'item'),
              ('intention', 'associated_with', 'item'),
              ('image', 'associated_with', 'item'),
+             ('item', 'has_image', 'image'),
+             ('item', 'has_intention', 'intention'),
+             ('item', 'has_taste', 'taste'),
              ('user', 'buys', 'item'),
              ('item', 'bought_by', 'user')]
 
-    def __init__(self, hidden_dim, num_heads, dropout_rate, device):
+    def __init__(self, hidden_dim, num_heads, resisual_alpha):
         super().__init__()
+        self.r_alpha = resisual_alpha
         self.gnn = HGTConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
@@ -151,7 +157,7 @@ class MultiModalFusionGAT(nn.Module):
             if out.get(k) is None:
                 out[k] = v
             else:
-                out[k] = out[k] * 0.5 + v * 0.5
+                out[k] = out[k] * (1-self.r_alpha) + v * self.r_alpha
         return out
 
 
@@ -256,27 +262,11 @@ class RecommendationModel(nn.Module):
         fusion_gnn_after_dropout_rate: float,
         link_predictor_dropout_rate: float,
         link_predictor_leaky_relu_slope: float,
+        sensing_gnn_resisual_alpha: float,
+        fusion_gnn_resisual_alpha: float,
     ):
         super().__init__()
         os.environ['TORCH_USE_CUDA_DSA'] = '1'
-
-        self.dropout_rate = dropout_rate
-        self.device = device
-        self.hidden_dim = hidden_dim
-        self.node_embeding_dimmention = node_embeding_dimmention
-        self.num_user = num_user
-        self.num_item = num_item
-        self.nutrient_dim = nutrient_dim
-        self.num_heads = num_heads
-        self.sencing_layers = sencing_layers
-        self.fusion_layers = fusion_layers
-        self.intention_layers = intention_layers
-        self.temperature = temperature
-        self.cl_loss_rate = cl_loss_rate
-        self.input_image_dim = input_image_dim
-        self.input_vlm_caption_dim = input_vlm_caption_dim
-        self.input_ingredient_dim = input_ingredient_dim
-        self.input_cooking_direction_dim = input_cooking_direction_dim
 
         # Node Encoder
         self.user_encoder = nn.Sequential(
@@ -313,7 +303,9 @@ class RecommendationModel(nn.Module):
 
         # Taste Level GAT
         self.sensing_gnn = nn.ModuleList([
-            TasteGNN(hidden_dim, dropout_rate=taste_gnn_dropout_rate)
+            TasteGNN(hidden_dim,
+                     dropout_rate=taste_gnn_dropout_rate,
+                     resisual_alpha=sensing_gnn_resisual_alpha)
             for _ in range(sencing_layers)
         ])
         self.sensing_gnn_after = nn.Sequential(
@@ -327,8 +319,7 @@ class RecommendationModel(nn.Module):
             MultiModalFusionGAT(
                 hidden_dim=hidden_dim,
                 num_heads=num_heads,
-                dropout_rate=fusion_gnn_dropout_rate,
-                device=device
+                resisual_alpha=fusion_gnn_resisual_alpha
             )
             for _ in range(fusion_layers)
         ])
