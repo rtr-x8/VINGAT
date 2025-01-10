@@ -16,21 +16,26 @@ def create_dataloader(
     batch_size,
     shuffle=True,
     neg_sampling_ratio=1.0,
-    num_workers=0
+    num_workers=0,
+    is_abration_cl=False
 ):
+    neibors = {
+        ('user', 'buys', 'item'): [20, 10],
+        ('item', 'bought_by', 'user'): [20, 10],
+        ('image', 'associated_with', 'item'): [20, 10],
+        ('intention', 'associated_with', 'item'): [20, 10],
+        ('taste', 'associated_with', 'item'): [20, 10],
+        ('ingredient', 'part_of', 'taste'): [20, 10],
+        ('item', 'has_image', 'image'): [20, 10],
+        ('item', 'has_intention', 'intention'): [20, 10],
+        ('item', 'has_taste', 'taste'): [20, 10],
+    }
+    if is_abration_cl:
+        del neibors[('intention', 'associated_with', 'item')]
+        del neibors[('item', 'has_intention', 'intention')]
     return LinkNeighborLoader(
         data=data,
-        num_neighbors={
-            ('user', 'buys', 'item'): [20, 10],
-            ('item', 'bought_by', 'user'): [20, 10],
-            ('image', 'associated_with', 'item'): [20, 10],
-            ('intention', 'associated_with', 'item'): [20, 10],
-            ('taste', 'associated_with', 'item'): [20, 10],
-            ('ingredient', 'part_of', 'taste'): [20, 10],
-            ('item', 'has_image', 'image'): [20, 10],
-            ('item', 'has_intention', 'intention'): [20, 10],
-            ('item', 'has_taste', 'taste'): [20, 10],
-        },
+        num_neighbors=neibors,
         edge_label_index=(
             ('user', 'buys', 'item'),
             data['user', 'buys', 'item'].edge_label_index
