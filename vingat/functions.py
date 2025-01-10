@@ -454,6 +454,7 @@ def train_func(
     os.environ['TORCH_USE_CUDA_DSA'] = '1'
 
     best_val_metric = 0    # 現時点での最良のバリデーションメトリクスを初期化
+    score_diff = 1  # pos_scoreとneg_scoreの差分を初期化
     patience_counter = 0    # Early Stoppingのカウンターを初期化
     best_model_epoch = 0
 
@@ -535,15 +536,17 @@ def train_func(
 
             save_model(model, save_dir, f"model_{epoch}")
 
-            v_base_metric = v_mhandler.compute().get("precision@10")
+            v_base_metric = v_mhandler.compute().get("AUROC")
+            v_score_diff = score_statics.compute().get("diff_mean")
 
-            # Early Stoppingの判定（バリデーションの精度または他のメトリクスで判定）
-            if v_base_metric > best_val_metric:
-                best_val_metric = v_base_metric    # 最良のバリデーションメトリクスを更新
-                patience_counter = 0    # 改善が見られたためカウンターをリセット
+            # 評価指標と、score差でEarly Stoppingを判定
+            if v_score_diff > score_diff or v_base_metric > best_val_metric:
+                score_diff = max(v_score_diff, score_diff)
+                best_val_metric = max(v_base_metric, best_val_metric)
+                patience_counter = 0
                 best_model_epoch = epoch
             else:
-                patience_counter += 1    # 改善がなければカウンターを増やす
+                patience_counter += 1
 
             # patienceを超えた場合にEarly Stoppingを実行
             if patience_counter >= patience:
