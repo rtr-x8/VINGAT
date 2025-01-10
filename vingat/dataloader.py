@@ -254,7 +254,7 @@ def make_abration_dataloader_wo_cd(
     num_workers=0
 ) -> LinkNeighborLoader:
     _data = data.clone()
-    _data["taste"].x = torch.zeros_like(_data["taste"].x)
+    _data["taste"].x = torch.rand(_data["taste"].x, dtype=torch.float32)
     del _data["taste"].org
     return create_dataloader(
         _data,

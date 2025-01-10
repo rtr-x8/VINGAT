@@ -255,17 +255,17 @@ class RecommendationModel(nn.Module):
         link_predictor_leaky_relu_slope: float,
         sensing_gnn_resisual_alpha: float,
         fusion_gnn_resisual_alpha: float,
-        is_abration_cl: bool,
-        is_abration_taste: bool,
+        is_abration_wo_cl: bool,
+        is_abration_wo_taste: bool,
     ):
         super().__init__()
         os.environ['TORCH_USE_CUDA_DSA'] = '1'
 
         self.cl_loss_rate = cl_loss_rate
-        if is_abration_cl:
+        if is_abration_wo_cl:
             self.cl_loss_rate = 0.0
-        self.is_abration_cl = is_abration_cl
-        self.is_abration_taste = is_abration_taste
+        self.is_abration_wo_cl = is_abration_wo_cl
+        self.is_abration_wo_taste = is_abration_wo_taste
 
         # Node Encoder
         self.user_encoder = nn.Sequential(
@@ -281,11 +281,12 @@ class RecommendationModel(nn.Module):
             nn.Dropout(p=item_encoder_dropout_rate)
         )
         self.image_encoder = LowRankLinear(input_image_dim, hidden_dim, rank=32)
-        self.taste_encoder = nn.Linear(input_cooking_direction_dim, hidden_dim)
+        if not is_abration_wo_taste:
+            self.taste_encoder = nn.Linear(input_cooking_direction_dim, hidden_dim)
         self.ingredient_encoder = nn.Linear(input_ingredient_dim, hidden_dim)
 
         # Contrastive caption and nutrient
-        if not is_abration_cl:
+        if not is_abration_wo_cl:
             self.intention_cl = nn.ModuleList([
                 NutrientCaptionContrastiveLearning(
                     nutrient_input_dim=nutrient_dim,
@@ -320,7 +321,7 @@ class RecommendationModel(nn.Module):
                         ('image', 'associated_with', 'item'),
                         ('user', 'buys', 'item'),
                         ('item', 'bought_by', 'user')]
-        if not is_abration_cl:
+        if not is_abration_wo_cl:
             fusion_nodes.append("intention")
             fusion_edges.insert(1, ('intention', 'associated_with', 'item'))
         self.fusion_gnn = nn.ModuleList([
@@ -349,7 +350,7 @@ class RecommendationModel(nn.Module):
 
         # Layer Normalization
         ln_node_types = ["user", "item", "image", "ingredient", "intention"]
-        if is_abration_taste:
+        if is_abration_wo_taste:
             ln_node_types.append("taste")
         self.layer_norm = DictLayerNormForLayer(
             node_types=ln_node_types,
@@ -391,12 +392,15 @@ class RecommendationModel(nn.Module):
             "item": self.item_encoder(data["item"].id),
             "image": self.image_encoder(data["image"].org),
             "ingredient": self.ingredient_encoder(data["ingredient"].org),
-            "taste": self.taste_encoder(data["taste"].org),
         })
+        if not self.is_abration_wo_cl:
+            data.set_value_dict("x", {
+                "taste": self.taste_encoder(data["taste"].org)
+            })
 
         # data.set_value_dict("x", self.layer_norm.initial_forward(data.x_dict))
 
-        if self.is_abration_cl:
+        if self.is_abration_wo_cl:
             cl_losses = []
             for cl in self.intention_cl:
                 intention_x, _, cl_loss = cl(data)
