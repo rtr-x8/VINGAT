@@ -400,7 +400,7 @@ class RecommendationModel(nn.Module):
 
         # data.set_value_dict("x", self.layer_norm.initial_forward(data.x_dict))
 
-        if self.is_abration_wo_cl:
+        if not self.is_abration_wo_cl:
             cl_losses = []
             for cl in self.intention_cl:
                 intention_x, _, cl_loss = cl(data)

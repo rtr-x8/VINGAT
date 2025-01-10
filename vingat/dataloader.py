@@ -242,7 +242,7 @@ def make_abration_dataloader_wo_cl(
     _data = data.clone()
     del _data["intention"]
     del _data["intention", "associated_with", "item"]
-    del _data["intention", "associated_with", "item"]
+    del _data["item", "has_intention", "intention"]
     return _data, create_dataloader(
         _data,
         batch_size=batch_size,
