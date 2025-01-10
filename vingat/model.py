@@ -264,6 +264,8 @@ class RecommendationModel(nn.Module):
         super().__init__()
         os.environ['TORCH_USE_CUDA_DSA'] = '1'
 
+        self.cl_loss_rate = cl_loss_rate
+
         # Node Encoder
         self.user_encoder = nn.Sequential(
             nn.Embedding(num_user, user_encoder_low_rank_dim),
