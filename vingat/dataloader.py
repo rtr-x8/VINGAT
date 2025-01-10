@@ -237,7 +237,7 @@ def make_abration_dataloader_wo_cl(
     batch_size,
     shuffle=True,
     neg_sampling_ratio=1.0,
-    num_workers=0
+    num_workers=0,
 ) -> LinkNeighborLoader:
     _data = data.clone()
     del _data["intention"]
@@ -248,7 +248,8 @@ def make_abration_dataloader_wo_cl(
         batch_size=batch_size,
         shuffle=shuffle,
         neg_sampling_ratio=neg_sampling_ratio,
-        num_workers=num_workers)
+        num_workers=num_workers,
+        is_abration_cl=True)
 
 
 def make_abration_dataloader_wo_cd(
@@ -256,7 +257,7 @@ def make_abration_dataloader_wo_cd(
     batch_size,
     shuffle=True,
     neg_sampling_ratio=1.0,
-    num_workers=0
+    num_workers=0,
 ) -> LinkNeighborLoader:
     _data = data.clone()
     _data["taste"].x = torch.rand(_data["taste"].x, dtype=torch.float32)
@@ -266,4 +267,5 @@ def make_abration_dataloader_wo_cd(
         batch_size=batch_size,
         shuffle=shuffle,
         neg_sampling_ratio=neg_sampling_ratio,
-        num_workers=num_workers)
+        num_workers=num_workers,
+        is_abration_cl=False)
