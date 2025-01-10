@@ -410,8 +410,6 @@ class RecommendationModel(nn.Module):
                 cl_losses.append(cl_loss)
                 data.set_value_dict("x", self.intention_cl_after(data.x_dict))
             cl_loss = torch.stack(cl_losses).mean()
-        else:
-            cl_loss = torch.empty(0)
 
         for gnn in self.sensing_gnn:
             data.set_value_dict("x", gnn(data.x_dict, data.edge_index_dict))
@@ -423,6 +421,8 @@ class RecommendationModel(nn.Module):
 
         data.set_value_dict("x", self.layer_norm.main_forward(data.x_dict))
 
-        return data, [
-            {"name": "cl_loss", "loss": cl_loss, "weight": self.cl_loss_rate}
-        ]
+        losses = []
+        if not self.is_abration_wo_cl:
+            losses.append({"name": "cl_loss", "loss": cl_loss, "weight": self.cl_loss_rate})
+
+        return data, losses
