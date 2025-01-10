@@ -111,16 +111,16 @@ class MetricsHandler():
             all_user_indices = torch.cat(self.user_indices)
 
             collection = MetricCollection({
-                "recall@10": RetrievalRecall(empty_target_action="skip", top_k=10),
-                # "recall@20": RetrievalRecall(empty_target_action="skip", top_k=20),
-                "precision@10": RetrievalPrecision(empty_target_action="skip", top_k=10, adaptive_k=True),  # noqa: E501
-                # "precision@20": RetrievalPrecision(empty_target_action="skip", top_k=20, adaptive_k=True),  # noqa: E501
-                "ndcg@10": RetrievalNormalizedDCG(empty_target_action="skip", top_k=10),  # noqa: E501
-                # "ndcg@20": RetrievalNormalizedDCG(empty_target_action="skip", top_k=20),  # noqa: E501
-                # "map@10": RetrievalMAP(empty_target_action="skip", top_k=10),
-                # "map@20": RetrievalMAP(empty_target_action="skip", top_k=20),
-                # "mrr@10": RetrievalMRR(empty_target_action="skip", top_k=10),
-                # "mrr@20": RetrievalMRR(empty_target_action="skip", top_k=20),
+                "recall@10": RetrievalRecall(top_k=10),
+                # "recall@20": RetrievalRecall(top_k=20),
+                "precision@10": RetrievalPrecision(top_k=10, adaptive_k=True),  # noqa: E501
+                # "precision@20": RetrievalPrecision(top_k=20, adaptive_k=True),  # noqa: E501
+                "ndcg@10": RetrievalNormalizedDCG(top_k=10),  # noqa: E501
+                # "ndcg@20": RetrievalNormalizedDCG(top_k=20),  # noqa: E501
+                # "map@10": RetrievalMAP(top_k=10),
+                # "map@20": RetrievalMAP(top_k=20),
+                # "mrr@10": RetrievalMRR(top_k=10),
+                # "mrr@20": RetrievalMRR(top_k=20),
                 "accuracy": BinaryAccuracy(threshold=self.threshold),
                 "recall": BinaryRecall(threshold=self.threshold),
                 "f1": BinaryF1Score(threshold=self.threshold),
