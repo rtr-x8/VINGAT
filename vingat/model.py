@@ -349,9 +349,9 @@ class RecommendationModel(nn.Module):
         )
 
         # Layer Normalization
-        ln_node_types = ["user", "item", "image", "ingredient", "intention"]
-        if is_abration_wo_taste:
-            ln_node_types.append("taste")
+        ln_node_types = ["user", "item", "image", "ingredient", "taste"]
+        if not is_abration_wo_cl:
+            ln_node_types.append("intention")
         self.layer_norm = DictLayerNormForLayer(
             node_types=ln_node_types,
             hidden_dim=hidden_dim
