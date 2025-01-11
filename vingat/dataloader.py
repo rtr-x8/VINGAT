@@ -20,6 +20,13 @@ def create_dataloader(
     num_workers=0,
     popularity=None
 ):
+    sampler = None
+    if popularity is not None:
+        sampler = NegativeSampling(
+            mode="binary",
+            dst_weight=popularity,
+            amount=neg_sampling_ratio
+        )
     return LinkNeighborLoader(
         data=data,
         num_neighbors={
@@ -42,11 +49,7 @@ def create_dataloader(
         shuffle=shuffle,
         neg_sampling_ratio=neg_sampling_ratio,
         num_workers=num_workers,
-        neg_sampling=NegativeSampling(
-            mode="binary",
-            dst_weight=popularity,
-            amount=neg_sampling_ratio
-        )
+        neg_sampling=sampler
     )
 
 
