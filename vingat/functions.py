@@ -54,6 +54,9 @@ def evaluate_model(
             if num_pos_samples == 0:
                 continue
 
+            """
+            TODO; PyGのNgativeSampling使えるのでは？
+            """
             num_neg_samples = 500
             user_neg_indices, negative_edge_index = negative_sampling_with_popularity(
                 user_id=user_id,
@@ -137,144 +140,6 @@ def calculate_statistics(data):
     return df
 
 
-def train_one_epoch_by_negativesampling(
-    model: nn.Module,
-    device: torch.device,
-    optimizer: torch.optim.Optimizer,
-    train_loader: torch.utils.data.DataLoader,
-    criterion: Callable,
-    max_grad_norm: float,
-    freq_tensor: torch.Tensor,
-):
-    model.to(device)
-
-    loss_histories: Dict[str, List[torch.Tensor]] = {
-        "total_loss": [],
-        "main_loss": [],
-    }
-    node_mean = []
-    mhandler = MetricsHandler(device=device, threshold=0.5)
-    shandler = ScoreMetricHandler(device=device)
-
-    model.train()
-
-    for batch_data in tqdm(train_loader, desc="[Train]"):
-        optimizer.zero_grad()
-        batch_data = batch_data.to(device)
-
-        out, loss_entories = model(batch_data)
-
-        main_loss_rate = 1.0
-        if len(loss_entories) > 0:
-            main_loss_rate -= sum([entry["weight"] for entry in loss_entories])
-
-        if main_loss_rate < 0:
-            raise ValueError("main loss rate is negative")
-
-        # エッジのラベルとエッジインデックスを取得
-        edge_label_index = batch_data['user', 'buys', 'item'].edge_label_index
-
-        # ユーザーとレシピの埋め込みを取得
-        user_embeddings = out['user'].x
-        recipe_embeddings = out['item'].x
-
-        neg_mask = batch_data['user', 'buys', 'item'].edge_label == 0
-        if neg_mask.sum() > 0:
-            raise ValueError("Negative mask is not empty", neg_mask.sum())
-
-        # エッジインデックスからノードの埋め込みを取得
-        user_embed = user_embeddings[edge_label_index[0]]
-        recipe_embed = recipe_embeddings[edge_label_index[1]]
-
-        pos_user_ids = edge_label_index[0]
-        pos_recipe_ids = edge_label_index[1]
-
-        # 正例のスコアを計算
-        pos_user_embed = user_embed[pos_user_ids]
-        pos_recipe_embed = recipe_embed[pos_recipe_ids]
-        pos_scores = model.predict(pos_user_embed, pos_recipe_embed).squeeze()
-
-        neg_edge_label_index = negative_sampling_with_popularity_by_batch(
-            user_ids=out['user'].id,
-            item_ids=out['item'].id,
-            pos_pairs=edge_label_index,
-            popularity=freq_tensor,
-            oversample_factor=3,
-        )
-
-        neg_user_ids_tensor = neg_edge_label_index[0]
-        neg_recipe_ids_tensor = neg_edge_label_index[1]
-
-        # 負例のスコアを計算
-        print("user_embed.shape", user_embed.shape)
-        print("user_embed.max()", user_embed.max())
-        print("neg_user_ids_tensor.shape", neg_user_ids_tensor.shape)
-        print("neg_user_ids_tensor.max()", neg_user_ids_tensor.max())
-        neg_user_embed = user_embed[neg_user_ids_tensor]
-        print("recipe_embed.shape", recipe_embed.shape)
-        print("recipe_embed.max()", recipe_embed.max())
-        print("neg_recipe_ids_tensor.shape", neg_recipe_ids_tensor.shape)
-        print("neg_recipe_ids_tensor.max()", neg_recipe_ids_tensor.max())
-        neg_recipe_embed = recipe_embed[neg_recipe_ids_tensor]
-        neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
-
-        if len(pos_scores) != len(neg_scores):
-            raise ValueError("Positive scores and Negative scores are not same length")
-
-        # 損失の計算
-        main_loss = criterion(pos_scores, neg_scores, model.parameters())
-
-        loss = main_loss_rate * main_loss
-        if len(loss_entories) > 0:
-            other_loss = torch.sum(torch.stack(
-                [entry["loss"] * entry["weight"] for entry in loss_entories]
-            ))
-            loss += other_loss
-
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
-
-        optimizer.step()
-
-        loss_histories["total_loss"].append(loss.item())
-        loss_histories["main_loss"].append((main_loss_rate * main_loss).item())
-        for entry in loss_entories:
-            if entry["name"] not in loss_histories.keys():
-                loss_histories[entry["name"]] = []
-            loss_histories[entry["name"]].append(
-                (entry["loss"] * entry["weight"]).item()
-            )
-
-        mhandler.update(
-            probas=torch.cat([pos_scores, neg_scores]),
-            targets=torch.cat([
-                torch.ones_like(pos_scores, device=device),
-                torch.zeros_like(neg_scores, device=device)
-            ]),
-            user_indices=torch.cat([
-                pos_user_ids,
-                neg_user_ids_tensor
-            ])
-        )
-        shandler.update(pos_scores, neg_scores)
-
-        # check
-        node_mean.append({
-            key: val.mean().mean().item()
-            for key, val in out.x_dict.items()
-        })
-
-    node_stats = calculate_statistics(node_mean)
-
-    return (
-        model,
-        loss_histories,
-        node_stats,
-        mhandler,
-        shandler,
-    )
-
-
 def train_one_epoch(
     model: nn.Module,
     device: torch.device,
@@ -283,6 +148,9 @@ def train_one_epoch(
     criterion: Callable,
     max_grad_norm: float,
 ):
+    """
+    DataLoaderによってネガティブサンプリングされている時用
+    """
     model.to(device)
 
     loss_histories: Dict[str, List[torch.Tensor]] = {
@@ -450,7 +318,7 @@ def train_func(
     for epoch in range(1, epochs+1):
 
         print("\n======================\n", f"Epoch {epoch}/{epochs}", now())
-        model, loss_histories, node_stats, mhandler, shandler = train_one_epoch_by_negativesampling(
+        model, loss_histories, node_stats, mhandler, shandler = train_one_epoch(
             model=model,
             device=device,
             optimizer=optimizer,
@@ -662,67 +530,3 @@ def negative_sampling_with_popularity(
     ], dim=0)
 
     return chosen_indices, negative_edge_index
-
-
-def negative_sampling_with_popularity_by_batch(
-    user_ids: torch.Tensor,    # shape: (U,)
-    item_ids: torch.Tensor,    # shape: (M,)
-    pos_pairs: torch.Tensor,   # shape: (2, N)
-    popularity: torch.Tensor,  # shape: (M,)
-    oversample_factor: int     # オーバーサンプリング倍率(必要に応じて調整)
-):
-    device = pos_pairs.device
-    N = pos_pairs.size(1)  # 正例数
-
-    # 1. 正例ペアをブールマスク (U, M) で表現する
-    #    pos_mask[u, i] = True なら (u, i) が正例ペアとして存在する
-    U = user_ids.shape[0]
-    M = item_ids.shape[0]
-
-    # (U, M) が巨大な場合はメモリに注意
-    pos_mask = torch.zeros((U, M), dtype=torch.bool, device=device)
-    # 以下の1行で一括して True をセットできる (ループ不要)
-    pos_mask[pos_pairs[0], pos_pairs[1]] = True
-
-    # 2. popularity を正規化して確率分布を作る
-    prob_dist = popularity.float()
-    prob_dist = prob_dist / (prob_dist.sum() + 1e-12)  # shape: (M,)
-
-    # 3. 負例ペアを作る
-    #    - pos_pairs[0]  (shape: (N,)) は正例ペアのユーザーインデックス
-    #    - これを oversample_factor 倍に繰り返し、対応するアイテムをまとめてサンプリング
-    #      (例: oversample_factor=5 なら N×5 個のアイテムをまとめてサンプリング)
-    all_users = pos_pairs[0]  # shape: (N,)
-
-    # shape: (N * oversample_factor,)
-    repeated_users = all_users.repeat_interleave(oversample_factor)
-
-    # popularity に基づいて N*oversample_factor 個のアイテムを一括サンプリング
-    sampled_items = torch.multinomial(
-        prob_dist,
-        N * oversample_factor,
-        replacement=True  # 同じアイテムを何度でも引きうる
-    ).to(device)  # shape: (N * oversample_factor,)
-
-    # 4. (user, item) が正例ペアに含まれていないか、一括でマスクを作る
-    #    pos_mask[u, i] が True のものは正例ペアなので除外
-    valid_mask = ~pos_mask[repeated_users, sampled_items]  # shape: (N * oversample_factor,)
-    valid_indices = torch.nonzero(valid_mask).squeeze(1)   # shape: (*,) True の位置だけ取り出す
-
-    # 5. valid なもののうち先頭 N 件を負例ペアとして採用
-    if valid_indices.numel() < N:
-        # オーバーサンプリングしても十分に確保できなかったらエラー (またはリトライなど)
-        raise RuntimeError(
-            f"Not enough negative samples. Needed={N}, Got={valid_indices.numel()}. "
-            "Consider increasing oversample_factor."
-        )
-
-    chosen = valid_indices[:N]  # shape: (N,)
-
-    neg_users = repeated_users[chosen]  # shape: (N,)
-    neg_items = sampled_items[chosen]   # shape: (N,)
-
-    # 6. (2, N) に整形して返す
-    neg_pairs = torch.stack([neg_users, neg_items], dim=0)  # shape: (2, N)
-
-    return neg_pairs

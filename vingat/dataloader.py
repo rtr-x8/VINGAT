@@ -9,6 +9,7 @@ from vingat.encoder import StaticEmbeddingLoader
 from typing import Tuple, Optional
 import copy
 from vingat.preprocess import ScalarPreprocess
+from torch_geometric.sampler import NegativeSampling
 
 
 def create_dataloader(
@@ -16,7 +17,8 @@ def create_dataloader(
     batch_size,
     shuffle=True,
     neg_sampling_ratio=1.0,
-    num_workers=0
+    num_workers=0,
+    popularity=None
 ):
     return LinkNeighborLoader(
         data=data,
@@ -39,7 +41,12 @@ def create_dataloader(
         batch_size=batch_size,
         shuffle=shuffle,
         neg_sampling_ratio=neg_sampling_ratio,
-        num_workers=num_workers
+        num_workers=num_workers,
+        neg_sampling=NegativeSampling(
+            mode="triplet",
+            popularity=popularity,
+            amount=1
+        )
     )
 
 
