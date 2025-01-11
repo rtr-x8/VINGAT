@@ -9,6 +9,7 @@ from vingat.encoder import StaticEmbeddingLoader
 from typing import Tuple, Optional
 import copy
 from vingat.preprocess import ScalarPreprocess
+from torch_geometric.sampler import NegativeSampling
 
 
 def create_dataloader(
@@ -17,8 +18,10 @@ def create_dataloader(
     shuffle=True,
     neg_sampling_ratio=1.0,
     num_workers=0,
-    is_abration_cl=False
+    is_abration_cl=False,
+    popularity=None,
 ):
+    sampler = None
     neibors = {
         ('user', 'buys', 'item'): [20, 10],
         ('item', 'bought_by', 'user'): [20, 10],
@@ -33,6 +36,12 @@ def create_dataloader(
     if is_abration_cl:
         del neibors[('intention', 'associated_with', 'item')]
         del neibors[('item', 'has_intention', 'intention')]
+    if popularity is not None:
+        sampler = NegativeSampling(
+            mode="binary",
+            dst_weight=popularity,
+            amount=neg_sampling_ratio
+        )
     return LinkNeighborLoader(
         data=data,
         num_neighbors=neibors,
@@ -44,7 +53,8 @@ def create_dataloader(
         batch_size=batch_size,
         shuffle=shuffle,
         neg_sampling_ratio=neg_sampling_ratio,
-        num_workers=num_workers
+        num_workers=num_workers,
+        neg_sampling=sampler
     )
 
 
