@@ -45,7 +45,7 @@ def create_dataloader(
         neg_sampling=NegativeSampling(
             mode="binary",
             dst_weight=popularity,
-            amount=1
+            amount=neg_sampling_ratio
         )
     )
 
