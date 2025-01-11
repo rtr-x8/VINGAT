@@ -248,6 +248,7 @@ def make_abration_dataloader_wo_cl(
     shuffle=True,
     neg_sampling_ratio=1.0,
     num_workers=0,
+    popularity=None,
 ):
     _data = data.clone()
     del _data["intention"]
@@ -259,7 +260,8 @@ def make_abration_dataloader_wo_cl(
         shuffle=shuffle,
         neg_sampling_ratio=neg_sampling_ratio,
         num_workers=num_workers,
-        is_abration_cl=True)
+        is_abration_cl=True,
+        popularity=popularity)
 
 
 def make_abration_dataloader_wo_cd(
@@ -268,6 +270,7 @@ def make_abration_dataloader_wo_cd(
     shuffle=True,
     neg_sampling_ratio=1.0,
     num_workers=0,
+    popularity=None,
 ) -> Tuple[HeteroData, LinkNeighborLoader]:
     _data = data.clone()
     _data["taste"].x = torch.rand_like(_data["taste"].x, dtype=torch.float32)
@@ -278,4 +281,5 @@ def make_abration_dataloader_wo_cd(
         shuffle=shuffle,
         neg_sampling_ratio=neg_sampling_ratio,
         num_workers=num_workers,
-        is_abration_cl=False)
+        is_abration_cl=False,
+        popularity=popularity)
