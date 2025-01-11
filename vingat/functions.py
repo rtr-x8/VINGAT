@@ -194,19 +194,16 @@ def train_one_epoch_by_negativesampling(
         pos_recipe_embed = recipe_embed[pos_recipe_ids]
         pos_scores = model.predict(pos_user_embed, pos_recipe_embed).squeeze()
 
-        num_neg_samples = len(pos_user_ids)
-
-        neg_item_indices, neg_edge_index = negative_sampling_with_popularity_by_batch(
-            user_ids=pos_user_ids,
-            user_pos_indices=pos_recipe_ids,
-            freq_tensor=freq_tensor,
-            num_neg_samples=num_neg_samples,
-            device=device,
-            candidate_items=None
+        neg_edge_label_index = negative_sampling_with_popularity_by_batch(
+            user_ids=out['user'].id,
+            item_ids=out['item'].id,
+            pos_pairs=edge_label_index,
+            popularity=freq_tensor,
+            oversample_factor=3,
         )
 
-        neg_user_ids_tensor = neg_edge_index[0]
-        neg_recipe_ids_tensor = neg_edge_index[1]
+        neg_user_ids_tensor = neg_edge_label_index[0]
+        neg_recipe_ids_tensor = neg_edge_label_index[1]
 
         # 負例のスコアを計算
         print("user_embed.shape", user_embed.shape)
@@ -668,89 +665,64 @@ def negative_sampling_with_popularity(
 
 
 def negative_sampling_with_popularity_by_batch(
-    user_ids: torch.Tensor,             # shape=(num_pos_samples,)
-    user_pos_indices: torch.Tensor,     # shape=(num_pos_samples,)
-    freq_tensor: torch.Tensor,          # shape=(item_count,), freq^r (GPU上)
-    num_neg_samples: int,
-    device: torch.device = torch.device("cuda"),
-    candidate_items: Optional[torch.Tensor] = None,
+    user_ids: torch.Tensor,    # shape: (U,)
+    item_ids: torch.Tensor,    # shape: (M,)
+    pos_pairs: torch.Tensor,   # shape: (2, N)
+    popularity: torch.Tensor,  # shape: (M,)
+    oversample_factor: int     # オーバーサンプリング倍率(必要に応じて調整)
 ):
-    """
-    バッチ内に含まれるユーザーのみを対象に、一括で負例アイテムをサンプリングする。
-    バッチ内の正例アイテム (user_pos_indices) はネガティブサンプリングの候補から除外し、
-    item の人気度 (freq_tensor) に基づいてサンプリングする。
+    device = pos_pairs.device
+    N = pos_pairs.size(1)  # 正例数
 
-    Args:
-        user_ids (torch.Tensor): バッチ内の正例ユーザーID (GPU上)
-            例: shape=(num_pos_samples,)
-        user_pos_indices (torch.Tensor): バッチ内の正例アイテムID (GPU上)
-            例: shape=(num_pos_samples,)
-        freq_tensor (torch.Tensor): 全アイテムにおける人気度 freq^r (GPU上)
-            shape=(item_count,)
-        num_neg_samples (int): サンプリングしたい負例数
-            （通常はバッチ内の正例ペア数に合わせる）
-        device (torch.device): 実行デバイス
-        candidate_items (Optional[torch.Tensor]): shape=(subset_count,)
-            サンプリング対象のアイテムID一覧 (GPU上).
-            指定がない場合は全アイテム (freq_tensor.shape[0]) からのサンプリングとなる。
+    # 1. 正例ペアをブールマスク (U, M) で表現する
+    #    pos_mask[u, i] = True なら (u, i) が正例ペアとして存在する
+    U = user_ids.shape[0]
+    M = item_ids.shape[0]
 
-    Returns:
-        chosen_indices (torch.Tensor): shape=(num_neg_samples,)
-            サンプリングされた負例アイテムID
-        negative_edge_index (torch.Tensor): shape=(2, num_neg_samples)
-            [[neg_user_ids], [neg_item_ids]] の2次元テンソル
-            - neg_user_ids: バッチ内ユーザーからサンプリングされた user ID
-            - neg_item_ids: popularity に基づきサンプリングされた item ID
-    """
-    # 1) バッチ内に登場するユーザーのユニーク集合を取得
-    unique_users = user_ids.unique()
+    # (U, M) が巨大な場合はメモリに注意
+    pos_mask = torch.zeros((U, M), dtype=torch.bool, device=device)
+    # 以下の1行で一括して True をセットできる (ループ不要)
+    pos_mask[pos_pairs[0], pos_pairs[1]] = True
 
-    # 2) バッチ内アイテムを候補とする
-    if candidate_items is not None:
-        # もし外部からサブセットが指定されているなら、それとの共通集合を取るなど応用も可能
-        candidate_indices = torch.intersect1d(user_pos_indices.unique(), candidate_items.unique())
-    else:
-        candidate_indices = user_pos_indices.unique()
+    # 2. popularity を正規化して確率分布を作る
+    prob_dist = popularity.float()
+    prob_dist = prob_dist / (prob_dist.sum() + 1e-12)  # shape: (M,)
 
-    #    - freq_tensor[candidate_indices] を使って確率分布を作る
-    if candidate_indices.numel() == 0:
-        # バッチ内アイテムが存在しない極端ケース
-        chosen_indices = torch.empty(0, dtype=torch.long, device=device)
-        neg_user_ids = torch.empty(0, dtype=torch.long, device=device)
-        negative_edge_index = torch.stack([neg_user_ids, chosen_indices], dim=0)
-        return chosen_indices, negative_edge_index
+    # 3. 負例ペアを作る
+    #    - pos_pairs[0]  (shape: (N,)) は正例ペアのユーザーインデックス
+    #    - これを oversample_factor 倍に繰り返し、対応するアイテムをまとめてサンプリング
+    #      (例: oversample_factor=5 なら N×5 個のアイテムをまとめてサンプリング)
+    all_users = pos_pairs[0]  # shape: (N,)
 
-    weights = freq_tensor[candidate_indices].clone()
-    sum_w = weights.sum()
-    if sum_w <= 0:
-        # popularity に基づく weight が 0 以下なら一様ランダムでサンプリング
-        if candidate_indices.shape[0] < num_neg_samples:
-            # 必要数が足りない場合はリプレイスでサンプリング
-            chosen_idx = torch.randint(
-                0, candidate_indices.shape[0],
-                size=(num_neg_samples,),
-                device=device
-            )
-        else:
-            # 十分なら置換なしでランダム
-            chosen_idx = torch.randperm(candidate_indices.shape[0], device=device)[:num_neg_samples]
-        chosen_indices = candidate_indices[chosen_idx]
-    else:
-        # popularity に基づく多項分布からサンプリング (replacement=True の想定)
-        probs = weights / sum_w
-        chosen_idx = torch.multinomial(probs, num_neg_samples, replacement=True)
-        chosen_indices = candidate_indices[chosen_idx]
+    # shape: (N * oversample_factor,)
+    repeated_users = all_users.repeat_interleave(oversample_factor)
 
-    # 4) 負例ユーザーをバッチ内ユーザー (unique_users) から一様サンプリング
-    if unique_users.shape[0] == 0:
-        neg_user_ids = torch.empty(0, dtype=torch.long, device=device)
-    else:
-        # 負例数と同じ個数をサンプリング
-        neg_user_ids = unique_users[
-            torch.randint(0, unique_users.shape[0], size=(num_neg_samples,), device=device)
-        ]
+    # popularity に基づいて N*oversample_factor 個のアイテムを一括サンプリング
+    sampled_items = torch.multinomial(
+        prob_dist,
+        N * oversample_factor,
+        replacement=True  # 同じアイテムを何度でも引きうる
+    ).to(device)  # shape: (N * oversample_factor,)
 
-    # 5) negative_edge_index の作成
-    negative_edge_index = torch.stack([neg_user_ids, chosen_indices], dim=0)
+    # 4. (user, item) が正例ペアに含まれていないか、一括でマスクを作る
+    #    pos_mask[u, i] が True のものは正例ペアなので除外
+    valid_mask = ~pos_mask[repeated_users, sampled_items]  # shape: (N * oversample_factor,)
+    valid_indices = torch.nonzero(valid_mask).squeeze(1)   # shape: (*,) True の位置だけ取り出す
 
-    return chosen_indices, negative_edge_index
+    # 5. valid なもののうち先頭 N 件を負例ペアとして採用
+    if valid_indices.numel() < N:
+        # オーバーサンプリングしても十分に確保できなかったらエラー (またはリトライなど)
+        raise RuntimeError(
+            f"Not enough negative samples. Needed={N}, Got={valid_indices.numel()}. "
+            "Consider increasing oversample_factor."
+        )
+
+    chosen = valid_indices[:N]  # shape: (N,)
+
+    neg_users = repeated_users[chosen]  # shape: (N,)
+    neg_items = sampled_items[chosen]   # shape: (N,)
+
+    # 6. (2, N) に整形して返す
+    neg_pairs = torch.stack([neg_users, neg_items], dim=0)  # shape: (2, N)
+
+    return neg_pairs
