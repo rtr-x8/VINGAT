@@ -607,7 +607,6 @@ def negative_sampling_with_popularity(
 
         sum_w = weights.sum()
         if sum_w <= 0:
-            # すべて 0 の場合は一様サンプリングにフォールバック
             # まず正例以外を取得
             item_count = freq_tensor.shape[0]
             all_indices = torch.arange(item_count, device=device)
@@ -706,58 +705,52 @@ def negative_sampling_with_popularity_by_batch(
     # 1) バッチ内に登場するユーザーのユニーク集合を取得
     unique_users = user_ids.unique()
 
-    # 2) バッチに含まれる正例アイテム (user_pos_indices) を除外してウェイトを作成
-    if candidate_items is None:
-        # freq_tensor をクローンし、正例アイテムの weight を 0 にする
-        weights = freq_tensor.clone()
-        weights[user_pos_indices] = 0.0
+    # 2) バッチ内アイテムを候補とする
+    if candidate_items is not None:
+        # もし外部からサブセットが指定されているなら、それとの共通集合を取るなど応用も可能
+        candidate_indices = torch.intersect1d(user_pos_indices.unique(), candidate_items.unique())
     else:
-        # candidate_items だけ weight を残し、それ以外を 0 にする
-        weights = torch.zeros_like(freq_tensor, device=device)
-        weights[candidate_items] = freq_tensor[candidate_items]
-        weights[user_pos_indices] = 0.0
+        candidate_indices = user_pos_indices.unique()
 
+    #    - freq_tensor[candidate_indices] を使って確率分布を作る
+    if candidate_indices.numel() == 0:
+        # バッチ内アイテムが存在しない極端ケース
+        chosen_indices = torch.empty(0, dtype=torch.long, device=device)
+        neg_user_ids = torch.empty(0, dtype=torch.long, device=device)
+        negative_edge_index = torch.stack([neg_user_ids, chosen_indices], dim=0)
+        return chosen_indices, negative_edge_index
+
+    weights = freq_tensor[candidate_indices].clone()
     sum_w = weights.sum()
     if sum_w <= 0:
-        # (バッチの正例以外アイテムを対象とする)
-        item_count = freq_tensor.shape[0]
-        all_indices = torch.arange(item_count, device=device)
-        mask = torch.ones(item_count, dtype=torch.bool, device=device)
-        # バッチ内の正例アイテムを除外
-        mask[user_pos_indices] = False
-        candidate_indices = all_indices[mask]
-
-        if candidate_indices.shape[0] == 0:
-            # 極端ケース：サンプル対象が存在しない
-            chosen_indices = torch.empty(0, dtype=torch.long, device=device)
-        elif candidate_indices.shape[0] < num_neg_samples:
-            # replace=True で許容するか、またはサンプル数を絞る
-            chosen_indices = candidate_indices[torch.randint(
+        # popularity に基づく weight が 0 以下なら一様ランダムでサンプリング
+        if candidate_indices.shape[0] < num_neg_samples:
+            # 必要数が足りない場合はリプレイスでサンプリング
+            chosen_idx = torch.randint(
                 0, candidate_indices.shape[0],
                 size=(num_neg_samples,),
                 device=device
-            )]
+            )
         else:
-            # 十分な候補がある場合はランダムに抽出
-            chosen_indices = candidate_indices[
-                torch.randperm(candidate_indices.shape[0], device=device)[:num_neg_samples]
-            ]
+            # 十分なら置換なしでランダム
+            chosen_idx = torch.randperm(candidate_indices.shape[0], device=device)[:num_neg_samples]
+        chosen_indices = candidate_indices[chosen_idx]
     else:
-        # popularity に基づきサンプリング (multinomial)
+        # popularity に基づく多項分布からサンプリング (replacement=True の想定)
         probs = weights / sum_w
-        chosen_indices = torch.multinomial(probs, num_neg_samples, replacement=True)
+        chosen_idx = torch.multinomial(probs, num_neg_samples, replacement=True)
+        chosen_indices = candidate_indices[chosen_idx]
 
-    # 3) 負例ユーザーをバッチ内ユーザーからサンプリング (一様)
+    # 4) 負例ユーザーをバッチ内ユーザー (unique_users) から一様サンプリング
     if unique_users.shape[0] == 0:
-        # 極端ケース：ユーザーが存在しない
         neg_user_ids = torch.empty(0, dtype=torch.long, device=device)
     else:
-        neg_user_ids = unique_users[torch.randint(
-            0, unique_users.shape[0],
-            size=(num_neg_samples,),
-            device=device
-        )]
+        # 負例数と同じ個数をサンプリング
+        neg_user_ids = unique_users[
+            torch.randint(0, unique_users.shape[0], size=(num_neg_samples,), device=device)
+        ]
 
+    # 5) negative_edge_index の作成
     negative_edge_index = torch.stack([neg_user_ids, chosen_indices], dim=0)
 
     return chosen_indices, negative_edge_index
