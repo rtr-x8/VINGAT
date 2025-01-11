@@ -324,8 +324,8 @@ def train_func(
             optimizer=optimizer,
             criterion=criterion,
             train_loader=train_loader,
-            max_grad_norm=max_grad_norm,
-            freq_tensor=popularities  # For Negative Sampling
+            # max_grad_norm=max_grad_norm,
+            # freq_tensor=popularities  # For Negative Sampling
         )
 
         print("[Train] Node Statics: ")
