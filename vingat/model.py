@@ -393,7 +393,7 @@ class RecommendationModel(nn.Module):
             "image": self.image_encoder(data["image"].org),
             "ingredient": self.ingredient_encoder(data["ingredient"].org),
         })
-        if not self.is_abration_wo_cl:
+        if not self.is_abration_wo_taste:
             data.set_value_dict("x", {
                 "taste": self.taste_encoder(data["taste"].org)
             })
