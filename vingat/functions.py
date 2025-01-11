@@ -180,7 +180,7 @@ def train_one_epoch_by_negativesampling(
 
         neg_mask = batch_data['user', 'buys', 'item'].edge_label == 0
         if neg_mask.sum() > 0:
-            raise ValueError("Negative mask is not empty")
+            raise ValueError("Negative mask is not empty", neg_mask.sum())
 
         # エッジインデックスからノードの埋め込みを取得
         user_embed = user_embeddings[edge_label_index[0]]
