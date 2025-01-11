@@ -209,7 +209,15 @@ def train_one_epoch_by_negativesampling(
         neg_recipe_ids_tensor = neg_edge_index[1]
 
         # 負例のスコアを計算
+        print("user_embed.shape", user_embed.shape)
+        print("user_embed.max()", user_embed.max())
+        print("neg_user_ids_tensor.shape", neg_user_ids_tensor.shape)
+        print("neg_user_ids_tensor.max()", neg_user_ids_tensor.max())
         neg_user_embed = user_embed[neg_user_ids_tensor]
+        print("recipe_embed.shape", recipe_embed.shape)
+        print("recipe_embed.max()", recipe_embed.max())
+        print("neg_recipe_ids_tensor.shape", neg_recipe_ids_tensor.shape)
+        print("neg_recipe_ids_tensor.max()", neg_recipe_ids_tensor.max())
         neg_recipe_embed = recipe_embed[neg_recipe_ids_tensor]
         neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
 
