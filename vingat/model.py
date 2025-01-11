@@ -130,8 +130,8 @@ class MultiModalFusionGAT(nn.Module):
     EDGES = [('taste', 'associated_with', 'item'),
              ('intention', 'associated_with', 'item'),
              ('image', 'associated_with', 'item'),
-             ('user', 'buys', 'item'),
-             ('item', 'bought_by', 'user')]
+             ('item', 'bought_by', 'user'),
+             ('user', 'buys', 'item'),]
 
     def __init__(self, hidden_dim, num_heads, resisual_alpha):
         super().__init__()
