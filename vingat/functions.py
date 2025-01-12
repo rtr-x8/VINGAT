@@ -207,6 +207,8 @@ def train_one_epoch(
         neg_recipe_embed = recipe_embed[neg_mask]
         neg_scores = model.predict(neg_user_embed, neg_recipe_embed).squeeze()
 
+        print(f"pos_score_count: {len(pos_scores)}, neg_score_count: {len(neg_scores)}")
+
         # 損失の計算
         main_loss = criterion(pos_scores, neg_scores, model.parameters())
 
